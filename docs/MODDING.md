@@ -30,7 +30,7 @@ and the first mod.
 | The Automap hooks (see "The Automap" under **UI** below): `ModUI.AutomapMenu` (items for the right-click menu, whose first item is the original's re-plot), `AutomapMarks` (tints, frames and arrows drawn on the map's own squares), `AutomapHover`, `AutomapClick`; `AutomapView` (`ShownLevel`, `DeepestLevel`, `LevelSize`, `ShowLevel`, `Refresh`, `PickSquare`, `CancelPick`, `Picking`), `AutomapSquare`, `AutomapMark`, `AutomapMenuItem`; `ModHost.AutomapHooked`; `AutomapLayout.SquareAt` - API version 13 | built (2026-10-26, for the Cartographer mod) |
 | The Action `CombatRound` (each tick of an engaged fight, before any character acts: synchronous, not awaited) with a `CombatRoundContext` - a token for the fight (not the engine), the monster list as shown (`MonsterGroupView`: slot, fn0E23's name for the one in command, the count only where the list shows one, the name for one; no hit points), each member's order (`CombatOrderView`, with `OpeningChest`) and aim, and the commands a player gives between ticks for a named member: `Order` (f, d, space), `Cast` (a spell made the order, as a spell buffer fires it), `UseItem` (an item at All made the order), `Aim` (a number key 1-4); `ModHost.CombatRound` - API version 14. With no mod hooked no context is made and the round is the original's | built (2026-10-30, for the Auto-combat mod) |
 | The event `Saved` (`SavePoint`, `SavePointKind`: the game's saves are on disk at a save point - the party back in town up the stairs, after the arrival's save; the game ending, Exit to Main Menu or the program closing, after the city's last save; `ModHost.SavePointReached`) and the action `MainMenuOpened` (`MainMenuContext`: the main menu at the program's start, nothing loaded, after its own start-up boxes and before a preloaded character goes in; the saves folder, `Ask` - the game's box over the menu with the mod's buttons, `OriginalBox.Choose` - and `Quit`; `ModHost.MainMenuOpened`, `ModHost.MainMenuHooked`) - API version 15. With no mod listening or hooked, the city and the menu do exactly what they did | built (2026-10-30, for the iCloud Saves mod) |
-| `CombatRoundContext.ByHand(c)` (whether the player has given the member an order by hand in this fight - f, d or space, a number key, Cast or Use, or a spell buffer, with them in command - so a mod giving orders by rules leaves them alone until it ends) and `ModHost.CombatRoundHooked` (the dungeon asks it at each tick first, so with no round hook a tick makes and filters nothing); the main menu shut while `MainMenuOpened` hooks run - API version 16 | built (2026-10-30, from the review of the macOS port) |
+| `CombatRoundContext.ByHand(c)` (whether the player has given the member an order by hand in this fight - f, d or space, a number key, Cast or Use, or a spell buffer, with them in command - so a mod giving orders by rules leaves them alone until it ends) and `ModHost.CombatRoundHooked` (the dungeon asks it at each tick first, so with no round hook a tick makes no list and no context); the main menu shut while `MainMenuOpened` hooks run - API version 16 | built (2026-10-30, from the review of the macOS port) |
 | Events `BlowLanded`, `HitsChanged`, `FightStarted/Ended`; restyling; data and asset mods | not yet |
 
 The Store's alignment choice is back to the original's lock by default; the unlocked choice is in the Quality of Life
@@ -523,8 +523,9 @@ has no `mods/ICloudSaves`, and `tools/pack-release.sh` refuses one. Placed by ha
   removed; the result read back and checked against the snapshot's hash, the backup put back (and checked) if
   anything failed. The restore is marked in `icloudsaves.json` before its first write: a program stopped part-way
   is caught at the next start, nothing is uploaded meanwhile, and the player is asked whether to put the backup back.
-  Kept as they are, the saves may be part one world and part another, so nothing goes up on its own until the player's
-  own Upload now (`SyncState.UploadsHeld`). A restore marks as accounted for only the snapshot restored and older
+  Kept as they are - or the box closed with neither pressed - the saves may be part one world and part another, so
+  nothing goes up on its own until the player's own Upload now (`SyncState.UploadsHeld`). Putting them back copies
+  the saves as they are to a backup first, as before any overwrite. A restore marks as accounted for only the snapshot restored and older
   ones: a newer one (another Mac's, uploaded after the restore was asked for) is still news at the next start, and
   the question offering a restore asked for in a game names it.
   After a restore the program closes (`MainMenuContext.Quit`), so other mods that read their files as they loaded
@@ -853,7 +854,8 @@ public sealed class Entry : Mordor.Modding.IMod
   answering the index pressed or -1; and `Quit()`, ending the program at once - for a mod that changed files other
   mods read as they loaded. Unlike the menu's Exit, `Quit` asks nothing and shows no goodbye box. Closed when the hook
   is done (`Ask` answers -1, `Quit` does nothing). The menu is shut while the hooks run: every button off and its
-  status line reading "Waiting for the mods...", so a hook busy with no box up (reading iCloud, restoring the saves)
+  status line reading "Waiting for the mods..." (Exit alone stays, so a hook that never finishes cannot keep the
+  player in), so a hook busy with no box up (reading iCloud, restoring the saves)
   never has a character loaded under it. The menu asks `ModHost.MainMenuHooked` first: with no mod hooked, nothing is
   awaited and the menu goes on as before.
   Underneath: `CastSpellHere`, `CastAndThrow` and `UseItemSpell` take an optional caster and preset target; a cast
@@ -866,7 +868,8 @@ public sealed class Entry : Mordor.Modding.IMod
   hooks run in load order, each with a context of its own, closed as its hook returns. With none hooked
   (`ModHost.CombatRound`) no context is made, nothing is read and the round is the original's. A hook that
   throws disables its mod. The dungeon asks `ModHost.CombatRoundHooked` first (API version 16), so with none hooked a
-  tick does no more than the original's. `CombatRoundContext`: `Party`/`Members`, `Spells`, `Item`, `Fight` (a token, the same
+  tick makes no list and no context. An order given by hand while monsters only wait counts too: it is carried
+  into the fight they become. `CombatRoundContext`: `Party`/`Members`, `Spells`, `Item`, `Fight` (a token, the same
   object every round of one fight - not the engine, which holds the monsters' hits; that is the API's convention, not
   a wall: mods are trusted code in the game's process, and the delegates here close over the dungeon window, which
   reflection could reach), `Groups` (the monster list

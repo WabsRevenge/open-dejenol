@@ -5984,6 +5984,11 @@ rest still follows.
 - Port necessity: the frame's scroll range holds still while a window's resize grip is held, as it already did for a
   title-bar drag, so shrinking the window that sets the range cannot move the others under the pointer.
 
+**The port's own: the menu waits for the mods - 2026-10-30.** With a mod hooking `MainMenuOpened` (API version 15;
+docs/MODDING.md), the main menu's buttons but Exit are off while its hook runs, and the status line under them
+(the port's own, where a failed delete's message goes) reads "Waiting for the mods...". With no mod hooked the menu
+is the original's.
+
 **The port's own: a mod system, off by default - 2026-09-27.** docs/MODDING.md describes it. Mods live in `mods\`
 folders, are listed on a Mods page reached from a "Mods..." button on the main menu (since 2026-10-04, the one control
 added to frmMenu: the column's 250 x 27 at 175,293, a row above HelpLesson and Options at their pitch, in the gap

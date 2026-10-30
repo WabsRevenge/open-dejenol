@@ -123,8 +123,8 @@ public static partial class ModProbe
               System.Text.RegularExpressions.Regex.IsMatch(tw, @"_preloadTried = true;[^}]*if \(Mordor\.Modding\.ModHost\.Active\.MainMenuHooked\)\s*\{\s*await MenuModsOpened\(\);[^}]*\}\s*if \(Preloaded\(\) is Character ready\)"), true);
         // the menu shut while the hooks run, and opened again however they end (the windows suite
         // drives it with a hook that waits)
-        Check("... with the menu shut while it is awaited, and opened again in a finally",
-              System.Text.RegularExpressions.Regex.IsMatch(tw, @"Task MenuModsOpened\(\)\s*\{\s*Form\.IsEnabled = false;[^}]*try \{ await ModStartup\.MainMenuOpened\(this\); \}\s*finally\s*\{[^}]*Form\.IsEnabled = true;"), true);
+        Check("... with the menu (but Exit) shut while it is awaited, and opened again in a finally",
+              System.Text.RegularExpressions.Regex.IsMatch(tw, @"Task MenuModsOpened\(\)\s*\{\s*var shut = Form\.Children\.OfType<Button>\(\)\.Where\(b => b != ExitBtn[^;]*;\s*foreach \(var b in shut\) b\.IsEnabled = false;[^}]*try \{ await ModStartup\.MainMenuOpened\(this\); \}\s*finally\s*\{[^}]*foreach \(var b in shut\) b\.IsEnabled = true;"), true);
         string city = PortSource("src/Mordor.App", "CityWindow.axaml.cs").Replace("\r\n", "\n");
         Check("the city raises Saved after its arrival save, and after its last save as it closes",
               city.Contains("RefreshSummary(); Save();\n        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 15)\n        Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);")
@@ -621,12 +621,16 @@ public static partial class ModProbe
         marked.RestoreInProgress = backup;
         cut.Sync.SaveState(marked);
         Check("an interrupted restore: the save point uploads nothing", $"{(bool)cut.Sync.AutoUpload().Done}", "False");
+        var cutBackups = cut.Backups();
         menu = new FakeMenu();
         menu.Answers.Enqueue(0); menu.Answers.Enqueue(0);
         Start(Saves(cut, (cloud, null)), menu, cut.Saves);
         Check("the next start asks Put them back or Keep; put back: the saves from before, the mark gone, the program closes",
               $"{menu.Asked[0].EndsWith("[Put them back|Keep the saves as they are]")} {cut.WorldHash() == cutHash} {(string?)cut.Sync.LoadState().RestoreInProgress ?? "none"} {menu.Quits}",
               "True True none 1");
+        var putAside = cut.Backups().Except(cutBackups).ToList();
+        Check("... the saves as they were before putting back copied to a backup first (a game may have been played on them)",
+              $"{putAside.Count} {(putAside.Count == 1 ? File.ReadAllText(Path.Combine(putAside[0], "store.json")) : "")}", "1 {\"half\":1}");
 
         // the same, kept as they are: the half-restored saves differ from the world recorded, so they
         // would look like this Mac's newer world - nothing goes up on its own until Upload now
@@ -641,8 +645,13 @@ public static partial class ModProbe
         menu = new FakeMenu();
         menu.Answers.Enqueue(-1);
         Start(Saves(kept, (cloud, null)), menu, kept.Saves);
-        Check("the box closed with neither pressed: nothing settled, the mark kept, asked again next time",
-              $"{menu.Asked.Count} {(string?)kept.Sync.LoadState().RestoreInProgress == keptBackup} {menu.Quits}", "1 True 0");
+        Check("the box closed with neither pressed: taken as Keep - the mark gone, uploads held, no file changed",
+              $"{menu.Asked.Count} {(string?)kept.Sync.LoadState().RestoreInProgress ?? "none"} {(bool)kept.Sync.LoadState().UploadsHeld} {kept.Read("Anna.json")} {menu.Quits}",
+              "2 none True {\"name\":\"Anna\",\"half\":1} 0");
+        keptMark = kept.Sync.LoadState();
+        keptMark.RestoreInProgress = keptBackup;
+        keptMark.UploadsHeld = false;
+        kept.Sync.SaveState(keptMark);
         menu = new FakeMenu();
         menu.Answers.Enqueue(1); menu.Answers.Enqueue(0);
         dynamic keptSaves = Saves(kept, (cloud, null));

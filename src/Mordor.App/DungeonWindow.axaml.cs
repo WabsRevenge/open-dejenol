@@ -5082,6 +5082,7 @@ public partial class DungeonWindow : Window
         // is written back that way
         foreach (var m in group) m.Hostile = true;
         _combat = new CombatEngine(_party, group, Lookup, _rng, isLair);
+        CarryByHand(group, _combat);
         _combat.UseMonsterTable(_monsters);
         _combat.UseSpellTable(_spells);
         // a monster's kill runs sub0930 (MULTIMOD.BAS:362-363), which in a party is the list's

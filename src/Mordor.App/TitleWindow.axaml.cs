@@ -140,18 +140,21 @@ public partial class TitleWindow : Window
     /// The mods' <see cref="Mordor.Modding.ModActions.MainMenuOpened"/>, with the menu shut while they
     /// run. A hook may be busy with no box up (the iCloud Saves mod reading iCloud, or restoring the
     /// saves); a Play pressed meanwhile would load characters it is still writing, and the game would
-    /// later save its copies over the restored world. So every button is off, and the status line
-    /// says why, until the last hook is done.
+    /// later save its copies over the restored world. So every button but Exit is off, and the
+    /// status line says why, until the last hook is done. Exit stays, so a hook that never finishes
+    /// (iCloud Drive hanging on a read) cannot keep the player in: nothing is loaded to lose, and a
+    /// restore cut short is caught at the next start.
     /// </summary>
     internal async System.Threading.Tasks.Task MenuModsOpened()
     {
-        Form.IsEnabled = false;
+        var shut = Form.Children.OfType<Button>().Where(b => b != ExitBtn && b.IsEnabled).ToList();
+        foreach (var b in shut) b.IsEnabled = false;
         StatusText.Text = MenuWaitText;
         try { await ModStartup.MainMenuOpened(this); }
         finally
         {
             if (StatusText.Text == MenuWaitText) StatusText.Text = "";
-            Form.IsEnabled = true;
+            foreach (var b in shut) b.IsEnabled = true;
             CreateBtn.Focus();
         }
     }

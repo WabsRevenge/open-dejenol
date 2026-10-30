@@ -110,7 +110,7 @@ public partial class DungeonWindow
         if (_combat == null || _combat.IsOver) return;
         try
         {
-            // asked first, so that with no mod hooked the tick makes and filters nothing (API version 16)
+            // asked first, so that with no mod hooked the tick makes no list and no context (API version 16)
             if (!ModHost.Active.CombatRoundHooked) return;
             ModHost.Active.CombatRound(RoundContext);
         }
@@ -139,6 +139,26 @@ public partial class DungeonWindow
     private void MarkByHand()
     {
         if (_combat is { IsOver: false } fight) _byHand.GetOrCreateValue(fight).Add(_ch);
+        // monsters only waiting: kept against that group, and carried into the fight it becomes
+        // (StartCombat), so an aim or a cast given before the monsters move is not replaced either
+        else if (_waiting is { } group)
+        {
+            if (!ReferenceEquals(_byHandWaitingFor, group)) { _byHandWaitingFor = group; _byHandWaiting.Clear(); }
+            _byHandWaiting.Add(_ch);
+        }
+    }
+
+    /// <summary>The waiting group <see cref="_byHandWaiting"/> belongs to; another group forgets them.</summary>
+    private List<CombatMonster>? _byHandWaitingFor;
+    private readonly HashSet<Character> _byHandWaiting = new();
+
+    /// <summary>The fight <paramref name="fight"/> has begun from <paramref name="group"/>: the members marked while it waited go with it.</summary>
+    private void CarryByHand(List<CombatMonster> group, CombatEngine fight)
+    {
+        if (ReferenceEquals(_byHandWaitingFor, group) && _byHandWaiting.Count > 0)
+            _byHand.GetOrCreateValue(fight).UnionWith(_byHandWaiting);
+        _byHandWaitingFor = null;
+        _byHandWaiting.Clear();
     }
 
     /// <summary>A context for one mod's round hook: this fight, the list as shown, the order commands.</summary>

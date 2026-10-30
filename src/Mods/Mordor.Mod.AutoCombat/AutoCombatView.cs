@@ -62,8 +62,7 @@ internal static class AutoCombatView
         var editor = new StackPanel { Spacing = 2, Margin = new Thickness(0, 6, 0, 0) };
         int picked = -1;
         bool building = false;
-        // a new monster name written mid-fight while a drop-down is open waits for it to close:
-        // drawing again would take the open drop-down out of the window
+        // set when a change from outside came while a drop-down was open (Redraw, below)
         bool redrawWhenClosed = false;
         byRules.IsCheckedChanged += (_, _) => Safe("Fight by the rules", () =>
         {
@@ -240,12 +239,19 @@ internal static class AutoCombatView
         // themselves are re-read when a setting changes - the Mods page's toggle, or the rules
         // written by another window
         string partyKey = "";
+        // a change from outside the window (the party, a setting, a monster name seen mid-fight)
+        // while a drop-down is open waits for it to close: drawing would take it out of the window
+        void Redraw()
+        {
+            if (editor.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsDropDownOpen)) { redrawWhenClosed = true; return; }
+            Draw();
+        }
         Action changed = () => Dispatcher.UIThread.Post(() => Safe("redrawing", () =>
         {
             string key = game.Party == null ? "" : string.Join("\n", game.Party.Members.Select(m => m.Name.Trim()));
             if (key == partyKey) return;
             partyKey = key;
-            Draw();
+            Redraw();
         }));
         Action<string> settingChanged = k => Dispatcher.UIThread.Post(() => Safe("redrawing", () =>
         {
@@ -256,12 +262,7 @@ internal static class AutoCombatView
                 rules = now;
                 picked = Math.Min(picked, rules.Count - 1);
             }
-            if (k == AutoCombatMod.SeenKey && editor.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsDropDownOpen))
-            {
-                redrawWhenClosed = true;
-                return;
-            }
-            Draw();
+            Redraw();
         }));
         root.AttachedToVisualTree += (_, _) => Safe("opening", () =>
         {

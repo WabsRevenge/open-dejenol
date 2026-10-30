@@ -250,6 +250,7 @@ public sealed class CloudSaves
         // is not buried by the restore: it stays news, and is offered at the next start
         string newer = st.Candidate is { } c && entry != null && c.CreatedUtc > entry.CreatedUtc
                        && !string.Equals(c.FileName, entry.FileName, StringComparison.OrdinalIgnoreCase)
+                       && !(st.State?.Seen.Contains(c.FileName, StringComparer.OrdinalIgnoreCase) ?? false)
             ? $"\n\niCloud also has a newer world, from {CloudSync.Describe(c)}, saved since you asked. It is not restored now; it is offered again at the next start."
             : "";
         int b = await menu.Ask(Title, $"In your last game you asked to restore the world saved on {what}. Restore it now?{changed}{newer}\n\n{BackupNote(sync)}",
@@ -263,9 +264,10 @@ public sealed class CloudSaves
         int b = await menu.Ask(Title, "The last restore from iCloud was interrupted, so the saves may be part one world and part another. "
                                     + $"This Mac's saves from before it are in {backup}.\n\nPut them back?",
                                "Put them back", "Keep the saves as they are");
-        // the box closed with neither pressed (the program ending under it): nothing settled, so the
-        // mark stays, nothing is uploaded, and the next start asks again
-        if (b < 0) return;
+        // the box closed with neither pressed (its close button, or the program ending under it) is
+        // taken as Keep, the choice that changes no file: the saves are played as they are, and with
+        // uploads held nothing of them goes up on its own. Leaving the mark instead would let a game
+        // be played on them and then be lost to a later Put them back.
         bool ok = await Task.Run(() => { lock (_gate) return sync.SettleInterrupted(putBack: b == 0); });
         string line = !ok ? $"Putting the saves back failed: copy them back by hand from {backup}."
                     : b == 0 ? "The saves from before the interrupted restore were put back."

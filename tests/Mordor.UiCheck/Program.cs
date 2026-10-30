@@ -2398,12 +2398,14 @@ Console.WriteLine("\nthe menu while a mod's start-up hook runs:");
         var form = title.FindControl<Canvas>("Form")!;
         var status = title.FindControl<TextBlock>("StatusText")!;
         var play = title.FindControl<Button>("CreateBtn")!;
-        Check("while the hook runs: the menu is shut, Play with it, and the status line says why",
-              (form.IsEnabled, play.IsEffectivelyEnabled, status.Text), (false, false, TitleWindow.MenuWaitText));
+        var exit = title.FindControl<Button>("ExitBtn")!;
+        int Live() => form.Children.OfType<Button>().Count(b => b.IsEffectivelyEnabled);
+        Check("while the hook runs: every button but Exit off, Play with them, and the status line says why",
+              (Live(), exit.IsEffectivelyEnabled, play.IsEffectivelyEnabled, status.Text), (1, true, false, TitleWindow.MenuWaitText));
         gate.SetResult();
         Pump(); Pump();
         Check("once it is done: the menu is open again and the line cleared",
-              (form.IsEnabled, play.IsEffectivelyEnabled, status.Text), (true, true, ""));
+              (play.IsEffectivelyEnabled, Live() > 1, status.Text), (true, true, ""));
         title.Close(); Pump();
     }
     catch (Exception ex) { Check("the menu's start-up hook could be driven", ex.GetType().Name + ": " + ex.Message, ""); }

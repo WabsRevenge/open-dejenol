@@ -17,7 +17,9 @@
        osx runtime (tools/pack-macos.sh), or a build on a Mac with no runtime given. A Windows
        release (tools/pack-release.sh, win-x64) has no mods\ICloudSaves. A project may set
        ShipICloudSaves itself before importing this: the test suites do, so that the mods suite
-       checks the mod's own code on every system. -->
+       checks the mod's own code on every system. It is worked out where this file is imported, so
+       it sees a runtime given on the command line (-r osx-arm64, as pack-macos.sh gives it), not
+       one a publish profile (.pubxml) would set later; the repository has none. -->
   <PropertyGroup Condition="'$(ShipICloudSaves)' == ''">
     <ShipICloudSaves>false</ShipICloudSaves>
     <ShipICloudSaves Condition="$(RuntimeIdentifier.StartsWith('osx')) Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('OSX')))">true</ShipICloudSaves>

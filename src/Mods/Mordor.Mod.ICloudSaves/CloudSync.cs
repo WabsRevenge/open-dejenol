@@ -86,8 +86,9 @@ public sealed class SyncState
     /// <summary>
     /// Every snapshot this Mac has accounted for - its own uploads, and every other one that was there
     /// at a sync. A snapshot not in it is news from another Mac. Names are not dropped when a snapshot
-    /// vanishes for a while (iCloud evicting it to a placeholder keeps its name), only when this Mac
-    /// deletes one of its own old ones.
+    /// vanishes for a while (iCloud evicting it to a placeholder keeps its name), nor when this Mac
+    /// prunes one of its own; only past <see cref="CloudSync.SeenTrimAt"/> names, and only names found
+    /// missing from iCloud Drive at two trims running.
     /// </summary>
     public List<string> Seen { get; set; } = new();
     /// <summary>
@@ -360,6 +361,8 @@ public sealed class CloudSync
         if (st.Kind != SyncKind.InSync || st.Candidate is not { State: EntryState.Ready } c) return;
         var s = st.State ?? new SyncState();
         s.Snapshot = c.FileName; s.WorldHash = st.Local.WorldHash; s.SyncedUtc = _utcNow(); s.SyncedDevice = c.Device; s.LastAction = "Matched";
+        // a world shown to be a whole snapshot's is no mix of two: nothing to hold
+        s.UploadsHeld = false;
         s.Seen = s.Seen.Union(Readable(st.Cloud), StringComparer.OrdinalIgnoreCase).ToList();
         SaveState(s);
     }
@@ -476,8 +479,9 @@ public sealed class CloudSync
         s.Seen = s.Seen.Union((acknowledgeAll ? st.Cloud.Select(e => e.FileName) : Readable(st.Cloud)).Append(name), StringComparer.OrdinalIgnoreCase).ToList();
         s.Own = s.Own.Append(name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var pruned = PruneOwn(name, s.Own);
+        // the names pruned stay in Seen: were a deletion not to take (iCloud bringing a placeholder
+        // back), the snapshot must not turn into news. The trim drops them once they are gone.
         s.Own.RemoveAll(n => pruned.Contains(n, StringComparer.OrdinalIgnoreCase));
-        s.Seen.RemoveAll(n => pruned.Contains(n, StringComparer.OrdinalIgnoreCase));
         SaveState(s);
         return new SyncResult(true, $"Uploaded to iCloud: {local.Files.Count} files.", name);
     }
@@ -641,7 +645,7 @@ public sealed class CloudSync
 
     /// <summary>
     /// After a restore was interrupted (<see cref="SyncState.RestoreInProgress"/>): put the backup's
-    /// world back, or (<paramref name="putBack"/> false, the player's choice) keep the saves as they
+    /// world back - the saves as they are now backed up first - or (<paramref name="putBack"/> false, the player's choice) keep the saves as they
     /// are, with nothing uploaded on its own until the player's Upload now (<see cref="SyncState.UploadsHeld"/>).
     /// Either way the mark is cleared. True when that was done.
     /// </summary>
@@ -649,7 +653,14 @@ public sealed class CloudSync
     {
         var s = LoadState();
         if (s?.RestoreInProgress is not { } backup) return true;
-        if (putBack && (!Directory.Exists(backup) || !RollBack(backup))) return false;
+        // the saves as they are now are copied first, as before any overwrite: a game may have been
+        // played on them since the restore was cut short
+        if (putBack)
+        {
+            if (!Directory.Exists(backup)) return false;
+            try { Backup(); } catch { return false; }
+            if (!RollBack(backup)) return false;
+        }
         s.RestoreInProgress = null;
         // kept as they are: perhaps half one world, and still recorded as the world from before, so
         // they would go up at the next save point as this Mac's newer world - held until Upload now
