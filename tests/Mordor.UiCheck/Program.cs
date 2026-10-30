@@ -2354,6 +2354,72 @@ Console.WriteLine("\nthe menu's close box:");
     }
 }
 
+// ---- the menu while a mod's MainMenuOpened hook runs (API version 15): shut, its status line
+// saying why, until the hook is done. A hook may be busy with no box up (the iCloud Saves mod
+// restoring the saves), and a Play pressed then would load characters still being written ----
+Console.WriteLine("\nthe menu while a mod's start-up hook runs:");
+{
+    string scratchSaves = Path.Combine(Path.GetTempPath(), "mordor-menuwait-" + Guid.NewGuid().ToString("N")[..8]);
+    var envKeep = new[] { "MORDOR_SAVES", "MORDOR_MUTE", "MORDOR_CRASHLOG" }.ToDictionary(k => k, k => Environment.GetEnvironmentVariable(k));
+    bool limitedWas = LimitedVersion.On;
+    string gameDirWas = TitleWindow.GameDir;
+    var hostWas = Mordor.Modding.ModHost.Active;
+    TitleWindow? title = null;
+    var gate = new TaskCompletionSource();
+    try
+    {
+        Directory.CreateDirectory(scratchSaves);
+        Environment.SetEnvironmentVariable("MORDOR_SAVES", scratchSaves);
+        Environment.SetEnvironmentVariable("MORDOR_MUTE", "1");
+        Environment.SetEnvironmentVariable("MORDOR_CRASHLOG", Path.Combine(scratchSaves, "crash.log"));
+        TitleWindow.GameDir = game;
+        PortSettings.Write(scratchSaves, "NotFirstTime", "True");
+        PortSettings.Write(scratchSaves, "Limited", "True");
+        LimitedVersion.On = false;
+        // a mod of this assembly's own, loaded as the game loads any; it waits on the gate, which it
+        // finds through AppContext since its copy of this assembly has statics of its own
+        string modsRoot = Path.Combine(scratchSaves, "mods"), modDir = Path.Combine(modsRoot, "MenuWait");
+        Directory.CreateDirectory(modDir);
+        File.Copy(typeof(MenuWaitMod).Assembly.Location, Path.Combine(modDir, "MenuWait.dll"), true);
+        File.WriteAllText(Path.Combine(modDir, "mod.json"),
+            "{ \"id\": \"MenuWait\", \"name\": \"MenuWait\", \"version\": \"1\", \"gameVersion\": \"1.1\", "
+            + "\"assembly\": \"MenuWait.dll\", \"entryType\": \"" + typeof(MenuWaitMod).FullName + "\" }");
+        AppContext.SetData(MenuWaitMod.GateKey, gate);
+        var store = new Mordor.Modding.ModSettingsStore(Path.Combine(scratchSaves, "mods.ini"));
+        store.SetEnabled("MenuWait", true);
+        var menuHost = new Mordor.Modding.ModHost(store, _ => { });
+        menuHost.Discover(new[] { modsRoot });
+        menuHost.LoadEnabled();
+        Mordor.Modding.ModHost.Active = menuHost;
+        Check("the stand-in mod hooks MainMenuOpened", menuHost.MainMenuHooked, true);
+
+        title = new TitleWindow();
+        title.Show(); Pump(); Pump();
+        var form = title.FindControl<Canvas>("Form")!;
+        var status = title.FindControl<TextBlock>("StatusText")!;
+        var play = title.FindControl<Button>("CreateBtn")!;
+        Check("while the hook runs: the menu is shut, Play with it, and the status line says why",
+              (form.IsEnabled, play.IsEffectivelyEnabled, status.Text), (false, false, TitleWindow.MenuWaitText));
+        gate.SetResult();
+        Pump(); Pump();
+        Check("once it is done: the menu is open again and the line cleared",
+              (form.IsEnabled, play.IsEffectivelyEnabled, status.Text), (true, true, ""));
+        title.Close(); Pump();
+    }
+    catch (Exception ex) { Check("the menu's start-up hook could be driven", ex.GetType().Name + ": " + ex.Message, ""); }
+    finally
+    {
+        gate.TrySetResult();
+        try { title?.Close(); Pump(); } catch { }
+        AppContext.SetData(MenuWaitMod.GateKey, null);
+        Mordor.Modding.ModHost.Active = hostWas;
+        foreach (var (k, v) in envKeep) Environment.SetEnvironmentVariable(k, v);
+        LimitedVersion.On = limitedWas;
+        TitleWindow.GameDir = gameDirWas;
+        try { Directory.Delete(scratchSaves, true); } catch { }
+    }
+}
+
 // ---- the game's art: read out of the game folder into the cache, and drawn from there ----
 // The port carries no pictures of the game's (docs/GAME_FILES.md); what a window shows is what
 // Art extracted from the player's copy at start.
@@ -2512,6 +2578,19 @@ try { Directory.Delete(artRoot, true); } catch { }
 
 Console.WriteLine(failed == 0 ? "\nall the window checks passed" : $"\n{failed} window check(s) FAILED");
 return failed == 0 ? 0 : 1;
+
+/// <summary>
+/// A mod for the menu check: its MainMenuOpened waits on the check's gate, a TaskCompletionSource
+/// left in AppContext (the mod is a copy of this assembly in a load context of its own, so a static
+/// here would not be the check's).
+/// </summary>
+public sealed class MenuWaitMod : Mordor.Modding.IMod
+{
+    public const string GateKey = "Mordor.UiCheck.MenuWaitGate";
+
+    public void Load(Mordor.Modding.IModContext ctx) =>
+        ctx.Actions.MainMenuOpened = _ => AppContext.GetData(GateKey) is TaskCompletionSource gate ? gate.Task : Task.CompletedTask;
+}
 
 /// <summary>A drag source that only notes what a drag would carry; the headless platform has none.</summary>
 sealed class RecordingDragSource : Avalonia.Input.Platform.IPlatformDragSource

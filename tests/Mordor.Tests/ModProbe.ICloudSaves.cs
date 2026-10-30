@@ -118,9 +118,13 @@ public static partial class ModProbe
         ModHost.Empty().SavePointReached(SavePointKind.GameEnded);
         Check("mods off: a save point tells nobody, and no iCloud folder is made", Directory.Exists(cloud), false);
         Check("the empty host: nothing hooked", ModHost.Empty().MainMenuHooked, false);
+        string tw = PortSource("src/Mordor.App", "TitleWindow.axaml.cs").Replace("\r\n", "\n");
         Check("the menu asks the host first, and awaits the moment only when a mod hooks it, before the preload",
-              PortSource("src/Mordor.App", "TitleWindow.axaml.cs").Replace("\r\n", "\n") is var tw
-              && System.Text.RegularExpressions.Regex.IsMatch(tw, @"_preloadTried = true;[^}]*if \(Mordor\.Modding\.ModHost\.Active\.MainMenuHooked\)\s*\{\s*await ModStartup\.MainMenuOpened\(this\);[^}]*\}\s*if \(Preloaded\(\) is Character ready\)"), true);
+              System.Text.RegularExpressions.Regex.IsMatch(tw, @"_preloadTried = true;[^}]*if \(Mordor\.Modding\.ModHost\.Active\.MainMenuHooked\)\s*\{\s*await MenuModsOpened\(\);[^}]*\}\s*if \(Preloaded\(\) is Character ready\)"), true);
+        // the menu shut while the hooks run, and opened again however they end (the windows suite
+        // drives it with a hook that waits)
+        Check("... with the menu shut while it is awaited, and opened again in a finally",
+              System.Text.RegularExpressions.Regex.IsMatch(tw, @"Task MenuModsOpened\(\)\s*\{\s*Form\.IsEnabled = false;[^}]*try \{ await ModStartup\.MainMenuOpened\(this\); \}\s*finally\s*\{[^}]*Form\.IsEnabled = true;"), true);
         string city = PortSource("src/Mordor.App", "CityWindow.axaml.cs").Replace("\r\n", "\n");
         Check("the city raises Saved after its arrival save, and after its last save as it closes",
               city.Contains("RefreshSummary(); Save();\n        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 15)\n        Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);")

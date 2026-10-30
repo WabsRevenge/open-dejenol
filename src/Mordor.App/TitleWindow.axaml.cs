@@ -123,7 +123,7 @@ public partial class TitleWindow : Window
             // a preloaded character reads the old one. With no mod hooked nothing is asked.
             if (Mordor.Modding.ModHost.Active.MainMenuHooked)
             {
-                await ModStartup.MainMenuOpened(this);
+                await MenuModsOpened();
                 if (!OriginalBox.CanOwn(this)) return;
             }
             if (Preloaded() is Character ready) { _loaded = ready; ShowMenuState(); await Play(ready); }
@@ -135,6 +135,29 @@ public partial class TitleWindow : Window
         Updates.Found += OfferUpdate;
         Closed += (_, _) => Updates.Found -= OfferUpdate;
     }
+
+    /// <summary>
+    /// The mods' <see cref="Mordor.Modding.ModActions.MainMenuOpened"/>, with the menu shut while they
+    /// run. A hook may be busy with no box up (the iCloud Saves mod reading iCloud, or restoring the
+    /// saves); a Play pressed meanwhile would load characters it is still writing, and the game would
+    /// later save its copies over the restored world. So every button is off, and the status line
+    /// says why, until the last hook is done.
+    /// </summary>
+    internal async System.Threading.Tasks.Task MenuModsOpened()
+    {
+        Form.IsEnabled = false;
+        StatusText.Text = MenuWaitText;
+        try { await ModStartup.MainMenuOpened(this); }
+        finally
+        {
+            if (StatusText.Text == MenuWaitText) StatusText.Text = "";
+            Form.IsEnabled = true;
+            CreateBtn.Focus();
+        }
+    }
+
+    /// <summary>The port's own: the status line while the mods' start-up hooks run.</summary>
+    public const string MenuWaitText = "Waiting for the mods...";
 
     /// <summary>The menu's start-up boxes are over: an update found can be offered from now on.</summary>
     private bool _menuReady;

@@ -57,7 +57,7 @@ internal static class ModStartup
     /// <summary>
     /// The mods' moment at the main menu's start (<see cref="ModActions.MainMenuOpened"/>, API version
     /// 15): each gets the saves folder, the game's box over <paramref name="menu"/> and a way to end
-    /// the program, as the menu's Exit ends it.
+    /// the program at once (no question and no goodbye box, unlike the menu's Exit).
     /// </summary>
     public static System.Threading.Tasks.Task MainMenuOpened(Avalonia.Controls.Window menu) =>
         ModHost.Active.MainMenuOpened(() => new MainMenuContext(

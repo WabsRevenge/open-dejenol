@@ -588,7 +588,8 @@ public sealed class ModHost
     /// <see cref="ModActions.MainMenuOpened"/>, as <see cref="EnteredDungeonFromTown"/> - in load
     /// order, each awaited, each with a <see cref="MainMenuContext"/> of its own closed when its hook
     /// is done. With no mod hooked the task is already complete and <paramref name="make"/> is never
-    /// called (the menu asks <see cref="MainMenuHooked"/> first and does nothing otherwise).
+    /// called (the menu asks <see cref="MainMenuHooked"/> first and does nothing otherwise). The menu
+    /// is shut until the task completes, so nothing is loaded and no dungeon entered meanwhile.
     /// </summary>
     public Task MainMenuOpened(Func<MainMenuContext> make) =>
         RunActions("MainMenuOpened", a => a.MainMenuOpened, make, c => c.Close());

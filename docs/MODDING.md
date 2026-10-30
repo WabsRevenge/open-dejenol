@@ -836,9 +836,12 @@ public sealed class Entry : Mordor.Modding.IMod
   welcome) and before a character marked Preload Character goes in. The menu reads its characters only when asked, so
   a mod may change the saves folder here. `MainMenuContext`: `SavesDirectory`; `Ask(title, text, buttons...)`, the
   game's message box over the menu with a button per caption (the first the default, the last Escape's; `OriginalBox.Choose`),
-  answering the index pressed or -1; and `Quit()`, ending the program as the menu's Exit does - for a mod that changed
-  files other mods read as they loaded. Closed when the hook is done (`Ask` answers -1, `Quit` does nothing). The menu
-  asks `ModHost.MainMenuHooked` first: with no mod hooked, nothing is awaited and the menu goes on as before.
+  answering the index pressed or -1; and `Quit()`, ending the program at once - for a mod that changed files other
+  mods read as they loaded. Unlike the menu's Exit, `Quit` asks nothing and shows no goodbye box. Closed when the hook
+  is done (`Ask` answers -1, `Quit` does nothing). The menu is shut while the hooks run: every button off and its
+  status line reading "Waiting for the mods...", so a hook busy with no box up (reading iCloud, restoring the saves)
+  never has a character loaded under it. The menu asks `ModHost.MainMenuHooked` first: with no mod hooked, nothing is
+  awaited and the menu goes on as before.
   Underneath: `CastSpellHere`, `CastAndThrow` and `UseItemSpell` take an optional caster and preset target; a cast
   by hand passes neither, and runs as before. `CheckCast` takes `asCommander` (the "you" wording for any caster)
   and `SpellThrown.Apply`/`Line` an optional `commander` (null: `party.Selected`); a cast by hand is the one in

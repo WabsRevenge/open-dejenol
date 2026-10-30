@@ -484,8 +484,10 @@ public sealed class ModActions
     /// the welcome) and before a character marked Preload Character goes straight in. Nothing of
     /// the saves is held open then - the menu reads its list of characters only when asked - so a
     /// mod may change the saves folder here (the iCloud Saves mod restores a newer world), asking
-    /// the player first through <see cref="MainMenuContext.Ask"/>. With no mod hooked the menu goes on
-    /// at once, as before.
+    /// the player first through <see cref="MainMenuContext.Ask"/>. The menu is shut until every hook
+    /// is done - its buttons off, its status line saying it waits for the mods - so a hook may take
+    /// its time, with or without a box up, and nothing is loaded under it. With no mod hooked the menu
+    /// goes on at once, as before.
     /// </summary>
     public Func<MainMenuContext, Task>? MainMenuOpened { get; set; }
 }
@@ -624,7 +626,7 @@ public sealed class MainMenuContext
 
     /// <param name="savesDirectory">The saves folder in use (<c>Saves.DirFor</c>).</param>
     /// <param name="ask">The game's box over the menu: title, text and button captions in; the button pressed out, or -1.</param>
-    /// <param name="quit">Ends the program, as the menu's Exit does once answered.</param>
+    /// <param name="quit">Ends the program at once.</param>
     public MainMenuContext(string savesDirectory, Func<string, string, IReadOnlyList<string>, Task<int>> ask, Action quit)
     {
         SavesDirectory = savesDirectory; _ask = ask; _quit = quit;
@@ -645,8 +647,9 @@ public sealed class MainMenuContext
         IsOpen && buttons.Length > 0 ? _ask(title, text, buttons) : Task.FromResult(-1);
 
     /// <summary>
-    /// End the program, as the menu's Exit does after its question - for a mod that has changed the
-    /// saves under other mods that read theirs as they loaded, so that everything starts afresh.
+    /// End the program at once - for a mod that has changed the saves under other mods that read
+    /// theirs as they loaded, so that everything starts afresh. Unlike the menu's Exit it asks
+    /// nothing and shows no goodbye box: the mod says what it needs to through <see cref="Ask"/> first.
     /// </summary>
     public void Quit() { if (IsOpen) _quit(); }
 
