@@ -26,9 +26,12 @@ internal sealed class AudioQueueStream : IDisposable
     /// <summary>
     /// The queue refused a buffer - the output device went away, or coreaudiod restarted - so no
     /// more callbacks will come and the effects are silent. <see cref="Audio"/> opens a new stream
-    /// at the next effect.
+    /// at the next effect. Written on the audio queue's callback thread and read on the UI thread,
+    /// hence volatile: the read must see the callback's write, not a value held from before.
     /// </summary>
-    public bool Broken { get; private set; }
+    public bool Broken { get => _broken; private set => _broken = value; }
+
+    private volatile bool _broken;
 
     /// <summary>The callback, kept alive for as long as any queue may call it.</summary>
     private static readonly OutputCallback Callback = OnBufferDone;

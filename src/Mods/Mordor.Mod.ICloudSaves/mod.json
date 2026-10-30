@@ -2,7 +2,7 @@
   "id": "ICloudSaves",
   "name": "iCloud Saves",
   "version": "1.0.0",
-  "author": "OpenDejenol",
+  "author": "gofastercloud",
   "gameVersion": "1.1",
   "assembly": "Mordor.Mod.ICloudSaves.dll",
   "entryType": "Mordor.Mod.ICloudSaves.ICloudSavesMod",
