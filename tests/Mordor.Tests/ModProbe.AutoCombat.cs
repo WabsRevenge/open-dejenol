@@ -10,7 +10,8 @@ using Mordor.Modding;
 /// list shows it), the aim (names, *first/*last/*most/*fewest), what is never sent (a heal or cure,
 /// a spell not known or not affordable, an item below All, a refused cast again in the same fight),
 /// orders already standing not sent again, the dead and the held fast left alone, the master toggle,
-/// "Leave the one in command to me", a closed context, and a mod throwing in the round disabled.
+/// "Leave the one in command to me", a member given an order by hand left alone (API version 16),
+/// CombatRoundHooked, a closed context, and a mod throwing in the round disabled.
 /// The commands themselves are the dungeon window's (DungeonWindow.Mods.cs), not reachable headless.
 /// </summary>
 public static partial class ModProbe
@@ -24,6 +25,8 @@ public static partial class ModProbe
         public Func<Character, Spell, bool> CastWorks = (_, _) => true;
         public Func<Character, InventorySlot, bool> UseWorks = (_, _) => true;
         public readonly HashSet<Character> Opening = new();
+        /// <summary>The members given an order by hand this fight (CombatRoundContext.ByHand, API version 16).</summary>
+        public readonly HashSet<Character> ByHand = new();
         public CombatRoundContext? Last;
 
         public CombatRoundContext Make(Party p, IReadOnlyList<Spell> spells, Func<short, Item?> item, object fight, params MonsterGroupView[] groups) =>
@@ -46,7 +49,8 @@ public static partial class ModProbe
                     Orders[m] = (OrderKind.Spell, 1, slot);
                     return true;
                 },
-                (m, g) => { Calls.Add($"{m.Name} aim {g + 1}"); Aims[m] = g; return true; });
+                (m, g) => { Calls.Add($"{m.Name} aim {g + 1}"); Aims[m] = g; return true; },
+                m => ByHand.Contains(m));
 
         public string Take() { string s = string.Join(" / ", Calls); Calls.Clear(); return s; }
     }
@@ -77,7 +81,20 @@ public static partial class ModProbe
         var kzHost = Host(kzOnly.Path, log, bundled);
         kzHost.CombatRound(() => { made++; return null!; });
         Check("a mod running with no round hook (Kaizen): no context made", made, 0);
-        Check("API version 14 or later (CombatRound arrived in 14)", ModApi.ApiVersion >= 14, true);
+        Check("... and none of those hooks the round (CombatRoundHooked, API version 16)",
+              $"{off.CombatRoundHooked} {ModHost.Empty().CombatRoundHooked} {kzHost.CombatRoundHooked}", "False False False");
+        Check("API version 16 or later (CombatRound arrived in 14; ByHand and CombatRoundHooked in 16)", ModApi.ApiVersion >= 16, true);
+        // the dungeon's side, which no headless check reaches: the tick asks the host first, and the
+        // player's own order gestures mark the one in command
+        string dm = PortSource("src/Mordor.App", "DungeonWindow.Mods.cs").Replace("\r\n", "\n");
+        string dw = PortSource("src/Mordor.App", "DungeonWindow.axaml.cs").Replace("\r\n", "\n");
+        Check("the dungeon's tick asks CombatRoundHooked before making a context",
+              System.Text.RegularExpressions.Regex.IsMatch(dm, @"if \(!ModHost\.Active\.CombatRoundHooked\) return;\s*ModHost\.Active\.CombatRound\(RoundContext\);"), true);
+        Check("... and an order given by hand marks the one in command: the order keys, a number key, Cast and Use",
+              System.Text.RegularExpressions.Regex.IsMatch(dw, @"void SetOrder\([^)]*\)\s*\{[^}]*if \(_combat == null\) return;\s*MarkByHand\(\);")
+              && System.Text.RegularExpressions.Regex.IsMatch(dw, @"_party\.OrderFor\(_ch\)\.Target = index;\s*MarkByHand\(\);")
+              && System.Text.RegularExpressions.Regex.IsMatch(dw, @"Task CastInCombat\([^)]*\)\s*\{[^}]*if \(!MonstersHere\) return;[^}]*MarkByHand\(\);")
+              && System.Text.RegularExpressions.Regex.IsMatch(dw, @"EngageWaiting\(\);\s*if \(_combat == null \|\| _combat\.IsOver\) return;\s*MarkByHand\(\);\s*Sub0BDE\(\);"), true);
 
         // ---- the party, the spells, the item ----
         var guilds = GuildData.All.ToList();
@@ -98,6 +115,7 @@ public static partial class ModProbe
         var host = Host(on.Path, log, bundled);
         var lm = host.Loaded.FirstOrDefault(l => l.Id == "AutoCombat");
         Check("loaded through the host and running", lm?.Running, true);
+        Check("... and it hooks the round", host.CombatRoundHooked, true);
         var st = lm!.Settings;
         void Rules(params string[][] rows) => st.SetRows("Rules", rows);
         //                          Who    PB    PA     SB    SP    G>=  G<=  Shown       Do        What   Targets
@@ -161,6 +179,11 @@ public static partial class ModProbe
         party.Select(0);
         Check("Leave the one in command to me: Brak (in command) is skipped", Round(), "Cas Defend / Hal Defend");
         st.Set("LeaveInCommand", false);
+        f.Orders.Clear();
+        f.ByHand.Add(cas);
+        Check("a member the player gave an order by hand this fight (ByHand): left alone, so the key pressed plays",
+              Round(), "Brak Defend / Hal Defend");
+        f.ByHand.Clear();
 
         // ---- the conditions on the list as shown ----
         f.Orders.Clear(); f.Aims.Clear();

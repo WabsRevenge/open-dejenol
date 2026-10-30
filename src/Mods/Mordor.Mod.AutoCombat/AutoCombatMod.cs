@@ -16,7 +16,8 @@ namespace Mordor.Mod.AutoCombat;
 /// hit points, which the game does not show, nor what an unidentified group really is), it acts
 /// only in an engaged fight and only at the round's tick (at most one decision per member per
 /// round), and it never starts a fight. Off until ticked on the Mods page, and then "Fight by the
-/// rules" is off until ticked; both read live at each round.
+/// rules" is off until ticked, on the Mods page or in the mod's own window; both read live at each
+/// round. A member the player gives an order by hand is left to them until the fight ends.
 ///
 /// The rules are a list setting (<c>ModSettings.GetRows</c>, key <see cref="RulesKey"/>, in
 /// settings.ini), edited in the Auto-combat window (<see cref="AutoCombatView"/>, a toolbar button).
@@ -80,13 +81,17 @@ public sealed class AutoCombatMod : IMod, IModLifecycle
         ctx.Log.Info("ready");
     }
 
-    /// <summary>One round: decide for every member, then give each decision through the game.</summary>
+    /// <summary>
+    /// One round: decide for every member, then give each decision through the game. A member the
+    /// player gave an order by hand this fight is left out (<see cref="CombatRoundContext.ByHand"/>,
+    /// API version 16), so the key pressed plays; as is the one in command, when asked.
+    /// </summary>
     public void Round(CombatRoundContext round, IReadOnlyList<Rule> rules, bool leaveInCommand)
     {
         if (!ReferenceEquals(_fight, round.Fight)) { _fight = round.Fight; _refused.Clear(); }
         var selected = round.Party.Selected;
         var decisions = RuleEngine.Decide(rules, round, (m, k) => _refused.Contains((m, k)),
-                                          leaveInCommand ? m => ReferenceEquals(m, selected) : null);
+                                          m => round.ByHand(m) || (leaveInCommand && ReferenceEquals(m, selected)));
         foreach (var d in decisions) RuleEngine.Apply(d, round, (m, k) => _refused.Add((m, k)));
     }
 

@@ -4,6 +4,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Mordor.Core;
 using Mordor.Modding;
 
@@ -29,7 +30,8 @@ internal static class AutoCombatView
 
     /// <summary>The window's line under the heading.</summary>
     public const string Help = "Each round of a fight, every member takes the order of the first rule that fits them. "
-                             + "Orders go through the game's own keys and Cast; heals and cures cannot be cast in a fight.";
+                             + "Orders go through the game's own keys and Cast; heals and cures cannot be cast in a fight. "
+                             + "A member you give an order by hand is left to you until the fight ends.";
 
     private const string Unset = "(not asked)";
     private const string Choose = "(choose)";
@@ -51,12 +53,23 @@ internal static class AutoCombatView
         var off = new TextBlock
         {
             Foreground = Warn, TextWrapping = TextWrapping.Wrap, IsVisible = false,
-            Text = "\"Fight by the rules\" is off: the rules are kept, and used once it is ticked on the Mods page.",
+            Text = "\"Fight by the rules\" is off: the rules are kept, and used once it is ticked.",
         };
+        // the switch itself, here as on the Mods page (the same setting), so the rules can be stopped
+        // mid-fight with one click; read at each round, so it takes effect at the next tick
+        var byRules = new CheckBox { Content = "Fight by the rules", Focusable = false, Margin = new Thickness(0, 2, 0, 2) };
         var rowsPanel = new StackPanel();
         var editor = new StackPanel { Spacing = 2, Margin = new Thickness(0, 6, 0, 0) };
         int picked = -1;
         bool building = false;
+        // a new monster name written mid-fight while a drop-down is open waits for it to close:
+        // drawing again would take the open drop-down out of the window
+        bool redrawWhenClosed = false;
+        byRules.IsCheckedChanged += (_, _) => Safe("Fight by the rules", () =>
+        {
+            if (building) return;
+            settings.Set(AutoCombatMod.FightByRules, byRules.IsChecked == true);
+        });
 
         List<Rule> rules = AutoCombatMod.Read(settings);
 
@@ -102,6 +115,12 @@ internal static class AutoCombatView
             var list = options.ToList();
             if (current != "" && !list.Contains(current, StringComparer.OrdinalIgnoreCase)) list.Insert(Math.Min(1, list.Count), current);
             var c = new ComboBox { ItemsSource = list, Focusable = false, MinWidth = 120, Margin = new Thickness(0, 0, 4, 0) };
+            c.DropDownClosed += (_, _) =>
+            {
+                if (!redrawWhenClosed) return;
+                redrawWhenClosed = false;
+                Dispatcher.UIThread.Post(() => Safe("redrawing", Draw));
+            };
             c.SelectedItem = list.FirstOrDefault(x => string.Equals(x, current, StringComparison.OrdinalIgnoreCase)) ?? list.FirstOrDefault();
             c.SelectionChanged += (_, _) => Safe("a choice", () =>
             {
@@ -172,6 +191,7 @@ internal static class AutoCombatView
             building = true;
             try
             {
+                byRules.IsChecked = settings.Get(AutoCombatMod.FightByRules);
                 off.IsVisible = !settings.Get(AutoCombatMod.FightByRules);
                 rowsPanel.Children.Clear();
                 if (rules.Count == 0) rowsPanel.Children.Add(new TextBlock { Foreground = Faint, Text = "No rules yet." });
@@ -213,7 +233,7 @@ internal static class AutoCombatView
             },
         };
 
-        var body = new StackPanel { Spacing = 2, Margin = new Thickness(8, 6, 8, 6), Children = { title, help, off, rowsPanel, buttons, editor } };
+        var body = new StackPanel { Spacing = 2, Margin = new Thickness(8, 6, 8, 6), Children = { title, help, byRules, off, rowsPanel, buttons, editor } };
         var root = new ScrollViewer { Content = body, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
 
         // the editor's lists follow the party (a member joining, the one in command); the rules
@@ -235,6 +255,11 @@ internal static class AutoCombatView
                 if (now.Select(x => string.Join("|", x.ToCells())).SequenceEqual(rules.Select(x => string.Join("|", x.ToCells())))) return;
                 rules = now;
                 picked = Math.Min(picked, rules.Count - 1);
+            }
+            if (k == AutoCombatMod.SeenKey && editor.GetVisualDescendants().OfType<ComboBox>().Any(c => c.IsDropDownOpen))
+            {
+                redrawWhenClosed = true;
+                return;
             }
             Draw();
         }));

@@ -539,7 +539,7 @@ public sealed class CombatRoundContext
     /// <param name="party">The party, in its order.</param>
     /// <param name="spells">Every spell (MDATA2).</param>
     /// <param name="item">The item table (MDATA3), by id.</param>
-    /// <param name="fight">An object standing for the fight: the same for every round of one fight. Never the engine.</param>
+    /// <param name="fight">An object standing for the fight: the same for every round of one fight. Not the engine.</param>
     /// <param name="groups">The monster list as shown, the groups still standing.</param>
     /// <param name="orderOf">A member's standing order.</param>
     /// <param name="aimedAt">The slot a member is aiming at, or null.</param>
@@ -547,15 +547,19 @@ public sealed class CombatRoundContext
     /// <param name="cast">Cast for a member with monsters engaged: the spell becomes the order.</param>
     /// <param name="useItem">Use for a member on a pack slot whose item holds a spell: it becomes the order.</param>
     /// <param name="aim">A number key for a member: aim at the slot.</param>
+    /// <param name="byHand">Whether the player has given a member an order by hand this fight (API version 16); null for nobody.</param>
     public CombatRoundContext(Party party, IReadOnlyList<Spell> spells, Func<short, Item?> item, object fight,
                               IReadOnlyList<MonsterGroupView> groups, Func<Character, CombatOrderView> orderOf,
                               Func<Character, int?> aimedAt, Func<Character, OrderKind, bool> order,
                               Func<Character, Spell, bool> cast, Func<Character, InventorySlot, bool> useItem,
-                              Func<Character, int, bool> aim)
+                              Func<Character, int, bool> aim, Func<Character, bool>? byHand = null)
     {
         Party = party; Spells = spells; Item = item; Fight = fight; Groups = groups;
         _orderOf = orderOf; _aimed = aimedAt; _order = order; _cast = cast; _use = useItem; _aim = aim;
+        _byHand = byHand ?? (_ => false);
     }
+
+    private readonly Func<Character, bool> _byHand;
 
     /// <summary>The party, in order: hits, spell points, guilds, packs - what the Party window shows.</summary>
     /// <remarks>
@@ -572,7 +576,10 @@ public sealed class CombatRoundContext
     public Func<short, Item?> Item { get; }
     /// <summary>
     /// An object standing for the fight: the same every round of one fight, another for the next. It is
-    /// only a token - the engine, which holds the monsters' hits, is never handed out.
+    /// only a token: nothing in this context hands out the engine, which holds the monsters' hits.
+    /// That is the API's promise, not a wall - a mod is trusted code in the game's own process, and
+    /// one that went looking by reflection through the delegates here could reach the game's
+    /// objects. Mods are held to read only what this context gives.
     /// </summary>
     public object Fight { get; }
     /// <summary>The monster list as shown, in slot order: only groups with someone standing.</summary>
@@ -586,6 +593,13 @@ public sealed class CombatRoundContext
     public CombatOrderView OrderOf(Character c) => _orderOf(c);
     /// <summary>The slot (0-3) the member is aiming at, or null.</summary>
     public int? AimedAt(Character c) => _aimed(c);
+    /// <summary>
+    /// Whether the player has given this member an order by hand in this fight (API version 16): f, d
+    /// or space, a number key's aim, Cast or Use, or a spell buffer, pressed while the member was in
+    /// command. A mod giving orders by rules leaves such a member alone until the fight ends, so a
+    /// key pressed is never replaced before it plays.
+    /// </summary>
+    public bool ByHand(Character c) => _byHand(c);
 
     /// <summary>
     /// f, d or space: the member's order becomes Fight, Defend (refused while held fast, as the d key) or

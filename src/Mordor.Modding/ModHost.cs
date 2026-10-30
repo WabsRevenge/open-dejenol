@@ -584,6 +584,13 @@ public sealed class ModHost
     }
 
     /// <summary>
+    /// Whether any running mod hooks <see cref="ModActions.CombatRound"/> (API version 16). The dungeon
+    /// asks it at each tick before anything else, so with none hooked a round costs nothing more than
+    /// the original's.
+    /// </summary>
+    public bool CombatRoundHooked => Live.Any(lm => lm.Context.Actions.CombatRound != null);
+
+    /// <summary>
     /// The main menu is up at the program's start, nothing loaded (API version 15): each live mod's
     /// <see cref="ModActions.MainMenuOpened"/>, as <see cref="EnteredDungeonFromTown"/> - in load
     /// order, each awaited, each with a <see cref="MainMenuContext"/> of its own closed when its hook

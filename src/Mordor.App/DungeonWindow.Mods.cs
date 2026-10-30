@@ -108,15 +108,38 @@ public partial class DungeonWindow
     private void BeforeCombatRound()
     {
         if (_combat == null || _combat.IsOver) return;
-        try { ModHost.Active.CombatRound(RoundContext); }
+        try
+        {
+            // asked first, so that with no mod hooked the tick makes and filters nothing (API version 16)
+            if (!ModHost.Active.CombatRoundHooked) return;
+            ModHost.Active.CombatRound(RoundContext);
+        }
         catch (System.Exception ex) { CrashLog.Note($"dungeon: the combat round hook failed - {ex.GetType().Name}: {ex.Message}"); }
     }
 
     /// <summary>
-    /// The fight as a mod sees it: an object of its own per fight, never the engine itself - the
-    /// engine holds the monsters' hits and what each really is, which the game does not show.
+    /// The fight as a mod sees it: an object of its own per fight, not the engine itself - the
+    /// engine holds the monsters' hits and what each really is, which the game does not show. This
+    /// is the API's convention, not a wall: the context's delegates close over this window, so a mod
+    /// that went digging by reflection could reach it. Mods are trusted code in the game's process.
     /// </summary>
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<CombatEngine, object> _fightTokens = new();
+
+    /// <summary>
+    /// The members the player gave an order by hand in each fight (<see cref="CombatRoundContext.ByHand"/>,
+    /// API version 16): marked by <see cref="MarkByHand"/>, gone with the fight.
+    /// </summary>
+    private readonly System.Runtime.CompilerServices.ConditionalWeakTable<CombatEngine, HashSet<Character>> _byHand = new();
+
+    /// <summary>
+    /// The one in command was given an order by hand - an order key, a number key, Cast, Use or a
+    /// spell buffer - in the fight on: a mod giving orders by rules leaves them alone until it ends.
+    /// Nothing else reads it, so the round is the original's whatever is marked.
+    /// </summary>
+    private void MarkByHand()
+    {
+        if (_combat is { IsOver: false } fight) _byHand.GetOrCreateValue(fight).Add(_ch);
+    }
 
     /// <summary>A context for one mod's round hook: this fight, the list as shown, the order commands.</summary>
     private CombatRoundContext RoundContext()
@@ -127,7 +150,8 @@ public partial class DungeonWindow
         return new CombatRoundContext(_party, _spells, id => items.TryGetValue(id, out var it) ? it : null, _fightTokens.GetValue(fight, _ => new object()), ShownGroups(fight),
             m => RoundOrderOf(fight, m), m => AimedSlot(fight, m),
             (m, kind) => ModOrder(fight, m, kind), (m, s) => ModCastOrder(fight, m, s), (m, slot) => ModItemOrder(fight, m, slot),
-            (m, slot) => ModAim(fight, m, slot));
+            (m, slot) => ModAim(fight, m, slot),
+            m => _byHand.TryGetValue(fight, out var marked) && marked.Contains(m));
     }
 
     /// <summary>

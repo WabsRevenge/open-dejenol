@@ -4861,6 +4861,7 @@ public partial class DungeonWindow : Window
         int index = all.IndexOf(first);
         if (index < 0) return;
         _party.OrderFor(_ch).Target = index;
+        MarkByHand();
         // and nothing is said: "CombatOrders(Me).M547A = n : monShowCursor" and no more. "X takes
         // aim at Y." was this port's.
         ShowCursor();
@@ -5046,6 +5047,7 @@ public partial class DungeonWindow : Window
         // an order given to monsters who have not moved yet is what starts the fight
         if (kind != OrderKind.None) EngageWaiting();
         if (_combat == null) return;
+        MarkByHand();
         var o = _party.OrderFor(_ch);
         o.Kind = kind;
         o.SpellId = spellId;
@@ -5313,6 +5315,8 @@ public partial class DungeonWindow : Window
     {
         await System.Threading.Tasks.Task.CompletedTask;
         if (!MonstersHere) return;
+        // tried by hand, refused or not: the rules leave the one in command alone this fight
+        MarkByHand();
         // cmdCast_Click (FRMCHAR3.BAS:174-184) has no paralysis test. A known spell becomes the order
         // first (M56C4 = l00E0) and only then does mdrcharCheckCast run - and a refusal takes the
         // order away again (see RefusedOrder)
@@ -5347,6 +5351,7 @@ public partial class DungeonWindow : Window
         // "Foes(0).Engaged = mc0138 : sub0BDE -1" (MAINMOD2.BAS:6131-6132)
         EngageWaiting();
         if (_combat == null || _combat.IsOver) return;
+        MarkByHand();
         Sub0BDE();   // already engaged, sub0BDE runs all the same (6132)
 
         // then the item becomes the order, not a cast: "Att = False : M56C4 = l0862 + 1000 :

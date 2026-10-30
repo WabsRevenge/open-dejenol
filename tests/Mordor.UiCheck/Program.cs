@@ -2420,6 +2420,47 @@ Console.WriteLine("\nthe menu while a mod's start-up hook runs:");
     }
 }
 
+// ---- the Auto-combat window's own "Fight by the rules" (the review of the macOS port): the same
+// setting as the Mods page's, so the rules can be stopped mid-fight with one click ----
+Console.WriteLine("\nthe Auto-combat window's Fight by the rules:");
+{
+    string scratch = Path.Combine(Path.GetTempPath(), "mordor-autocombat-" + Guid.NewGuid().ToString("N")[..8]);
+    Window? holder = null;
+    try
+    {
+        Directory.CreateDirectory(scratch);
+        string? root = AppContext.BaseDirectory;
+        while (root != null && !File.Exists(Path.Combine(root, "Mordor.sln"))) root = Path.GetDirectoryName(root.TrimEnd(Path.DirectorySeparatorChar));
+        string? modsDir = root == null ? null : new[] { "Release", "Debug" }
+            .Select(c => Path.Combine(root, "src/Mordor.App", "bin", c, "net8.0", "mods"))
+            .FirstOrDefault(d => Directory.Exists(Path.Combine(d, "AutoCombat")));
+        if (modsDir == null) throw new DirectoryNotFoundException("no build of Mordor.App with the Auto-combat mod");
+        var store = new Mordor.Modding.ModSettingsStore(Path.Combine(scratch, "settings.ini"));
+        store.SetEnabled("AutoCombat", true);
+        var acHost = new Mordor.Modding.ModHost(store, _ => { });
+        acHost.Discover(new[] { modsDir });
+        acHost.LoadEnabled();
+        var ac = acHost.Loaded.Single(l => l.Id == "AutoCombat");
+        var view = (Control)ac.UI.Windows.Single(w => w.Title == "Auto-combat").Build();
+        holder = new Window { Width = 520, Height = 600, Content = view };
+        holder.Show(); Pump();
+        var box = view.GetVisualDescendants().OfType<CheckBox>().Single(c => Equals(c.Content, "Fight by the rules"));
+        bool WarnShown() => view.GetVisualDescendants().OfType<TextBlock>().Any(t => t.IsEffectivelyVisible && (t.Text ?? "").StartsWith("\"Fight by the rules\" is off"));
+        Check("off by default: the box unticked, the warning shown, the box not focusable (a mod window takes no keys)",
+              (box.IsChecked == true, WarnShown(), box.Focusable), (false, true, false));
+        box.IsChecked = true; Pump(); Pump();
+        Check("ticked in the window: the setting on, the warning gone", (ac.Settings.Get("FightByRules"), WarnShown()), (true, false));
+        ac.Settings.Set("FightByRules", false); Pump(); Pump();
+        Check("unticked on the Mods page (the setting): the window's box follows", (box.IsChecked == true, WarnShown()), (false, true));
+    }
+    catch (Exception ex) { Check("the Auto-combat window could be driven", ex.GetType().Name + ": " + ex.Message, ""); }
+    finally
+    {
+        try { holder?.Close(); Pump(); } catch { }
+        try { Directory.Delete(scratch, true); } catch { }
+    }
+}
+
 // ---- the game's art: read out of the game folder into the cache, and drawn from there ----
 // The port carries no pictures of the game's (docs/GAME_FILES.md); what a window shows is what
 // Art extracted from the player's copy at start.

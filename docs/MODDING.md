@@ -28,8 +28,9 @@ and the first mod.
 | Settings windows (mod.json `settingsWindow`: a title and groups of settings by key, `ModSettingsWindowSpec`; the Mods page shows a **Settings...** button for the mod in place of its settings, on both pages and while the mod is off, one window per mod; `ModHost.MigrateSettings` runs the mod's static `Migrate(ModSettings)` first; `ModSettingsWindow` draws each group with a heading box that switches its toggles together, shown mixed when they differ) - API version 11 | built (2026-10-25, for the Quality of Life mod) |
 | `PartyGoldTo` and `CombatEngine.GoldTo` removed (the dungeon's gold is always monGetGold's even share, with any mod); `TownIncomeToBank` replaced by `TownIncomeBank` (the member whose account a sale's gold goes into, or null for the seller's hand; `TownIncome.Party`); `TownArrivalAction.PartyPool` with `TownArrivalAnswer.PoolTo` (the Bank's Party Pool into one member's account, `Party.PoolOnHandToBank`); `ShortfallAnswer.From` (who covers a shortfall, in order) and a shortfall now covered from the givers' bank accounts only; `ModChoiceSpec.OptionDescriptions` (a tooltip per option) - API version 12 | built (2026-10-25, for the Quality of Life mod's Town gold) |
 | The Automap hooks (see "The Automap" under **UI** below): `ModUI.AutomapMenu` (items for the right-click menu, whose first item is the original's re-plot), `AutomapMarks` (tints, frames and arrows drawn on the map's own squares), `AutomapHover`, `AutomapClick`; `AutomapView` (`ShownLevel`, `DeepestLevel`, `LevelSize`, `ShowLevel`, `Refresh`, `PickSquare`, `CancelPick`, `Picking`), `AutomapSquare`, `AutomapMark`, `AutomapMenuItem`; `ModHost.AutomapHooked`; `AutomapLayout.SquareAt` - API version 13 | built (2026-10-26, for the Cartographer mod) |
-| The Action `CombatRound` (each tick of an engaged fight, before any character acts: synchronous, not awaited) with a `CombatRoundContext` - a token for the fight (never the engine), the monster list as shown (`MonsterGroupView`: slot, fn0E23's name for the one in command, the count only where the list shows one, the name for one; no hit points), each member's order (`CombatOrderView`, with `OpeningChest`) and aim, and the commands a player gives between ticks for a named member: `Order` (f, d, space), `Cast` (a spell made the order, as a spell buffer fires it), `UseItem` (an item at All made the order), `Aim` (a number key 1-4); `ModHost.CombatRound` - API version 14. With no mod hooked no context is made and the round is the original's | built (2026-10-30, for the Auto-combat mod) |
+| The Action `CombatRound` (each tick of an engaged fight, before any character acts: synchronous, not awaited) with a `CombatRoundContext` - a token for the fight (not the engine), the monster list as shown (`MonsterGroupView`: slot, fn0E23's name for the one in command, the count only where the list shows one, the name for one; no hit points), each member's order (`CombatOrderView`, with `OpeningChest`) and aim, and the commands a player gives between ticks for a named member: `Order` (f, d, space), `Cast` (a spell made the order, as a spell buffer fires it), `UseItem` (an item at All made the order), `Aim` (a number key 1-4); `ModHost.CombatRound` - API version 14. With no mod hooked no context is made and the round is the original's | built (2026-10-30, for the Auto-combat mod) |
 | The event `Saved` (`SavePoint`, `SavePointKind`: the game's saves are on disk at a save point - the party back in town up the stairs, after the arrival's save; the game ending, Exit to Main Menu or the program closing, after the city's last save; `ModHost.SavePointReached`) and the action `MainMenuOpened` (`MainMenuContext`: the main menu at the program's start, nothing loaded, after its own start-up boxes and before a preloaded character goes in; the saves folder, `Ask` - the game's box over the menu with the mod's buttons, `OriginalBox.Choose` - and `Quit`; `ModHost.MainMenuOpened`, `ModHost.MainMenuHooked`) - API version 15. With no mod listening or hooked, the city and the menu do exactly what they did | built (2026-10-30, for the iCloud Saves mod) |
+| `CombatRoundContext.ByHand(c)` (whether the player has given the member an order by hand in this fight - f, d or space, a number key, Cast or Use, or a spell buffer, with them in command - so a mod giving orders by rules leaves them alone until it ends) and `ModHost.CombatRoundHooked` (the dungeon asks it at each tick first, so with no round hook a tick makes and filters nothing); the main menu shut while `MainMenuOpened` hooks run - API version 16 | built (2026-10-30, from the review of the macOS port) |
 | Events `BlowLanded`, `HitsChanged`, `FightStarted/Ended`; restyling; data and asset mods | not yet |
 
 The Store's alignment choice is back to the original's lock by default; the unlocked choice is in the Quality of Life
@@ -378,18 +379,19 @@ enlarged, and at 125% (the tint filling exactly the square's inside, the edge li
 
 ### The Auto-combat mod (`src/Mods/Mordor.Mod.AutoCombat`, id `AutoCombat`)
 
-Version 1.0.0 (2026-10-30, the user's request: "an auto-combat mod, similar to Kaizen ... basic rules: if an enemy
-is in melee range and no party member is injured and at least X action points are available, do Y; target the
-enemy with lowest HP; target healers first, then casters, then melee"). Off until ticked on the Mods page, and then
-both toggles are off until ticked, each read at every round: **Fight by the rules** (`FightByRules`) and **Leave the
-one in command to me** (`LeaveInCommand`: the character in command keeps the orders given by hand). It gives each
-member's fight order every round of an engaged fight, through `ModActions.CombatRound` (API version 14), and does
+Version 1.0.0 (2026-10-30). Off until ticked on the Mods page, and then both toggles are off until ticked, each
+read at every round: **Fight by the rules** (`FightByRules`, also a checkbox at the top of the Auto-combat window, so
+the rules can be stopped mid-fight with one click) and **Leave the one in command to me** (`LeaveInCommand`: the
+character in command is never given an order by the rules). A member the player gives an order by hand - f, d or
+space, a number key, Cast, Use or a spell buffer, with them in command - is left alone until the fight ends
+(`CombatRoundContext.ByHand`, API version 16), so the key pressed plays rather than being replaced at the next tick.
+It gives each member's fight order every round of an engaged fight, through `ModActions.CombatRound` (API version 14), and does
 nothing else: no fight is started by it (it is asked only at the tick of an engaged fight, never while monsters
 only wait, never for the free round a step gives them), nothing is cast or used there and then (an order is what
 the round then plays, as by hand), and every order goes through the game's own keys and Cast, so its checks,
 refusals and lines are the game's.
 
-**What the game has, and what the user's examples become.** The original's combat is a one-second real-time
+**What the game has, and how the rules asked for map onto it.** The original's combat is a one-second real-time
 round in which each member carries out a standing order - None, Fight, Defend, or a spell recast each round
 (`.Att`, `.M56C4`, FIDELITY.md "Standing orders") - aimed at one of up to four monster groups (`M547A`, the
 number keys). So a rule's action is one of those orders and its target a group:
@@ -863,12 +865,16 @@ public sealed class Entry : Mordor.Modding.IMod
   acts - not awaited, not for monsters only waiting, not for the free round a step gives them. The live mods'
   hooks run in load order, each with a context of its own, closed as its hook returns. With none hooked
   (`ModHost.CombatRound`) no context is made, nothing is read and the round is the original's. A hook that
-  throws disables its mod. `CombatRoundContext`: `Party`/`Members`, `Spells`, `Item`, `Fight` (a token, the same
-  object every round of one fight - never the engine, which holds the monsters' hits), `Groups` (the monster list
+  throws disables its mod. The dungeon asks `ModHost.CombatRoundHooked` first (API version 16), so with none hooked a
+  tick does no more than the original's. `CombatRoundContext`: `Party`/`Members`, `Spells`, `Item`, `Fight` (a token, the same
+  object every round of one fight - not the engine, which holds the monsters' hits; that is the API's convention, not
+  a wall: mods are trusted code in the game's process, and the delegates here close over the dungeon window, which
+  reflection could reach), `Groups` (the monster list
   as shown: `MonsterGroupView(Slot, Name, Count, Singular)` - the slot 0-3 a number key aims at, fn0E23's name for
   the one in command, the count only where the list shows one, and the same name for one; never hit points, never
   what an unidentified or unseen group is), `KnownSpells(c)`, `OrderOf(c)` (`CombatOrderView`: the order kind, its
-  spell, an item order's slot, and `OpeningChest`, the Option column's "Open") and `AimedAt(c)`; and the commands a
+  spell, an item order's slot, and `OpeningChest`, the Option column's "Open"), `AimedAt(c)` and `ByHand(c)` (API
+  version 16: the player gave the member an order by hand in this fight); and the commands a
   player gives between ticks for a named member, standing for "switch to them and press it": `Order(c,
   None/Fight/Defend)` (space, f, d - d refused for one held fast, as the key; a chest count called off first, as
   the keys do), `Cast(c, spell)` (the spell made the order as a spell buffer fires it, the chest count called off,

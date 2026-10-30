@@ -2,7 +2,7 @@
   "id": "AutoCombat",
   "name": "Auto-combat",
   "version": "1.0.0",
-  "author": "OpenDejenol",
+  "author": "gofastercloud",
   "gameVersion": "1.1",
   "assembly": "Mordor.Mod.AutoCombat.dll",
   "entryType": "Mordor.Mod.AutoCombat.AutoCombatMod",
@@ -17,7 +17,7 @@
     {
       "key": "LeaveInCommand",
       "label": "Leave the one in command to me",
-      "description": "The character in command keeps the orders you give them by hand.",
+      "description": "The rules give the character in command no orders at all.",
       "default": false
     }
   ]
