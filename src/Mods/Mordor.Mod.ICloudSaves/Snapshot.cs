@@ -104,10 +104,19 @@ public static class Snapshot
     /// part, nothing that climbs out (<c>..</c>), not hidden - and one that is synced at all
     /// (<see cref="CloudSync.IsSynced"/>), so a snapshot can never carry another Mac's settings.ini
     /// or mods.log over this one's.
+    ///
+    /// The name must also be in Unicode normal form KC already, with no control character. APFS
+    /// matches names without regard to case or normal form, and by its own folding, so a name such
+    /// as "ſettings.ini" (U+017F, long s) opens this Mac's settings.ini while .NET's ordinal
+    /// comparison calls it another file; NFKC folds such letters (the long s, the Kelvin sign,
+    /// ligatures, full-width forms) to their plain ones, so a name that changes under it is refused.
+    /// A name the game writes is plain already.
     /// </summary>
     public static bool IsSafeName(string name) =>
         !string.IsNullOrWhiteSpace(name)
         && name.IndexOfAny(new[] { '/', '\\', ':', '\0' }) < 0
+        && !name.Any(char.IsControl)
+        && name.IsNormalized(NormalizationForm.FormKC)
         && name != "." && name != ".."
         && name == Path.GetFileName(name)
         && CloudSync.IsSynced(name);

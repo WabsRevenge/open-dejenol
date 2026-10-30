@@ -112,6 +112,8 @@ public sealed class SyncState
     /// now, which clears it, as does a restore that finishes.
     /// </summary>
     public bool UploadsHeld { get; set; }
+    /// <summary>The names in <see cref="Seen"/> found missing from iCloud Drive at the last trim; dropped if still missing at the next.</summary>
+    public List<string> SeenMissing { get; set; } = new();
 }
 
 /// <summary>
@@ -292,7 +294,14 @@ public sealed class CloudSync
         // there would make it news again - a spurious conflict with an old Mac's snapshot - so with the
         // folder unreadable (iCloud Drive off) nothing is dropped
         if (s.Seen.Count > SeenTrimAt && CloudNames() is { } there)
-            s.Seen = s.Seen.Distinct(StringComparer.OrdinalIgnoreCase).Where(there.Contains).ToList();
+        {
+            // and only once a name has been missing at two trims running: a folder iCloud is still
+            // filling (just turned on again) lists some snapshots late
+            var missedBefore = new HashSet<string>(s.SeenMissing, StringComparer.OrdinalIgnoreCase);
+            var missing = s.Seen.Where(n => !there.Contains(n)).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+            s.Seen = s.Seen.Distinct(StringComparer.OrdinalIgnoreCase).Where(n => there.Contains(n) || !missedBefore.Contains(n)).ToList();
+            s.SeenMissing = missing.Where(n => !missedBefore.Contains(n)).ToList();
+        }
         string temp = StatePath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         File.WriteAllText(temp, JsonSerializer.Serialize(s, Snapshot.Json));
         File.Move(temp, StatePath, overwrite: true);
@@ -491,7 +500,17 @@ public sealed class CloudSync
             foreach (var e in own.Skip(KeepPerDevice))
             {
                 if (string.Equals(e.FileName, justWritten, StringComparison.OrdinalIgnoreCase)) continue;
-                try { File.Delete(e.Path); gone.Add(e.FileName); } catch { }
+                // both forms deleted - iCloud may download or evict it between the listing and here -
+                // and recorded as gone only if neither is left, so a name is never dropped from the
+                // record for a snapshot still there (it would come back as news)
+                try
+                {
+                    string real = Path.Combine(SnapshotsDir, e.FileName), stub = Path.Combine(SnapshotsDir, "." + e.FileName + ".icloud");
+                    File.Delete(real);
+                    File.Delete(stub);
+                    if (!File.Exists(real) && !File.Exists(stub)) gone.Add(e.FileName);
+                }
+                catch { }
             }
         }
         catch { }
@@ -686,5 +705,17 @@ public sealed class CloudSync
 
     /// <summary>"Daves-MacBook at 30 Oct 2026 14:30", or "unknown" for nothing.</summary>
     public static string Describe(CloudEntry? e) =>
-        e == null ? "unknown" : e.CreatedUtc == DateTime.MinValue ? e.Device : $"{e.Device} at {Local(e.CreatedUtc)}";
+        e == null ? "unknown" : e.CreatedUtc == DateTime.MinValue ? Shown(e.Device) : $"{Shown(e.Device)} at {Local(e.CreatedUtc)}";
+
+    /// <summary>
+    /// A Mac's name from a manifest, for a box or the window: anyone who can write to the iCloud
+    /// Drive folder writes it, so control characters (a line break that would reword the question)
+    /// become spaces and it is cut to 64 characters.
+    /// </summary>
+    public static string Shown(string? device)
+    {
+        string d = new string((device ?? "").Select(ch => char.IsControl(ch) ? ' ' : ch).ToArray()).Trim();
+        if (d.Length > 64) d = d[..64] + "...";
+        return d == "" ? "another Mac" : d;
+    }
 }

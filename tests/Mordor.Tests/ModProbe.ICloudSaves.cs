@@ -302,6 +302,13 @@ public static partial class ModProbe
         Check("a zip holding a world file its manifest does not list: refused",
               Refusal(Crafted("store.json", "world/extra.json")).Contains("which its manifest does not list"), true);
         Check("... or an entry outside world/: refused", Refusal(Crafted("store.json", "elsewhere.json")).Contains("which its manifest does not list"), true);
+        // APFS opens "ſettings.ini" (U+017F, long s) as settings.ini, which .NET's ordinal compare calls another file
+        Check("a manifest naming \u017Fettings.ini or icloud\u017Faves.json (APFS opens this Mac's own): refused",
+              Refusal(Crafted("\u017Fettings.ini")).Contains("may not be restored") && Refusal(Crafted("icloud\u017Faves.json")).Contains("may not be restored"), true);
+        Check("... a Kelvin sign, a ligature, a full-width letter, a control character: refused",
+              new[] { "\u212Aaizen.json", "\uFB00.json", "\uFF41.json", "a\u0007.json" }.All(n => Refusal(Crafted(n)).Contains("may not be restored")), true);
+        Check("a Mac's name from a manifest, shown: line breaks gone, cut to 64", (string)IcStatic("CloudSync", "Shown", "Evil\n\nRestore it? Yes!" + new string('x', 80))!,
+              "Evil  Restore it? Yes!" + new string('x', 42) + "...");
         Check("a manifest naming an honest file: accepted (the crafting is right)", Refusal(Crafted("store.json")), "accepted");
 
         Console.WriteLine("iCloud Saves: choosing iCloud's in the conflict - the backup holds B's world:");
@@ -479,8 +486,11 @@ public static partial class ModProbe
         dynamic longList = d.Sync.LoadState();
         for (int i = 0; i < 600; i++) longList.Seen.Add($"20200101T{i:000000}Z_Gone.odsave");
         d.Sync.SaveState(longList);
+        Check("missing once (a folder iCloud may still be filling): nothing dropped yet",
+              ((IEnumerable<object>)d.Sync.LoadState().Seen).Count(o => ((string)o).Contains("_Gone")), 600);
+        d.Sync.SaveState(d.Sync.LoadState());
         var seenNow = ((IEnumerable<object>)d.Sync.LoadState().Seen).Select(o => (string)o).ToList();
-        Check("the gone names dropped, every snapshot still there kept",
+        Check("missing at the next trim too: the gone names dropped, every snapshot still there kept",
               $"{seenNow.Any(n => n.Contains("_Gone"))} {SnapshotsIn(cloud).Where(n => !n.StartsWith('.')).All(n => seenNow.Contains(n, StringComparer.OrdinalIgnoreCase))}", "False True");
         var offline = new FakeMac(root, "Mac-Off", Path.Combine(root, "no-cloud-here"), t0);
         dynamic offList = Activator.CreateInstance(IcType("SyncState"))!;

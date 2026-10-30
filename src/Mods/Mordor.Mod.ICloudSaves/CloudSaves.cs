@@ -213,6 +213,9 @@ public sealed class CloudSaves
     {
         string mine = st.Local.LastWrittenUtc is { } w ? $"This Mac: last saved at {CloudSync.Local(w)}." : "This Mac: changed.";
         string theirs = $"iCloud: saved on {CloudSync.Describe(st.Candidate)}.";
+        // Keep this Mac's uploads them, which lifts the hold kept after an interrupted restore: say so
+        if (st.State?.UploadsHeld == true)
+            mine += " These saves were kept after an interrupted restore, and may be part one world and part another.";
         if (st.Candidate!.State != EntryState.Ready)
         {
             int k = await menu.Ask(Title, "This Mac's saves and iCloud's have both changed since they were last synced, and iCloud's is not downloaded "
@@ -307,7 +310,7 @@ public sealed class CloudSaves
             else if (st.State?.UploadsHeld == true) head += " Kept after an interrupted restore: nothing is uploaded on its own until you Upload now.";
             else if (st.UnreadableNews && st.Kind == SyncKind.LocalNewer) head += " iCloud holds a snapshot this Mac cannot read, so nothing is uploaded on its own.";
             string last = st.State is { SyncedUtc: { } t } s
-                ? $"Last sync: {s.LastAction?.ToLowerInvariant()} at {CloudSync.Local(t)}, the world from {s.SyncedDevice}."
+                ? $"Last sync: {s.LastAction?.ToLowerInvariant()} at {CloudSync.Local(t)}, the world from {CloudSync.Shown(s.SyncedDevice)}."
                 : "Last sync: never, on this Mac.";
             string newest = st.NewestReady is { } n ? $"Newest in iCloud: {CloudSync.Describe(n)}." : "Newest in iCloud: none yet.";
             int waiting = st.Cloud.Count(e => e.State == EntryState.NotDownloaded), bad = st.Cloud.Count(e => e.State == EntryState.Unreadable);
