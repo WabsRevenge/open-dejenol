@@ -104,6 +104,14 @@ public sealed class SyncState
     public string? RestoreInProgress { get; set; }
     /// <summary>A restore the player asked for during a game, done (after asking again) at the next start's main menu.</summary>
     public string? PendingRestore { get; set; }
+    /// <summary>
+    /// Set when the player kept the saves as they were after an interrupted restore
+    /// (<see cref="CloudSync.SettleInterrupted"/>): they may be part one world and part another, and
+    /// the record still holds the world from before, so the next save point would see them as this
+    /// Mac's newer world and upload them. Nothing goes up on its own until the player's own Upload
+    /// now, which clears it, as does a restore that finishes.
+    /// </summary>
+    public bool UploadsHeld { get; set; }
 }
 
 /// <summary>
@@ -139,6 +147,8 @@ public sealed class CloudSync
     public const string SnapshotsFolder = "Snapshots";
     /// <summary>How many of its own snapshots a Mac keeps; older ones of its own are deleted after an upload.</summary>
     public const int KeepPerDevice = 10;
+    /// <summary>How long <see cref="SyncState.Seen"/> grows before the names of snapshots no longer there are dropped.</summary>
+    public const int SeenTrimAt = 500;
     /// <summary>The suffix iCloud Drive does not sync: a snapshot is written under it, then renamed.</summary>
     public const string NoSync = ".nosync";
 
@@ -236,6 +246,26 @@ public sealed class CloudSync
         return list.OrderByDescending(e => e.CreatedUtc).ThenByDescending(e => e.FileName, StringComparer.Ordinal).ToList();
     }
 
+    /// <summary>
+    /// The real names of every snapshot in iCloud Drive, downloaded or not, without opening any; null
+    /// when the folder cannot be read (absent, or iCloud Drive off).
+    /// </summary>
+    private HashSet<string>? CloudNames()
+    {
+        try
+        {
+            if (!Directory.Exists(SnapshotsDir)) return null;
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string p in Directory.GetFiles(SnapshotsDir))
+            {
+                string name = Path.GetFileName(p);
+                names.Add(ICloudDrive.PlaceholderFor(name) ?? name);
+            }
+            return names;
+        }
+        catch { return null; }
+    }
+
     private static CloudEntry FromName(string name, string path, EntryState state, string problem)
     {
         var parsed = Snapshot.ParseName(name);
@@ -258,8 +288,11 @@ public sealed class CloudSync
     public void SaveState(SyncState s)
     {
         Directory.CreateDirectory(SavesDir);
-        // the oldest names first out when the list grows long: a few hundred is years of play
-        if (s.Seen.Count > 500) s.Seen = s.Seen.Distinct(StringComparer.OrdinalIgnoreCase).OrderBy(n => n, StringComparer.Ordinal).TakeLast(500).ToList();
+        // a long list loses only the names of snapshots no longer in iCloud Drive. Dropping one still
+        // there would make it news again - a spurious conflict with an old Mac's snapshot - so with the
+        // folder unreadable (iCloud Drive off) nothing is dropped
+        if (s.Seen.Count > SeenTrimAt && CloudNames() is { } there)
+            s.Seen = s.Seen.Distinct(StringComparer.OrdinalIgnoreCase).Where(there.Contains).ToList();
         string temp = StatePath + "." + Guid.NewGuid().ToString("N")[..8] + ".tmp";
         File.WriteAllText(temp, JsonSerializer.Serialize(s, Snapshot.Json));
         File.Move(temp, StatePath, overwrite: true);
@@ -335,6 +368,9 @@ public sealed class CloudSync
         var st = Status();
         if (st.State?.RestoreInProgress != null)
             return new SyncResult(false, "Not uploaded: a restore was interrupted, and the saves may be part one world, part another. Start OpenDejenol again to sort it out.");
+        if (st.State?.UploadsHeld == true)
+            return new SyncResult(false, "Not uploaded: after an interrupted restore the saves were kept as they were, and they may be part one world, part another. "
+                                       + "Once you are sure they are right, Upload now in the iCloud Saves window sends them up.");
         if (st.State?.PendingRestore is { } pending)
             return new SyncResult(false, $"Not uploaded: a restore of {pending} is waiting for the next start.");
         switch (st.Kind)
@@ -369,9 +405,21 @@ public sealed class CloudSync
         if (st.Kind is SyncKind.CloudNewer or SyncKind.CloudNotDownloaded)
             return new SyncResult(false, $"Not uploaded: iCloud has a newer world, from {Describe(st.Candidate)}, and this Mac's has not changed since. "
                                        + "Restore it at the next start instead.");
-        if (st.Kind == SyncKind.InSync && !st.UnreadableNews) return new SyncResult(false, "Already in iCloud.");
+        if (st.Kind == SyncKind.InSync && !st.UnreadableNews)
+        {
+            // the world kept after an interrupted restore turned out to be the one already synced: nothing to hold
+            if (st.State is { UploadsHeld: true } held) { held.UploadsHeld = false; SaveState(held); }
+            return new SyncResult(false, "Already in iCloud.");
+        }
         return Upload(st, acknowledgeAll: true);
     }
+
+    /// <summary>
+    /// <paramref name="fileName"/> and every snapshot after it in <paramref name="cloud"/>, which is
+    /// newest first (<see cref="ListCloud"/>): that snapshot and the older ones. Nothing when it is not listed.
+    /// </summary>
+    private static IEnumerable<CloudEntry> AndOlder(IEnumerable<CloudEntry> cloud, string fileName) =>
+        cloud.SkipWhile(e => !string.Equals(e.FileName, fileName, StringComparison.OrdinalIgnoreCase));
 
     /// <summary>The names to count as accounted for: every snapshot that can be read or is on its way, never an unreadable one.</summary>
     private static IEnumerable<string> Readable(IEnumerable<CloudEntry> cloud) =>
@@ -415,6 +463,7 @@ public sealed class CloudSync
 
         var s = st.State ?? new SyncState();
         s.Snapshot = name; s.WorldHash = local.WorldHash; s.SyncedUtc = now; s.SyncedDevice = Device; s.LastAction = "Uploaded";
+        s.UploadsHeld = false;
         s.Seen = s.Seen.Union((acknowledgeAll ? st.Cloud.Select(e => e.FileName) : Readable(st.Cloud)).Append(name), StringComparer.OrdinalIgnoreCase).ToList();
         s.Own = s.Own.Append(name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
         var pruned = PruneOwn(name, s.Own);
@@ -427,8 +476,10 @@ public sealed class CloudSync
     /// <summary>
     /// This Mac's own snapshots beyond the newest <see cref="KeepPerDevice"/> are deleted - only those
     /// this Mac recorded uploading (<see cref="SyncState.Own"/>; the manifest's device name is not
-    /// trusted), only readable ones, never the one just written and never another Mac's. Returns the
-    /// names deleted. A failure to delete is no failure of the upload.
+    /// trusted), never the one just written and never another Mac's. One iCloud has evicted to a
+    /// placeholder counts and goes too (its placeholder deleted, which deletes it from iCloud Drive):
+    /// it is this Mac's by the record, not by anything read from it. An unreadable one is left. Returns
+    /// the names deleted. A failure to delete is no failure of the upload.
     /// </summary>
     private List<string> PruneOwn(string justWritten, List<string> ownNames)
     {
@@ -436,7 +487,7 @@ public sealed class CloudSync
         try
         {
             var mine = new HashSet<string>(ownNames, StringComparer.OrdinalIgnoreCase);
-            var own = ListCloud().Where(e => e.State == EntryState.Ready && mine.Contains(e.FileName)).ToList();
+            var own = ListCloud().Where(e => e.State != EntryState.Unreadable && mine.Contains(e.FileName)).ToList();
             foreach (var e in own.Skip(KeepPerDevice))
             {
                 if (string.Equals(e.FileName, justWritten, StringComparison.OrdinalIgnoreCase)) continue;
@@ -501,8 +552,11 @@ public sealed class CloudSync
 
         var s = LoadState() ?? new SyncState();
         s.RestoreInProgress = null;
+        s.UploadsHeld = false;
         s.Snapshot = entry.FileName; s.WorldHash = snap.Manifest.WorldHash; s.SyncedUtc = _utcNow(); s.SyncedDevice = snap.Manifest.Device; s.LastAction = "Restored";
-        s.Seen = s.Seen.Union(Readable(ListCloud()), StringComparer.OrdinalIgnoreCase).ToList();
+        // the snapshot restored and those older than it are accounted for; one newer (another Mac's,
+        // uploaded after this restore was asked for) is not, so it is still news at the next start
+        s.Seen = s.Seen.Union(Readable(AndOlder(ListCloud(), entry.FileName)), StringComparer.OrdinalIgnoreCase).ToList();
         s.PendingRestore = null;
         SaveState(s);
         return new SyncResult(true, $"Restored the world saved on {snap.Manifest.Device} at {Local(snap.Manifest.CreatedUtc)}. "
@@ -524,7 +578,9 @@ public sealed class CloudSync
         foreach (string p in Directory.GetFiles(SavesDir))
         {
             string name = Path.GetFileName(p);
-            if (IsSynced(name) && !snap.Files.ContainsKey(name)) File.Delete(p);
+            if (!IsSynced(name) || snap.Files.ContainsKey(name)) continue;
+            BeforeRestoreDelete?.Invoke(name);
+            File.Delete(p);
         }
     }
 
@@ -561,10 +617,14 @@ public sealed class CloudSync
     /// </summary>
     public Action<string>? BeforeRestoreWrite { get; set; }
 
+    /// <summary>As <see cref="BeforeRestoreWrite"/>, just before a restore removes a world file the snapshot lacks. For the checks only.</summary>
+    public Action<string>? BeforeRestoreDelete { get; set; }
+
     /// <summary>
     /// After a restore was interrupted (<see cref="SyncState.RestoreInProgress"/>): put the backup's
     /// world back, or (<paramref name="putBack"/> false, the player's choice) keep the saves as they
-    /// are. Either way the mark is cleared. True when that was done.
+    /// are, with nothing uploaded on its own until the player's Upload now (<see cref="SyncState.UploadsHeld"/>).
+    /// Either way the mark is cleared. True when that was done.
     /// </summary>
     public bool SettleInterrupted(bool putBack)
     {
@@ -572,6 +632,9 @@ public sealed class CloudSync
         if (s?.RestoreInProgress is not { } backup) return true;
         if (putBack && (!Directory.Exists(backup) || !RollBack(backup))) return false;
         s.RestoreInProgress = null;
+        // kept as they are: perhaps half one world, and still recorded as the world from before, so
+        // they would go up at the next save point as this Mac's newer world - held until Upload now
+        if (!putBack) s.UploadsHeld = true;
         SaveState(s);
         return true;
     }

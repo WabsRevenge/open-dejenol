@@ -23,6 +23,12 @@ public sealed class ICloudSavesMod : IMod, IModLifecycle
     /// <summary>The window's title, and its toolbar button's.</summary>
     public const string WindowTitle = CloudSaves.Title;
 
+    /// <summary>
+    /// The setting (this Mac's settings.ini, never synced) holding why iCloud Drive could not be used
+    /// when the player was last told at start, so the box is not put up again at every start.
+    /// </summary>
+    public const string ToldKey = "ToldNoDrive";
+
     /// <summary>The mod's behaviour, once loaded on a Mac; null elsewhere.</summary>
     public CloudSaves? Saves { get; private set; }
 
@@ -37,7 +43,9 @@ public sealed class ICloudSavesMod : IMod, IModLifecycle
         void Report(string what, Exception? ex) { try { ctx.Log.Error(what, ex); } catch { } }
         var saves = new CloudSaves(ctx.DataDirectory, ICloudDrive.Locate, Environment.MachineName,
                                    () => settings.Get("UploadAtSavePoints"), () => settings.Get("CheckAtStart"),
-                                   line => { try { ctx.Log.Info(line); } catch { } }, Report);
+                                   line => { try { ctx.Log.Info(line); } catch { } }, Report,
+                                   toldProblem: () => settings.GetText(ToldKey),
+                                   setToldProblem: v => { if (v == "") settings.Remove(ToldKey); else settings.SetText(ToldKey, v); });
         Saves = saves;
         ctx.Events.Saved += p => saves.SavePoint(p.Kind);
         ctx.Actions.MainMenuOpened = saves.MainMenu;

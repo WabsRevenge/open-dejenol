@@ -491,12 +491,15 @@ has no `mods/ICloudSaves`, and `tools/pack-release.sh` refuses one. Placed by ha
   written under a hidden `.nosync` name (iCloud Drive does not sync those), read back and proven, then renamed into
   place, so no Mac sees half of one. The manifest also records the world it grew from (the uploading Mac's world at
   its last sync). Every upload is a new file; a Mac keeps its own last ten - the ones it recorded uploading, never
-  going by a manifest's device name - and never deletes another's. A snapshot file over 16 MB, with over 1,000
+  going by a manifest's device name, one iCloud has evicted to a placeholder included - and never deletes another's.
+  Its list of snapshots accounted for, past 500 names, loses only those no longer in iCloud Drive (none while iCloud
+  Drive cannot be read), so an old snapshot never turns into news again. A snapshot file over 16 MB, with over 1,000
   entries, with a field missing, or dated more than a day ahead of this Mac's clock is unreadable and never used.
 - **When**: after the game's save at each save point (`Saved`: back in town up the stairs; the game ending), when the
   world here changed and iCloud's did not ("Upload at save points"). At start (`MainMenuOpened`, nothing loaded yet;
   "Check iCloud at start"): a newer world from another Mac is offered (Restore / Not now); a conflict is put to the
-  player; changes left from an offline session go up. The window (toolbar button **iCloud Saves**) shows where things
+  player; changes left from an offline session go up. iCloud Drive turned off is told once at start (again only after
+  it was found and lost again); the window says it every time. The window (toolbar button **iCloud Saves**) shows where things
   stand, the last sync (when, uploaded/restored/matched, whose world) and the newest snapshot, with **Upload now**
   and **Restore at next start** - a restore is never done during a game, which holds the world in memory and would
   write it back, so it is marked and asked about again at the next start. Upload now runs on the window's thread,
@@ -518,6 +521,10 @@ has no `mods/ICloudSaves`, and `tools/pack-release.sh` refuses one. Placed by ha
   removed; the result read back and checked against the snapshot's hash, the backup put back (and checked) if
   anything failed. The restore is marked in `icloudsaves.json` before its first write: a program stopped part-way
   is caught at the next start, nothing is uploaded meanwhile, and the player is asked whether to put the backup back.
+  Kept as they are, the saves may be part one world and part another, so nothing goes up on its own until the player's
+  own Upload now (`SyncState.UploadsHeld`). A restore marks as accounted for only the snapshot restored and older
+  ones: a newer one (another Mac's, uploaded after the restore was asked for) is still news at the next start, and
+  the question offering a restore asked for in a game names it.
   After a restore the program closes (`MainMenuContext.Quit`), so other mods that read their files as they loaded
   start from the restored ones. The mod never deletes a backup.
 
@@ -528,9 +535,12 @@ a fresh Mac with a backup first and settings.ini untouched, conflict detection a
 tampered, a cut-short, a path-climbing and a settings.ini-carrying snapshot refused, the backup holding the replaced
 world, placeholders, dataless and half-written snapshots never restored from, a nulled and a future-dated manifest
 unreadable without breaking the listing and holding the upload back, keeping both, a fork seen as a conflict, Upload
-now refused over a newer world, a restore failing part-way put back, an interrupted restore caught at the next start,
-pruning only a Mac's own (a planted copy under its name left alone), iCloud Drive missing, the stat(2) offsets, and
-the start-up questions with a stand-in menu.
+now refused over a newer world, a restore failing part-way put back (at a write, at the write of a file only the
+snapshot has, and at the removal of one it lacks), rooted names and zip entries the manifest does not list refused, an
+interrupted restore caught at the next start (put back, kept with uploads held until Upload now, or left for the next
+start), a restore leaving a newer snapshot as news, pruning only a Mac's own (a planted copy under its name left alone,
+an evicted one of its own pruned), the seen list trimmed only of names gone, iCloud Drive missing (told once), the
+stat(2) offsets, and the start-up questions with a stand-in menu.
 
 ## How to write a mod
 

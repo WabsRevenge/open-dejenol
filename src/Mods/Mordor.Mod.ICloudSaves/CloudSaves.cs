@@ -35,15 +35,22 @@ public sealed class CloudSaves
     /// <param name="device">This Mac's name.</param>
     /// <param name="uploadAtSavePoints">The "Upload at save points" toggle, read each time.</param>
     /// <param name="checkAtStart">The "Check iCloud at start" toggle, read each time.</param>
+    /// <param name="toldProblem">Why there was no iCloud Drive folder when the player was last told at start ("" for never), kept on this Mac.</param>
+    /// <param name="setToldProblem">Keeps it.</param>
     public CloudSaves(string savesDir, Func<(string? Folder, string? Problem)> locate, string device,
                       Func<bool> uploadAtSavePoints, Func<bool> checkAtStart,
                       Action<string> info, Action<string, Exception?> error,
-                      Func<DateTime>? utcNow = null, Func<string, bool>? isDataless = null)
+                      Func<DateTime>? utcNow = null, Func<string, bool>? isDataless = null,
+                      Func<string>? toldProblem = null, Action<string>? setToldProblem = null)
     {
         SavesDir = savesDir; _locate = locate; Device = device;
         _upload = uploadAtSavePoints; _check = checkAtStart; _info = info; _error = error;
         _utcNow = utcNow; _isDataless = isDataless;
+        _told = toldProblem ?? (() => ""); _setTold = setToldProblem ?? (_ => { });
     }
+
+    private readonly Func<string> _told;
+    private readonly Action<string> _setTold;
 
     private readonly Func<bool> _upload, _check;
 
@@ -145,11 +152,18 @@ public sealed class CloudSaves
             var (sync, problem) = Open();
             if (sync == null)
             {
-                // only once the player has asked for the check: the window says it too
-                if (_check()) await menu.Ask(Title, problem!, "OK");
+                // only once the player has asked for the check, and once for each reason rather than at
+                // every start (iCloud Drive left off is a choice); the window says it each time
+                if (_check() && _told() != problem)
+                {
+                    await menu.Ask(Title, problem!, "OK");
+                    _setTold(problem!);
+                }
                 Say(problem!);
                 return;
             }
+            // iCloud Drive is there again: turned off later, it is told again
+            if (_told() != "") _setTold("");
             var st = await Task.Run(sync.Status);
             if (st.State?.RestoreInProgress is { } backup) { await OfferInterrupted(menu, sync, backup); return; }
             if (st.State?.PendingRestore is { } pending) { await OfferPending(menu, sync, st, pending); return; }
@@ -229,7 +243,13 @@ public sealed class CloudSaves
         string changed = st.Local.HasWorld && st.State?.WorldHash != st.Local.WorldHash
             ? "\n\nThis Mac's saves have changed since they were last synced; they go into the backup."
             : "";
-        int b = await menu.Ask(Title, $"In your last game you asked to restore the world saved on {what}. Restore it now?{changed}\n\n{BackupNote(sync)}",
+        // a newer one this Mac has not seen (another Mac's, uploaded since the restore was asked for)
+        // is not buried by the restore: it stays news, and is offered at the next start
+        string newer = st.Candidate is { } c && entry != null && c.CreatedUtc > entry.CreatedUtc
+                       && !string.Equals(c.FileName, entry.FileName, StringComparison.OrdinalIgnoreCase)
+            ? $"\n\niCloud also has a newer world, from {CloudSync.Describe(c)}, saved since you asked. It is not restored now; it is offered again at the next start."
+            : "";
+        int b = await menu.Ask(Title, $"In your last game you asked to restore the world saved on {what}. Restore it now?{changed}{newer}\n\n{BackupNote(sync)}",
                                "Restore", "Cancel the restore");
         if (b == 0) await DoRestore(menu, sync, pending);
         else { sync.RequestRestore(null); Say("The restore was cancelled."); }
@@ -240,16 +260,18 @@ public sealed class CloudSaves
         int b = await menu.Ask(Title, "The last restore from iCloud was interrupted, so the saves may be part one world and part another. "
                                     + $"This Mac's saves from before it are in {backup}.\n\nPut them back?",
                                "Put them back", "Keep the saves as they are");
+        // the box closed with neither pressed (the program ending under it): nothing settled, so the
+        // mark stays, nothing is uploaded, and the next start asks again
+        if (b < 0) return;
         bool ok = await Task.Run(() => { lock (_gate) return sync.SettleInterrupted(putBack: b == 0); });
         string line = !ok ? $"Putting the saves back failed: copy them back by hand from {backup}."
-                    : b == 0 ? "The saves from before the interrupted restore were put back." : "The saves were kept as they are.";
+                    : b == 0 ? "The saves from before the interrupted restore were put back."
+                    : "The saves were kept as they are. Nothing is uploaded from them on its own: once you are sure they are right, "
+                      + "Upload now in the iCloud Saves window sends them up.";
         Say(line);
-        if (!ok) { await menu.Ask(Title, line, "OK"); return; }
-        if (b == 0)
-        {
-            await menu.Ask(Title, line + "\n\nOpenDejenol will now close so that everything reads them. Start it again to play.", "OK");
-            menu.Quit();
-        }
+        if (!ok || b != 0) { await menu.Ask(Title, line, "OK"); return; }
+        await menu.Ask(Title, line + "\n\nOpenDejenol will now close so that everything reads them. Start it again to play.", "OK");
+        menu.Quit();
     }
 
     private async Task DoRestore(MainMenuContext menu, CloudSync sync, string fileName)
@@ -282,6 +304,7 @@ public sealed class CloudSaves
             };
             if (st.State?.PendingRestore is { } p) head += $" A restore of {p} waits for the next start.";
             if (st.State?.RestoreInProgress != null) head = "A restore was interrupted: start OpenDejenol again to sort it out. Nothing is uploaded until then.";
+            else if (st.State?.UploadsHeld == true) head += " Kept after an interrupted restore: nothing is uploaded on its own until you Upload now.";
             else if (st.UnreadableNews && st.Kind == SyncKind.LocalNewer) head += " iCloud holds a snapshot this Mac cannot read, so nothing is uploaded on its own.";
             string last = st.State is { SyncedUtc: { } t } s
                 ? $"Last sync: {s.LastAction?.ToLowerInvariant()} at {CloudSync.Local(t)}, the world from {s.SyncedDevice}."

@@ -275,7 +275,7 @@ public static partial class ModProbe
         Check("... and restoring it refused, nothing changed", $"{(bool)r.Done} {b.WorldHash() == bHash} {b.Backups().Length == backupsBefore}", "False True True");
         File.Delete(cut);
         // a manifest naming a file outside the saves folder, or this Mac's settings.ini, with honest hashes
-        string Crafted(string name)
+        string Crafted(string name, params string[] unlisted)
         {
             string p = Path.Combine(root, "crafted-" + Guid.NewGuid().ToString("N")[..6] + ".odsave");
             byte[] data = Encoding.UTF8.GetBytes("x");
@@ -291,10 +291,17 @@ public static partial class ModProbe
             using (var s = z.CreateEntry("manifest.json").Open())
                 System.Text.Json.JsonSerializer.Serialize(s, (object)m, IcType("SnapshotManifest"), (System.Text.Json.JsonSerializerOptions)IcType("Snapshot").GetField("Json")!.GetValue(null)!);
             using (var s = z.CreateEntry("world/" + name).Open()) s.Write(data);
+            foreach (string extra in unlisted) using (var s = z.CreateEntry(extra).Open()) s.Write(data);
             return p;
         }
         Check("a manifest naming ../evil.json: refused", Refusal(Crafted("../evil.json")).Contains("may not be restored"), true);
         Check("a manifest carrying settings.ini: refused (this Mac's own)", Refusal(Crafted("settings.ini")).Contains("may not be restored"), true);
+        Check("a manifest naming /store.json (rooted): refused", Refusal(Crafted("/store.json")).Contains("may not be restored"), true);
+        Check("... or C:\\store.json, or \\\\server\\store.json: refused",
+              Refusal(Crafted("C:\\store.json")).Contains("may not be restored") && Refusal(Crafted("\\\\server\\store.json")).Contains("may not be restored"), true);
+        Check("a zip holding a world file its manifest does not list: refused",
+              Refusal(Crafted("store.json", "world/extra.json")).Contains("which its manifest does not list"), true);
+        Check("... or an entry outside world/: refused", Refusal(Crafted("store.json", "elsewhere.json")).Contains("which its manifest does not list"), true);
         Check("a manifest naming an honest file: accepted (the crafting is right)", Refusal(Crafted("store.json")), "accepted");
 
         Console.WriteLine("iCloud Saves: choosing iCloud's in the conflict - the backup holds B's world:");
@@ -414,6 +421,30 @@ public static partial class ModProbe
               "False True True 1 none");
         Check("... nothing half-written left", Directory.GetFiles(e.Saves).Any(f => f.EndsWith(".tmp")), false);
 
+        Console.WriteLine("iCloud Saves: a restore that fails in its last step, removing files, puts every file back:");
+        var x = new FakeMac(root, "Mac-X", cloud, t0.AddHours(8));
+        var y = new FakeMac(root, "Mac-Y", cloud, t0.AddHours(8));
+        y.Write("common.json", "{\"y\":1}");
+        y.Write("y-only.json", "{\"y\":2}");
+        y.Sync.UploadNow();
+        string ySnap = SnapshotsIn(cloud).Last(n => n.Contains("_Mac-Y"));
+        x.Write("common.json", "{\"x\":1}");
+        x.Write("x-only.json", "{\"x\":2}");
+        string xBefore = x.WorldHash();
+        int deletes = 0;
+        x.Sync.BeforeRestoreDelete = (Action<string>)(_ => { deletes++; throw new IOException("disk gone (a test's)"); });
+        r = x.Sync.Restore(ySnap);
+        x.Sync.BeforeRestoreDelete = null;
+        Check("failed at the removal, after every write: the snapshot's own file gone again, the one it lacks still here, all as it was",
+              $"{deletes} {(bool)r.Done} {x.WorldHash() == xBefore} {File.Exists(Path.Combine(x.Saves, "y-only.json"))} {x.Read("x-only.json")} {x.Read("common.json")}",
+              "1 False True False {\"x\":2} {\"x\":1}");
+        Check("... no restore left marked, nothing half-written", $"{(string?)x.Sync.LoadState()?.RestoreInProgress ?? "none"} {Directory.GetFiles(x.Saves).Any(f => f.EndsWith(".tmp"))}", "none False");
+        x.Sync.BeforeRestoreWrite = (Action<string>)(n => { if (n == "y-only.json") throw new IOException("disk full (a test's)"); });
+        r = x.Sync.Restore(ySnap);
+        x.Sync.BeforeRestoreWrite = null;
+        Check("failed writing the file only the snapshot has, after the shared one: the shared one put back",
+              $"{(bool)r.Done} {x.WorldHash() == xBefore} {x.Read("common.json")}", "False True {\"x\":1}");
+
         Console.WriteLine("iCloud Saves: pruning keeps a Mac's last ten of its own, and never another's:");
         var d = new FakeMac(root, "Mac-D", cloud, t0.AddDays(1));
         for (int i = 0; i < 12; i++)
@@ -434,6 +465,28 @@ public static partial class ModProbe
         Check("a copy planted under Mac D's name and older than all of D's: left alone by D's pruning", File.Exists(planted), true);
         File.Delete(planted);
         Check("no half-written snapshot left anywhere", all.Any(n => n.EndsWith(".nosync")), false);
+        // one of D's own evicted by iCloud to a placeholder is still D's by its record, and pruned
+        string oldestD = SnapshotsIn(cloud).First(n => n.Contains("_Mac-D") && !n.StartsWith('.'));
+        File.Delete(Path.Combine(cloud, "Snapshots", oldestD));
+        string evicted = Path.Combine(cloud, "Snapshots", "." + oldestD + ".icloud");
+        File.WriteAllText(evicted, "placeholder");
+        d.Now = t0.AddDays(3);
+        d.Write("dungeon.json", "{\"rooms\":100}");
+        d.Sync.UploadNow();
+        Check("one of D's own evicted to a placeholder: pruned as its oldest, ten left", $"{File.Exists(evicted)} {SnapshotsIn(cloud).Count(n => n.Contains("_Mac-D"))}", "False 10");
+
+        Console.WriteLine("iCloud Saves: the seen list, grown long, loses only names no longer in iCloud Drive:");
+        dynamic longList = d.Sync.LoadState();
+        for (int i = 0; i < 600; i++) longList.Seen.Add($"20200101T{i:000000}Z_Gone.odsave");
+        d.Sync.SaveState(longList);
+        var seenNow = ((IEnumerable<object>)d.Sync.LoadState().Seen).Select(o => (string)o).ToList();
+        Check("the gone names dropped, every snapshot still there kept",
+              $"{seenNow.Any(n => n.Contains("_Gone"))} {SnapshotsIn(cloud).Where(n => !n.StartsWith('.')).All(n => seenNow.Contains(n, StringComparer.OrdinalIgnoreCase))}", "False True");
+        var offline = new FakeMac(root, "Mac-Off", Path.Combine(root, "no-cloud-here"), t0);
+        dynamic offList = Activator.CreateInstance(IcType("SyncState"))!;
+        for (int i = 0; i < 600; i++) offList.Seen.Add($"20200101T{i:000000}Z_Gone.odsave");
+        offline.Sync.SaveState(offList);
+        Check("... and with iCloud Drive unreadable, nothing dropped", ((IEnumerable<object>)offline.Sync.LoadState().Seen).Count(), 600);
 
         Console.WriteLine("iCloud Saves: where iCloud Drive is, and isn't:");
         string missing = Path.Combine(root, "no-icloud-here");
@@ -468,11 +521,15 @@ public static partial class ModProbe
         src.Sync.UploadNow();
 
         var log = new List<string>();
+        // each Mac's "told at start" setting, as its settings.ini would keep it
+        var told = new Dictionary<string, string>();
         dynamic Saves(FakeMac mac, (string?, string?) where, bool check = true, bool upload = true) =>
             Activator.CreateInstance(IcType("CloudSaves"), mac.Saves, (Func<(string?, string?)>)(() => where), mac.Name,
                                      (Func<bool>)(() => upload), (Func<bool>)(() => check),
                                      (Action<string>)(l => log.Add(l)), (Action<string, Exception?>)((w, e) => log.Add("ERROR " + w + " " + e)),
-                                     (Func<DateTime>)(() => mac.Now), (Func<string, bool>)(_ => false))!;
+                                     (Func<DateTime>)(() => mac.Now), (Func<string, bool>)(_ => false),
+                                     (Func<string>)(() => told.TryGetValue(mac.Name, out var t) ? t : ""),
+                                     (Action<string>)(v => told[mac.Name] = v))!;
         void Start(dynamic saves, FakeMenu menu, string savesDir) => ((Task)saves.MainMenu(menu.Context(savesDir))).GetAwaiter().GetResult();
 
         // a newer world, declined
@@ -534,6 +591,14 @@ public static partial class ModProbe
         Start(Saves(none, (null, "iCloud Drive is not turned on on this Mac.")), menu, none.Saves);
         Check("no iCloud Drive: the reason told at start, nothing written to the saves",
               $"{menu.Asked.Count} {menu.Asked[0].Contains("not turned on")} {Directory.GetFiles(none.Saves).Length} {menu.Quits}", "1 True 0 0");
+        menu = new FakeMenu();
+        dynamic offAgain = Saves(none, (null, "iCloud Drive is not turned on on this Mac."));
+        Start(offAgain, menu, none.Saves);
+        Check("... and not again at the next start, though the window still says it", $"{menu.Asked.Count} {((string)offAgain.LastMessage).Contains("not turned on")}", "0 True");
+        Start(Saves(none, (cloud, null)), new FakeMenu(), none.Saves);
+        menu = new FakeMenu();
+        Start(Saves(none, (null, "iCloud Drive is not turned on on this Mac.")), menu, none.Saves);
+        Check("... turned on and off again: told again", menu.Asked.Count, 1);
 
         // a restore the program did not live to finish: caught at the next start, the backup offered back
         var cut = new FakeMac(root, "Start-D", cloud, t0.AddHours(8));
@@ -552,6 +617,62 @@ public static partial class ModProbe
         Check("the next start asks Put them back or Keep; put back: the saves from before, the mark gone, the program closes",
               $"{menu.Asked[0].EndsWith("[Put them back|Keep the saves as they are]")} {cut.WorldHash() == cutHash} {(string?)cut.Sync.LoadState().RestoreInProgress ?? "none"} {menu.Quits}",
               "True True none 1");
+
+        // the same, kept as they are: the half-restored saves differ from the world recorded, so they
+        // would look like this Mac's newer world - nothing goes up on its own until Upload now
+        var kept = new FakeMac(root, "Start-E", cloud, t0.AddHours(9));
+        kept.Write("Anna.json", "{\"name\":\"Anna\",\"mine\":1}");
+        kept.Sync.UploadNow();
+        string keptBackup = (string)kept.Sync.Backup();
+        kept.Write("Anna.json", "{\"name\":\"Anna\",\"half\":1}");
+        dynamic keptMark = kept.Sync.LoadState();
+        keptMark.RestoreInProgress = keptBackup;
+        kept.Sync.SaveState(keptMark);
+        menu = new FakeMenu();
+        menu.Answers.Enqueue(-1);
+        Start(Saves(kept, (cloud, null)), menu, kept.Saves);
+        Check("the box closed with neither pressed: nothing settled, the mark kept, asked again next time",
+              $"{menu.Asked.Count} {(string?)kept.Sync.LoadState().RestoreInProgress == keptBackup} {menu.Quits}", "1 True 0");
+        menu = new FakeMenu();
+        menu.Answers.Enqueue(1); menu.Answers.Enqueue(0);
+        dynamic keptSaves = Saves(kept, (cloud, null));
+        before = SnapshotsIn(cloud).Length;
+        Start(keptSaves, menu, kept.Saves);
+        Check("Keep: the mark gone, uploads held, told so, nothing uploaded at that start, no quit",
+              $"{(string?)kept.Sync.LoadState().RestoreInProgress ?? "none"} {(bool)kept.Sync.LoadState().UploadsHeld} {menu.Asked.Count} {menu.Asked[1].Contains("Upload now")} {SnapshotsIn(cloud).Length - before} {menu.Quits}",
+              "none True 2 True 0 0");
+        dynamic held = kept.Sync.AutoUpload();
+        Check("... a save point then uploads nothing and says why", $"{(bool)held.Done} {((string)held.Message).Contains("interrupted restore")} {SnapshotsIn(cloud).Length - before}", "False True 0");
+        Check("... and the window says so", ((string)keptSaves.Describe().Head).Contains("until you Upload now"), true);
+        dynamic sent = kept.Sync.UploadNow();
+        Check("Upload now sends them and lifts the hold; the next save point is as ever",
+              $"{(bool)sent.Done} {(bool)kept.Sync.LoadState().UploadsHeld} {SnapshotsIn(cloud).Length - before} {kept.Kind()}", "True False 1 InSync");
+
+        // a restore asked for, then a newer world from another Mac before the next start: the question
+        // says so, and the restore does not bury it
+        var asker = new FakeMac(root, "Start-F", cloud, t0.AddHours(10));
+        var other = new FakeMac(root, "Start-G", cloud, t0.AddHours(10));
+        other.Write("dungeon.json", "{\"rooms\":\"G1\"}");
+        other.Sync.UploadNow();
+        string g1 = SnapshotsIn(cloud).Last(n => n.Contains("_Start-G"));
+        asker.Sync.Restore(g1);
+        asker.Now = t0.AddHours(10.5);
+        asker.Write("dungeon.json", "{\"rooms\":\"F1\"}");
+        asker.Sync.UploadNow();
+        string f1 = SnapshotsIn(cloud).Last(n => n.Contains("_Start-F"));
+        asker.Sync.RequestRestore(g1);
+        other.Now = t0.AddHours(11);
+        other.Write("dungeon.json", "{\"rooms\":\"G2\"}");
+        other.Sync.UploadNow();
+        string g2 = SnapshotsIn(cloud).Last(n => n.Contains("_Start-G"));
+        menu = new FakeMenu();
+        menu.Answers.Enqueue(0); menu.Answers.Enqueue(0);
+        Start(Saves(asker, (cloud, null)), menu, asker.Saves);
+        Check("the restore asked for is offered, and the question names the newer world saved since",
+              $"{menu.Asked[0].Contains("iCloud also has a newer world")} {menu.Asked[0].Contains("Start-G")} {asker.Read("dungeon.json")}", "True True {\"rooms\":\"G1\"}");
+        Check("... the newer one is not marked seen by the restore: it is news at the next start",
+              $"{((IEnumerable<object>)asker.Sync.LoadState().Seen).Any(n => (string)n == g2)} {asker.Kind()} {(string)asker.Sync.Status().Candidate.FileName == g2}", "False CloudNewer True");
+        Check("... while this Mac's own upload and the one restored are", ((IEnumerable<object>)asker.Sync.LoadState().Seen).Count(n => (string)n == g1 || (string)n == f1), 2);
         Check("nothing logged as an error in all that (every instance's log)", string.Join(" | ", log.Where(l => l.StartsWith("ERROR"))), "");
     }
 }
