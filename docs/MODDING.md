@@ -471,8 +471,10 @@ Use below All refused first and then sub0BDE, and every command's test that the 
 ### The iCloud Saves mod (`src/Mods/Mordor.Mod.ICloudSaves`, id `ICloudSaves`)
 
 Version 1.0.0, **macOS only**, off until ticked on the Mods page. Phase M3 of docs/MOBILE_AND_CLOUD.md for the Mac:
-copies of the saved world kept in the player's iCloud Drive, so a game can be carried on on another Mac. On any other
-system it loads, writes "macOS only" to mods.log and hooks nothing. It needs no Harmony; it uses `Saved` and
+copies of the saved world kept in the player's iCloud Drive, so a game can be carried on on another Mac. Only a macOS
+build ships it (`src/Mods/ShipMods.targets`: a publish for an osx runtime, or a build on a Mac); the Windows release
+has no `mods/ICloudSaves`, and `tools/pack-release.sh` refuses one. Placed by hand on another system it loads, writes
+"macOS only" to mods.log and hooks nothing. It needs no Harmony; it uses `Saved` and
 `MainMenuOpened` (API version 15), added for it.
 
 - **Where**: `~/Library/Mobile Documents/com~apple~CloudDocs/OpenDejenol/Snapshots/`, with plain file I/O - macOS

@@ -58,6 +58,9 @@ echo "== publishing (Release, osx-arm64, self-contained)"
 "$DOTNET" publish "$APP_PROJ" -c Release -r osx-arm64 --self-contained true -o "$PUB" -nologo \
     || die "dotnet publish failed"
 [ -f "$PUB/OpenDejenol" ] && [ -d "$PUB/mods" ] || die "the publish has no OpenDejenol or no mods folder"
+# the iCloud Saves mod ships with a macOS build alone (src/Mods/ShipMods.targets, for an osx runtime)
+[ -f "$PUB/mods/ICloudSaves/Mordor.Mod.ICloudSaves.dll" ] && [ -f "$PUB/mods/ICloudSaves/mod.json" ] \
+    || die "the publish has no mods/ICloudSaves (dll and mod.json)"
 cp -R "$PUB/." "$APP/Contents/MacOS/" || die "could not copy the publish into $APP"
 
 echo "== icon"
