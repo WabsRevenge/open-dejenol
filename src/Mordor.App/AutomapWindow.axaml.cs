@@ -321,7 +321,8 @@ public partial class AutomapWindow : Window
 
         _view = new AutomapView(() => _level, () => _deepest,
                                 lv => FloorFor(lv) is { } f ? (f.Width, f.Height) : (0, 0),
-                                lv => Go(lv), RefreshMarks, StartPick, () => FinishPick(null), () => _pick != null);
+                                lv => Go(lv), RefreshMarks, StartPick, () => FinishPick(null), () => _pick != null,
+                                YouForMods, RecordFor);
         // a mod disabled for throwing, or a setting of one changed: its marks are asked for again
         FormArea.AttachedToVisualTree += (_, _) => Listen(ModHost.Active);
         FormArea.DetachedFromVisualTree += (_, _) => Listen(null);
@@ -366,6 +367,40 @@ public partial class AutomapWindow : Window
     /// <summary>The first item of the menu: the original's right-click, the help's "Automap - Redraw/Refresh Level".</summary>
     public const string RedrawItem = "Redraw/Refresh Level";
 
+    /// <summary>
+    /// <see cref="AutomapView.You"/> (API version 14): the square and facing the arrow is drawn with, and
+    /// null wherever medDrawCursor draws none - in town and while lost.
+    /// </summary>
+    private AutomapPosition? YouForMods() =>
+        !_lost && _you is { } me && me.level >= 1 ? new AutomapPosition(new AutomapSquare(me.level, me.x, me.y), me.facing) : null;
+
+    /// <summary>The walked squares of a level, kept while the map's own list for it is the same list.</summary>
+    private readonly Dictionary<int, (List<int> List, int Count, HashSet<int> Set)> _walked = new();
+
+    /// <summary>
+    /// <see cref="AutomapView.Record"/> (API version 14): what the map is drawn from for a square - its
+    /// explored cell and its flag word - and nothing for a square off the level or past the deepest.
+    /// </summary>
+    private AutomapRecord RecordFor(AutomapSquare s)
+    {
+        if (s.Level < 1 || s.Level > _deepest || FloorFor(s.Level) is not { } fl
+            || s.X < 0 || s.Y < 0 || s.X >= fl.Width || s.Y >= fl.Height) return default;
+        bool walked = false;
+        if (_map.Explored.TryGetValue(s.Level, out var list) && list != null)
+        {
+            if (!_walked.TryGetValue(s.Level, out var have) || !ReferenceEquals(have.List, list) || have.Count != list.Count)
+                _walked[s.Level] = have = (list, list.Count, new HashSet<int>(list));
+            walked = have.Set.Contains(s.Y * fl.Width + s.X);
+        }
+        return new AutomapRecord(walked, _map.SeenFlags(s.Level, s.X, s.Y, fl.Width));
+    }
+
+    /// <summary>A running mod's status line (<see cref="ModUI.AutomapInfo"/>), as last asked, or null.</summary>
+    private string? _modInfo;
+
+    /// <summary>lblInfo: a waiting pick's prompt, else a mod's line, else the original's "You are at ...".</summary>
+    private string StatusLine() => _pick is { } waiting ? waiting.Prompt : _modInfo ?? WhereYouAre();
+
     private void StartPick(string prompt, Action<AutomapSquare?> done)
     {
         if (_pick != null) FinishPick(null);
@@ -380,7 +415,7 @@ public partial class AutomapWindow : Window
     {
         if (_pick is not { } pick) return;
         _pick = null;
-        InfoLabel.Text = WhereYouAre();
+        InfoLabel.Text = StatusLine();
         MapClip.Cursor = null;
         pick.Done(square);
         RefreshMarks();
@@ -483,12 +518,23 @@ public partial class AutomapWindow : Window
         if (fl == null || _mazeW <= 0 || (!host.AutomapHooked && _pick == null))
         {
             if (MapMarks.IsVisible || MapMarks.Marks.Count > 0) MapMarks.Set(Array.Empty<AutomapMark>(), null, 0, 0, 0, 1);
+            SetModInfo(null);
             return;
         }
         var marks = host.AutomapHooked ? host.AutomapMarks(_view) : new List<AutomapMark>();
+        // the status line is asked straight after the marks (ModUI.AutomapInfo)
+        SetModInfo(host.AutomapHooked ? host.AutomapInfo(_view) : null);
         (int, int)? pickAt = _pick != null && _hover is { } h && h.Level == _level ? (h.X, h.Y) : null;
         MapMarks.Set(marks, pickAt, fl.Height, _mazeW, _mazeH, _zoom);
         SyncMarks();
+    }
+
+    /// <summary>A mod's status line changed (or went): lblInfo shows it, unless a pick's prompt is up.</summary>
+    private void SetModInfo(string? line)
+    {
+        if (line == _modInfo) return;
+        _modInfo = line;
+        InfoLabel.Text = StatusLine();
     }
 
     /// <summary>The overlay laid exactly where picMaze is, at its size.</summary>
@@ -765,7 +811,7 @@ public partial class AutomapWindow : Window
         // the original's own caption, FRMAUTOM.BAS:405
         Title = $"Automap (Level {_level})";
         LevelLabel.Text = $"Level {_level} of {_deepest}";
-        InfoLabel.Text = _pick is { } waiting ? waiting.Prompt : WhereYouAre();
+        InfoLabel.Text = StatusLine();
         DeeperBtn.IsEnabled = _level < _deepest;
         ShallowerBtn.IsEnabled = _level > 1;
 

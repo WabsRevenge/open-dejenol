@@ -953,7 +953,8 @@ public sealed class ModHost
     /// click). False with no mod: the Automap does nothing more than the original's.
     /// </summary>
     public bool AutomapHooked => Live.Any(lm => lm.Context.UI is { } ui
-        && (ui.AutomapMenu != null || ui.AutomapMarks != null || ui.AutomapHover != null || ui.AutomapClick != null));
+        && (ui.AutomapMenu != null || ui.AutomapMarks != null || ui.AutomapHover != null || ui.AutomapClick != null
+            || ui.AutomapInfo != null));
 
     /// <summary>The view one mod is handed: a pick's callback guarded for that mod, and not called once it has stopped.</summary>
     private AutomapView ViewFor(LoadedMod lm, AutomapView view) =>
@@ -995,6 +996,21 @@ public sealed class ModHost
             if (marks != null && !lm.Faulted) all.AddRange(marks.Where(m => m != null));
         }
         return all;
+    }
+
+    /// <summary>
+    /// The status line a running mod puts in place of the original's (<see cref="ModUI.AutomapInfo"/>): the
+    /// first non-null answer in load order, or null - the original's line. A mod that throws is disabled.
+    /// </summary>
+    public string? AutomapInfo(AutomapView view)
+    {
+        foreach (var lm in Live.ToList())
+        {
+            if (lm.Context.UI.AutomapInfo is not { } ask) continue;
+            string? line = Guard<string?>(lm, "AutomapInfo", () => ask(ViewFor(lm, view)), null);
+            if (line != null && !lm.Faulted) return line;
+        }
+        return null;
     }
 
     /// <summary>The pointer moved onto another square of the map, or off it (null): every running mod is told.</summary>

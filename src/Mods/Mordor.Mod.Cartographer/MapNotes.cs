@@ -24,6 +24,8 @@ public static class Palette
     public static readonly (byte R, byte G, byte B) Waypoint = (0xED, 0xC9, 0x48);
     /// <summary>A highlight: the waypoint under the pointer, the destination just gone to. White, framed dark by the game.</summary>
     public static readonly (byte R, byte G, byte B) Highlight = (0xFF, 0xFF, 0xFF);
+    /// <summary>A route: Tableau 10's green, #59A14F, apart from the four colours and the waypoint yellow.</summary>
+    public static readonly (byte R, byte G, byte B) Route = (0x59, 0xA1, 0x4F);
 
     public static (byte R, byte G, byte B) Of(MarkColour c) => c switch
     {
@@ -95,6 +97,9 @@ public sealed class MapNotes
         Save();
         Changed?.Invoke();
     }
+
+    /// <summary>Every waypoint: its destination by its source.</summary>
+    public IReadOnlyDictionary<AutomapSquare, AutomapSquare> Waypoints => _waypoints;
 
     /// <summary>Where a waypoint from this square leads, or null.</summary>
     public AutomapSquare? WaypointFrom(AutomapSquare s) => _waypoints.TryGetValue(s, out var to) ? to : null;

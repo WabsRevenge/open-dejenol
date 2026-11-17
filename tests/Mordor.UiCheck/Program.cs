@@ -410,7 +410,7 @@ Console.WriteLine("\nthe enlarged map at large sizes, dragged by the grip, at 10
 // right button giving up); the hover's arrow on the same level only; a click going to the destination
 // and highlighting it; cartographer.json read back by a new host; the marks drawn on the map's own
 // device-pixel squares at 1x, enlarged, and at 125% ----
-Console.WriteLine("\nthe Cartographer mod on the Automap (API version 13):");
+Console.WriteLine("\nthe Cartographer mod on the Automap (API versions 13 and 14):");
 {
     string scratch = Path.Combine(Path.GetTempPath(), "mordor-uicheck-carto-" + Guid.NewGuid().ToString("N")[..8]);
     Directory.CreateDirectory(scratch);
@@ -489,8 +489,8 @@ Console.WriteLine("\nthe Cartographer mod on the Automap (API version 13):");
         NoMenu();
         Press(At(2, 3), MouseButton.Right);
         Check("mod on: a right-click on a square opens the menu, and does not re-plot by itself", (Menu()?.IsOpen, Plotted(10, 5)), ((bool?)true, false));
-        Check("the menu: the original's right-click first, then the colours and Add waypoint...",
-              Headers(), $"{AutomapWindow.RedrawItem} | - | Blue | Orange | Red | Purple | No colour | - | Add waypoint...");
+        Check("the menu: the original's right-click first, then the colours, Add waypoint... and the routes",
+              Headers(), $"{AutomapWindow.RedrawItem} | - | Blue | Orange | Red | Purple | No colour | - | Add waypoint... | - | Route to here | Route from here... | Route settings...");
         Check("each colour with its swatch, No colour greyed",
               string.Join(" ", Menu()!.Items.OfType<MenuItem>().Skip(1).Take(5).Select(m =>
                   (m.Icon is Border { Background: Avalonia.Media.ISolidColorBrush b } ? $"#{b.Color.R:X2}{b.Color.G:X2}{b.Color.B:X2}" : "none") + (m.IsEnabled ? "" : "(greyed)"))),
@@ -518,8 +518,17 @@ Console.WriteLine("\nthe Cartographer mod on the Automap (API version 13):");
         win.Page(-1); Pump();
         Check("level 1: the source framed yellow on its blue", Marks(), "Tint(2,3)#4E79A7 Tint(6,4)#F28E2B Frame(2,3)#EDC948");
         Press(At(2, 3), MouseButton.Right);
-        Check("its menu now changes or removes it", Headers().EndsWith("Change waypoint... | Remove waypoint", StringComparison.Ordinal), true);
+        Check("its menu now changes or removes it", Headers().Contains("Change waypoint... | Remove waypoint | -", StringComparison.Ordinal), true);
         Menu()?.Close(); Pump();
+
+        // ---- a route (Cartographer 1.1.0, API version 14): the status line says it, the map draws it ----
+        Press(At(9, 5), MouseButton.Right);
+        Choose("Route to here");
+        Check("Route to here: the status line (lblInfo) says what it costs", info.Text?.StartsWith("Route to 10,6,1: ", StringComparison.Ordinal), true);
+        Check("... the map draws it, its end framed bold green", Marks().Contains("Frame(9,5)#59A14F!"), true);
+        Press(At(9, 5), MouseButton.Right);
+        Choose("Clear route");
+        Check("Clear route: the original's line back, nothing of the route drawn", (info.Text, Marks().Contains("#59A14F")), ("You are at 11,6,1 facing North.", false));
 
         // ---- Escape and the right button give a pick up ----
         Press(At(4, 4), MouseButton.Right);

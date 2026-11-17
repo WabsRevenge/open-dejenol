@@ -25,7 +25,7 @@ OpenDejenol comes bundled with a few mods. These include:
 
 <p align="center"><img src="docs/images/dps-meter-xp.png" width="400" alt="The DPS Meter in XP mode: experience gained per character, split into Damage and Chests"></p>
 
-**Cartographer** - Annotate the minimap to denote areas of interest and waypoints. Right-click squares to highlight them with a color, or link it to a destination square. Hover or click waypoints to interact with them.
+**Cartographer** - Annotate the minimap to denote areas of interest and waypoints. Right-click squares to highlight them with a color, or link it to a destination square. Hover or click waypoints to interact with them. Right-click a square for the shortest route to it from where you stand (or from any other square), counted in actions - each step and each turn is one - through what your map shows, taking your waypoints if you like, casting Ethereal Portal through walls at a cost you set, and steering round the hazards you choose.
 
 <p align="center"><img src="docs/images/cartographer.png" width="450" alt="The automap with Cartographer: coloured squares and a waypoint's arrow to its destination"></p>
 
