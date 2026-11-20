@@ -9,16 +9,22 @@
 #   1. reads the version from src/Mordor.App/Mordor.App.csproj (<Version>, the one place it is set)
 #      and, when RELEASE_TAG is set (the workflow sets it to the pushed tag), refuses a tag that is
 #      not "v" + that version;
-#   2. publishes the program, Release, self-contained for win-x64 (not single-file: the mods are
-#      loaded from the mods folder beside the program), into <output folder>/publish;
-#   3. checks the publish: OpenDejenol.exe, each bundled mod's dll and mod.json, LICENSE.txt, no
-#      file of the game's and no path of the builder's user folder;
+#   then, for each of the two Windows runtimes - win-x64, then win-arm64:
+#   2. publishes the program, Release, self-contained for that runtime (not single-file: the mods
+#      are loaded from the mods folder beside the program), into <output folder>/publish/<runtime>;
+#   3. checks the publish: OpenDejenol.exe built for that processor, each bundled mod's dll and
+#      mod.json, LICENSE.txt, no file of the game's and no path of the builder's user folder;
 #   4. packs it with Velopack (vpk, the version in .config/dotnet-tools.json) into
-#      <output folder>/releases: OpenDejenol.Game-win-Setup.exe, OpenDejenol.Game-<version>-full.nupkg,
-#      OpenDejenol.Game-win-Portable.zip, RELEASES and releases.win.json (a previous release's
-#      packages already in that folder - vpk download github - give a delta package as well),
-#      with the program's icon on the installer and its 256-pixel picture as the installer's
-#      splash (src/Mordor.App/Assets/Icon);
+#      <output folder>/releases, on a channel of its own:
+#        win-x64, channel "win":         OpenDejenol.Game-win-Setup.exe, OpenDejenol.Game-<version>-full.nupkg,
+#                                        OpenDejenol.Game-win-Portable.zip, RELEASES, releases.win.json
+#        win-arm64, channel "win-arm64": OpenDejenol.Game-win-arm64-Setup.exe,
+#                                        OpenDejenol.Game-<version>-win-arm64-full.nupkg,
+#                                        OpenDejenol.Game-win-arm64-Portable.zip, RELEASES-win-arm64,
+#                                        releases.win-arm64.json
+#      (a previous release's full package of the same channel already in that folder gives a
+#      delta package as well), with the program's icon on the installer and its 256-pixel picture
+#      as the installer's splash (src/Mordor.App/Assets/Icon);
 #   5. lists what it made, with sizes and SHA-256.
 # It uploads nothing, and never runs the program or the installer.
 #
@@ -75,63 +81,83 @@ fi
 mkdir -p "$OUT_IN" || die "cannot make $OUT_IN"
 OUT=$(cd "$OUT_IN" && pwd)
 case "$OUT/" in "$ROOT/"*) die "the output folder is inside the tree ($OUT): choose one outside it" ;; esac
-PUB="$OUT/publish"
+PUB_ROOT="$OUT/publish"
 REL="$OUT/releases"
-rm -rf "$PUB"
+rm -rf "$PUB_ROOT"
 mkdir -p "$REL"
-
-# 2. the publish. ContinuousIntegrationBuild maps the source paths compiled into the program to
-# /_/, and the symbols are embedded in each dll (DebugType embedded): a crash log's stack trace
-# keeps its line numbers in an installed copy (Velopack leaves separate .pdb files out), and no
-# folder of the machine that built it is named in what is packed - a separate pdb's path, which
-# Avalonia's XAML step writes unmapped, is not there to be named
-echo "== publishing (Release, win-x64, self-contained)"
-PUB_OUT=$("$DOTNET" publish "$APP_PROJ" -c Release -r win-x64 --self-contained true \
-          -p:PublishSingleFile=false -p:ContinuousIntegrationBuild=true -p:DebugType=embedded \
-          -o "$(winpath "$PUB")" --nologo 2>&1)
-PUB_RC=$?
-echo "$PUB_OUT" | grep -E "warning|error|->" | sed "s/^/  /"
-[ "$PUB_RC" -eq 0 ] || die "the publish failed (exit $PUB_RC)"
-if echo "$PUB_OUT" | grep -q -E ": warning "; then die "the publish has warnings"; fi
-
-# 3. what the publish holds
-[ -f "$PUB/OpenDejenol.exe" ] || die "no OpenDejenol.exe in the publish"
-[ -f "$PUB/LICENSE.txt" ] || die "no LICENSE.txt in the publish"
-for m in $MODS; do
-    folder=${m%%:*}; dll=${m#*:}
-    [ -f "$PUB/mods/$folder/$dll.dll" ] && [ -f "$PUB/mods/$folder/mod.json" ] \
-        || die "the bundled mod $folder is not in the publish (mods/$folder/$dll.dll and mod.json)"
-done
-echo "  ok    OpenDejenol.exe, LICENSE.txt, and mods/{QoL,Kaizen,DpsMeter,Cartographer} with dll and mod.json"
-GAMEFILES=$(cd "$PUB" && find . -type f | grep -i -E "\.(png|bmp|ico|cur|gif|jpg|wav|mid|midi|mdr|hlp|chm|vbx|ini|wri|mak)$|(^|/)(MORDOR\.EXE|MDATA[0-9]+\.MDR|MG11\.DLL|WAVMIX16\.DLL)$" | head -5)
-[ -z "$GAMEFILES" ] || die "files of the game's in the publish: $GAMEFILES"
-echo "  ok    no file of the game's (pictures, sounds, music, data, help)"
-WHO="${USERNAME:-${USER:-}}"
-if [ -n "$WHO" ]; then
-    PERSONAL=$(grep -r -l -a -i -E "users[\\/]+$WHO([\\/]|\$)" "$PUB" 2>/dev/null | grep -v -i "\.pdb$" | head -5)
-    [ -z "$PERSONAL" ] || die "the builder's user folder (Users\\$WHO) is named in: $PERSONAL"
-    echo "  ok    no path of the builder's user folder in any file packed"
-fi
-
-# 4. the packages
-echo "== packing with Velopack"
 "$DOTNET" tool restore >/dev/null || die "dotnet tool restore failed (vpk, .config/dotnet-tools.json)"
 [ -f "$ICON" ] || die "no icon at $ICON"
 [ -f "$SPLASH" ] || die "no splash picture at $SPLASH"
-set -- pack --packId "$PACK_ID" --packVersion "$VERSION" --runtime win-x64 --channel win \
-    --packDir "$(winpath "$PUB")" --mainExe OpenDejenol.exe --packTitle "$TITLE" --packAuthors "$AUTHORS" \
-    --icon "$(winpath "$ROOT/$ICON")" --splashImage "$(winpath "$ROOT/$SPLASH")" \
-    --outputDir "$(winpath "$REL")"
-[ -n "${RELEASE_NOTES:-}" ] && set -- "$@" --releaseNotes "$(winpath "$RELEASE_NOTES")"
-[ -n "${VPK_SIGN_PARAMS:-}" ] && set -- "$@" --signParams "$VPK_SIGN_PARAMS"
-[ -n "${VPK_SIGN_TEMPLATE:-}" ] && set -- "$@" --signTemplate "$VPK_SIGN_TEMPLATE"
-PACK_OUT=$("$DOTNET" vpk "$@" --skip-updates --legacyConsole 2>&1)
-PACK_RC=$?
-echo "$PACK_OUT" | sed "s/^/  /"
-for f in "$PACK_ID-win-Setup.exe" "$PACK_ID-$VERSION-full.nupkg" "$PACK_ID-win-Portable.zip" RELEASES releases.win.json; do
-    [ -f "$REL/$f" ] || die "vpk made no $f"
-done
-[ "$PACK_RC" -eq 0 ] || die "vpk pack failed"
+
+# Steps 2 to 4 for one runtime: pack_one <runtime> <channel>. Each runtime is its
+# own Velopack channel, so an installed copy is only ever offered updates built for its own
+# processor: win-x64 keeps the channel "win" it has had since 0.1.0 (its files carry no runtime in
+# their names), and win-arm64 is "win-arm64" (OpenDejenol.Game-win-arm64-Setup.exe and the rest).
+pack_one() {
+    RID=$1; CHANNEL=$2
+    PUB="$PUB_ROOT/$RID"
+
+    # 2. the publish. ContinuousIntegrationBuild maps the source paths compiled into the program to
+    # /_/, and the symbols are embedded in each dll (DebugType embedded): a crash log's stack trace
+    # keeps its line numbers in an installed copy (Velopack leaves separate .pdb files out), and no
+    # folder of the machine that built it is named in what is packed - a separate pdb's path, which
+    # Avalonia's XAML step writes unmapped, is not there to be named
+    echo "== publishing (Release, $RID, self-contained)"
+    PUB_OUT=$("$DOTNET" publish "$APP_PROJ" -c Release -r "$RID" --self-contained true \
+              -p:PublishSingleFile=false -p:ContinuousIntegrationBuild=true -p:DebugType=embedded \
+              -o "$(winpath "$PUB")" --nologo 2>&1)
+    PUB_RC=$?
+    echo "$PUB_OUT" | grep -E "warning|error|->" | sed "s/^/  /"
+    [ "$PUB_RC" -eq 0 ] || die "the $RID publish failed (exit $PUB_RC)"
+    if echo "$PUB_OUT" | grep -q -E ": warning "; then die "the $RID publish has warnings"; fi
+
+    # 3. what the publish holds
+    [ -f "$PUB/OpenDejenol.exe" ] || die "no OpenDejenol.exe in the $RID publish"
+    [ -f "$PUB/LICENSE.txt" ] || die "no LICENSE.txt in the $RID publish"
+    for m in $MODS; do
+        folder=${m%%:*}; dll=${m#*:}
+        [ -f "$PUB/mods/$folder/$dll.dll" ] && [ -f "$PUB/mods/$folder/mod.json" ] \
+            || die "the bundled mod $folder is not in the $RID publish (mods/$folder/$dll.dll and mod.json)"
+    done
+    echo "  ok    OpenDejenol.exe, LICENSE.txt, and mods/{QoL,Kaizen,DpsMeter,Cartographer} with dll and mod.json"
+    GAMEFILES=$(cd "$PUB" && find . -type f | grep -i -E "\.(png|bmp|ico|cur|gif|jpg|wav|mid|midi|mdr|hlp|chm|vbx|ini|wri|mak)$|(^|/)(MORDOR\.EXE|MDATA[0-9]+\.MDR|MG11\.DLL|WAVMIX16\.DLL)$" | head -5)
+    [ -z "$GAMEFILES" ] || die "files of the game's in the $RID publish: $GAMEFILES"
+    echo "  ok    no file of the game's (pictures, sounds, music, data, help)"
+    WHO="${USERNAME:-${USER:-}}"
+    if [ -n "$WHO" ]; then
+        PERSONAL=$(grep -r -l -a -i -E "users[\/]+$WHO([\/]|\$)" "$PUB" 2>/dev/null | grep -v -i "\.pdb$" | head -5)
+        [ -z "$PERSONAL" ] || die "the builder's user folder (Users\$WHO) is named in: $PERSONAL"
+        echo "  ok    no path of the builder's user folder in any file packed"
+    fi
+    # the program itself is built for the processor asked for (the PE header's machine field), so
+    # an ARM64 package can never carry the x64 program, or the other way round
+    MACHINE=$(od -A n -t x1 -j "$(od -A n -t u4 -j 60 -N 4 "$PUB/OpenDejenol.exe" | tr -d " ")" -N 6 "$PUB/OpenDejenol.exe" | tr -d " \n")
+    case "$RID:$MACHINE" in
+        win-x64:50450000648*|win-arm64:5045000064aa*) echo "  ok    OpenDejenol.exe is built for $RID" ;;
+        *) die "OpenDejenol.exe in the $RID publish is not built for $RID (PE header $MACHINE)" ;;
+    esac
+
+    # 4. the packages
+    echo "== packing $RID with Velopack (channel $CHANNEL)"
+    set -- pack --packId "$PACK_ID" --packVersion "$VERSION" --runtime "$RID" --channel "$CHANNEL" \
+        --packDir "$(winpath "$PUB")" --mainExe OpenDejenol.exe --packTitle "$TITLE" --packAuthors "$AUTHORS" \
+        --icon "$(winpath "$ROOT/$ICON")" --splashImage "$(winpath "$ROOT/$SPLASH")" \
+        --outputDir "$(winpath "$REL")"
+    [ -n "${RELEASE_NOTES:-}" ] && set -- "$@" --releaseNotes "$(winpath "$RELEASE_NOTES")"
+    [ -n "${VPK_SIGN_PARAMS:-}" ] && set -- "$@" --signParams "$VPK_SIGN_PARAMS"
+    [ -n "${VPK_SIGN_TEMPLATE:-}" ] && set -- "$@" --signTemplate "$VPK_SIGN_TEMPLATE"
+    PACK_OUT=$("$DOTNET" vpk "$@" --skip-updates --legacyConsole 2>&1)
+    PACK_RC=$?
+    echo "$PACK_OUT" | sed "s/^/  /"
+    if [ "$CHANNEL" = win ]; then FEED=RELEASES; NAMED=""; else FEED="RELEASES-$CHANNEL"; NAMED="-$CHANNEL"; fi
+    for f in "$PACK_ID-$CHANNEL-Setup.exe" "$PACK_ID-$VERSION$NAMED-full.nupkg" "$PACK_ID-$CHANNEL-Portable.zip" "$FEED" "releases.$CHANNEL.json"; do
+        [ -f "$REL/$f" ] || die "vpk made no $f"
+    done
+    [ "$PACK_RC" -eq 0 ] || die "vpk pack failed for $RID"
+}
+
+pack_one win-x64 win
+pack_one win-arm64 win-arm64
 
 # 5. what was made
 echo "== $REL"

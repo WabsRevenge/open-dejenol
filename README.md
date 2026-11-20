@@ -32,14 +32,15 @@ OpenDejenol comes bundled with a few mods. These include:
 ## Requirements
 
 - Your own copy of Mordor: The Depths of Dejenol - the full version or the shareware, available from [Decklin's Domain](https://www.decklinsdemise.com/mordor.htm). OpenDejenol reads the full game's `M1FULL.zip` or `MordorSetup.exe`, and the demo's `MordorDemoSetup.exe`, without running their old installers.
-- 64-bit Windows 10 or 11
+- 64-bit Windows 10 or 11, on an x64 (Intel or AMD) or ARM64 (e.g. Snapdragon) PC
 
 ## Installing and running
 
 Download the latest release from the [Releases page](https://github.com/uncanardnoir/open-dejenol/releases):
 
-- **OpenDejenol.Game-win-Setup.exe** - the installer (64-bit Windows 10 or 11). It installs for your user only, needs no administrator rights or .NET, and adds Start-menu and desktop shortcuts. Uninstall it from Settings > Apps.
+- **OpenDejenol.Game-win-Setup.exe** - the installer (x64 Windows 10 or 11). It installs for your user only, needs no administrator rights or .NET, and adds Start-menu and desktop shortcuts. Uninstall it from Settings > Apps.
 - **OpenDejenol.Game-win-Portable.zip** - unzip anywhere and run `OpenDejenol.exe`.
+- **OpenDejenol.Game-win-arm64-Setup.exe** and **OpenDejenol.Game-win-arm64-Portable.zip** - the same two, built natively for ARM64 Windows PCs. An ARM64 copy only ever updates to ARM64 builds.
 
 Releases aren't code-signed yet, so Windows may say "Windows protected your PC" the first time: choose More info, then Run anyway.
 

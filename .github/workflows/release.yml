@@ -2,10 +2,11 @@
 #
 #   - the tag must be "v" + the <Version> in src/Mordor.App/Mordor.App.csproj (tools/pack-release.sh
 #     refuses anything else);
-#   - builds and tests the solution as CI does, then publishes and packs with Velopack:
-#     OpenDejenol.Game-win-Setup.exe, OpenDejenol.Game-win-Portable.zip,
-#     OpenDejenol.Game-<version>-full.nupkg, RELEASES and releases.win.json (plus a delta package
-#     against the previous release, when there is one);
+#   - builds and tests the solution as CI does, then publishes and packs with Velopack, for
+#     Windows x64 (channel "win"): OpenDejenol.Game-win-Setup.exe, OpenDejenol.Game-win-Portable.zip,
+#     OpenDejenol.Game-<version>-full.nupkg, RELEASES and releases.win.json; and for Windows ARM64
+#     (channel "win-arm64"): the same with "win-arm64" in their names (plus, for each, a delta
+#     package against the previous release's full package of that channel, when there is one);
 #   - merges the packages into that existing release with this workflow's GITHUB_TOKEN.
 #     The release's pre-release checkbox is authoritative. Publishing starts the build;
 #     downloads appear after it succeeds. Saving a draft or pushing a tag alone does not run it.
@@ -101,10 +102,13 @@ jobs:
           PRERELEASE: ${{ github.event.release.prerelease }}
         run: |
           version="${TAG#v}"
-          set -- --repoUrl "$REPO_URL" --token "$GITHUB_TOKEN" --outputDir "$RUNNER_TEMP/release/releases" --channel win \
-            --tag "$TAG" --releaseName "OpenDejenol $version" --targetCommitish "$GITHUB_SHA"
-          if [ "$PRERELEASE" = "true" ]; then set -- "$@" --pre; fi
-          dotnet vpk upload github "$@" --merge --skip-updates --legacyConsole
+          # one upload per channel, each merged into the same release
+          for channel in win win-arm64; do
+            set -- --repoUrl "$REPO_URL" --token "$GITHUB_TOKEN" --outputDir "$RUNNER_TEMP/release/releases" --channel "$channel" \
+              --tag "$TAG" --releaseName "OpenDejenol $version" --targetCommitish "$GITHUB_SHA"
+            if [ "$PRERELEASE" = "true" ]; then set -- "$@" --pre; fi
+            dotnet vpk upload github "$@" --merge --skip-updates --legacyConsole
+          done
 
       # Also retain the packages on the workflow run's page.
       - uses: actions/upload-artifact@v7

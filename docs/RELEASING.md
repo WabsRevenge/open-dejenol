@@ -13,6 +13,7 @@ their own copy of Mordor.
 | `OpenDejenol.Game-win-Portable.zip` | the same program to unzip anywhere and run (`OpenDejenol.exe`); it updates itself in place, like an installed copy |
 | `OpenDejenol.Game-<version>-full.nupkg`, `RELEASES`, `releases.win.json` | the update feed: what installed copies download and read |
 | `OpenDejenol.Game-<version>-delta.nupkg` | from the second release on: the change from the previous one, a much smaller download |
+| `OpenDejenol.Game-win-arm64-Setup.exe`, `OpenDejenol.Game-win-arm64-Portable.zip`, `OpenDejenol.Game-<version>-win-arm64-full.nupkg` (and `-delta`), `RELEASES-win-arm64`, `releases.win-arm64.json` | the same for ARM64 Windows (from 0.1.5): built natively for ARM64, on a Velopack channel of its own, `win-arm64`, so an ARM64 copy is only offered ARM64 updates and an x64 copy (channel `win`) only x64 ones |
 
 The program is self-contained (no .NET to install) and not a single file: the bundled mods are in
 `mods\` beside it, as in a build (docs/MODDING.md). Each copy carries `LICENSE.txt` (GPL-3.0).
@@ -24,8 +25,9 @@ before it is tagged. To see what a release would hold, run it yourself (Windows,
 
     sh tools/pack-release.sh ../release-test
 
-It publishes into `../release-test/publish`, checks the publish (the program, each bundled mod's
-dll and mod.json, the licence, no file of the game's, no path of your user folder) and packs into
+It publishes into `../release-test/publish/win-x64` and `../release-test/publish/win-arm64`, checks
+each publish (the program built for that processor, each bundled mod's dll and mod.json, the
+licence, no file of the game's, no path of your user folder) and packs both into
 `../release-test/releases`, listing each file's size and SHA-256. It never runs the program or the
 installer.
 
