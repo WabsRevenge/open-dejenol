@@ -98,15 +98,24 @@ public static partial class SelfCheckProbe
         string assets = Path.Combine(portDir, "src/Mordor.App", "Assets");
         var iconFiles = new[] { "opendejenol.svg", "opendejenol-16.svg", "opendejenol.ico" }
             .Concat(new[] { 16, 24, 32, 48, 64, 128, 256 }.Select(n => $"opendejenol-{n}.png"));
-        var allowed = new HashSet<string>(iconFiles.Select(f => Path.Combine("Icon", f)), StringComparer.OrdinalIgnoreCase);
+        // The only other thing built in is the Liberation fonts (Assets/Fonts/Liberation, PortFonts):
+        // free fonts drawn to Arial's widths, the stand-ins for Windows' faces away from Windows -
+        // nothing of the game's. They are named here file by file, so nothing else rides in with them.
+        var fontFiles = new[]
+        {
+            "LiberationSans-Regular.ttf", "LiberationSans-Bold.ttf", "LiberationSans-Italic.ttf", "LiberationSans-BoldItalic.ttf",
+            "LiberationSerif-Regular.ttf", "LiberationSerif-Bold.ttf", "LiberationMono-Regular.ttf", "LiberationMono-Bold.ttf", "LICENSE.txt",
+        };
+        var allowed = new HashSet<string>(iconFiles.Select(f => Path.Combine("Icon", f))
+            .Concat(fontFiles.Select(f => Path.Combine("Fonts", "Liberation", f))), StringComparer.OrdinalIgnoreCase);
         var others = Directory.Exists(assets)
             ? Directory.GetFiles(assets, "*", SearchOption.AllDirectories).Select(f => Path.GetRelativePath(assets, f)).Where(f => !allowed.Contains(f)).ToList()
             : new List<string>();
-        Check("Mordor.App/Assets holds nothing but the program's icon (Assets/Icon)", string.Join(", ", others), "");
+        Check("Mordor.App/Assets holds nothing but the program's icon (Assets/Icon) and the Liberation fonts", string.Join(", ", others), "");
         string appProj = File.ReadAllText(Path.Combine(portDir, "src/Mordor.App", "Mordor.App.csproj"));
-        Check("Mordor.App.csproj builds no resources in but the icon",
+        Check("Mordor.App.csproj builds no resources in but the icon and the Liberation fonts",
               System.Text.RegularExpressions.Regex.Matches(appProj, "<AvaloniaResource[^>]*>").Select(m => m.Value).DefaultIfEmpty("none").Aggregate((a, b) => a + " " + b),
-              "<AvaloniaResource Include=\"Assets\\Icon\\opendejenol.ico\" />");
+              "<AvaloniaResource Include=\"Assets\\Icon\\opendejenol.ico\" /> <AvaloniaResource Include=\"Assets\\Fonts\\Liberation\\*.ttf\" />");
         Check("no wallart folder of MG11.DLL's bitmaps", Directory.Exists(Path.Combine(portDir, "wallart")), false);
         Check("no decompiled copy of the help (docs/original-help)", Directory.Exists(Path.Combine(portDir, "docs", "original-help")), false);
         int avares = Directory.GetFiles(Path.Combine(portDir, "src/Mordor.App"), "*.*", SearchOption.TopDirectoryOnly)
@@ -114,12 +123,13 @@ public static partial class SelfCheckProbe
             .Sum(f =>
             {
                 string text = File.ReadAllText(f);
-                // the assembly is OpenDejenol; the icon's own reference is the one allowed
+                // the assembly is OpenDejenol; the icon's own reference and the fonts' are the ones allowed
                 return text.Split("avares://Mordor.App/").Length - 1
                      + text.Split("avares://OpenDejenol/").Length - 1
-                     - (text.Split("avares://OpenDejenol/Assets/Icon/opendejenol.ico").Length - 1);
+                     - (text.Split("avares://OpenDejenol/Assets/Icon/opendejenol.ico").Length - 1)
+                     - (text.Split("\"avares://OpenDejenol/Assets/Fonts/Liberation\"").Length - 1);
             });
-        Check("pictures loaded from inside the program (avares://), but the icon", avares, 0);
+        Check("pictures loaded from inside the program (avares://), but the icon (and the fonts)", avares, 0);
 
         string scratch = Path.Combine(Path.GetTempPath(), "mordor-art-" + Guid.NewGuid().ToString("N")[..8]);
         try

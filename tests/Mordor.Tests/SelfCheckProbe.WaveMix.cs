@@ -221,7 +221,7 @@ public static partial class SelfCheckProbe
         string app = PortSource("src/Mordor.App", "Audio.cs"), opts = PortSource("src/Mordor.App", "OptionsWindow.cs");
         Check("the App: the session sets the port's own output, never Windows' volume",
               app.Contains("_session.WaveOutSetVolume = v => channels.DeviceVolume = v;") && app.Contains("SetFxVolume(o.FXVolume);")
-              && !app.Contains("waveOutSetVolume(") && !PortSource("src/Mordor.App", "WaveOutStream.cs").Contains("waveOutSetVolume"), true);
+              && !app.Contains("waveOutSetVolume(") && !PortSource("src/Mordor.App", "AudioOut.cs").Contains("waveOutSetVolume"), true);
         Check("the Options slider: live, with sub09DE's HIT, put back unless OK (FRMOPTIO.BAS:148, 396-412)",
               opts.Contains("Audio.SetFxVolume(_fxRaw);") && opts.Contains("Audio.Play(\"HIT\");")
               && opts.Contains("if (!Accepted) { Audio.SetFxVolume(_o.FXVolume);") && opts.Contains("_o.FXVolume = _fxRaw;")
@@ -368,8 +368,8 @@ public static partial class SelfCheckProbe
         string audio = PortSource("src/Mordor.App", "Audio.cs");
         Check("a fight's sounds and a spell's go through sub09DE", audio.Contains("foreach (string n in names ?? Array.Empty<string>()) Play(n);")
               && audio.Contains("public static void Play(string name) => Effect(name, WaveMixRoutine.Sub09DE);"), true);
-        Check("No Sound FX and MORDOR_MUTE stop every routine before WaveMix", audio.Contains("if (!Enabled || !OperatingSystem.IsWindows()) return;\r\n        if (FramePause.Paused) return;")
-              || audio.Contains("if (!Enabled || !OperatingSystem.IsWindows()) return;\n        if (FramePause.Paused) return;"), true);
+        Check("No Sound FX and MORDOR_MUTE stop every routine before WaveMix", audio.Contains("if (!Enabled) return;\r\n        if (FramePause.Paused) return;")
+              || audio.Contains("if (!Enabled) return;\n        if (FramePause.Paused) return;"), true);
         Check("winmm's PlaySound is gone", audio.Contains("PlaySound("), false);
     }
 }

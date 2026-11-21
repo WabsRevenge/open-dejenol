@@ -126,7 +126,7 @@ public partial class CharacterCreationWindow : Window
             // white monospace on near-black had flattened the three states into one.
             if (!raceOk) continue;
             var row = new TextBlock { Text = g.Name, FontSize = 14, Foreground = Brushes.Black,
-                                      FontFamily = new FontFamily("Microsoft Sans Serif, Segoe UI, sans-serif") };
+                                      FontFamily = PortFonts.Family("Microsoft Sans Serif, Segoe UI, sans-serif") };
             if (!alignOk) row.FontStyle = FontStyle.Italic;
             else if (statsOk) row.FontWeight = FontWeight.Bold;
             GuildRows.Children.Add(row);

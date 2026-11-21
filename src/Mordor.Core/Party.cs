@@ -796,7 +796,7 @@ public sealed class Party
             }
             Directory.CreateDirectory(savesDir);
             var r = new Roster { Leader = Leader.Name, Members = Members.Select(m => m.Name).ToList() };
-            File.WriteAllText(p, JsonSerializer.Serialize(r, new JsonSerializerOptions { WriteIndented = true }));
+            SafeFile.WriteAllText(p, JsonSerializer.Serialize(r, new JsonSerializerOptions { WriteIndented = true }));
             return true;
         }
         catch (Exception ex)

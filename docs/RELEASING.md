@@ -14,6 +14,7 @@ their own copy of Mordor.
 | `OpenDejenol.Game-<version>-full.nupkg`, `RELEASES`, `releases.win.json` | the update feed: what installed copies download and read |
 | `OpenDejenol.Game-<version>-delta.nupkg` | from the second release on: the change from the previous one, a much smaller download |
 | `OpenDejenol.Game-win-arm64-Setup.exe`, `OpenDejenol.Game-win-arm64-Portable.zip`, `OpenDejenol.Game-<version>-win-arm64-full.nupkg` (and `-delta`), `RELEASES-win-arm64`, `releases.win-arm64.json` | the same for ARM64 Windows (from 0.1.5): built natively for ARM64, on a Velopack channel of its own, `win-arm64`, so an ARM64 copy is only offered ARM64 updates and an x64 copy (channel `win`) only x64 ones |
+| `OpenDejenol.Game.AppImage`, `OpenDejenol.Game-<version>-linux-full.nupkg` (and `-delta`), `RELEASES-linux`, `releases.linux.json` | Linux x64 (from 0.1.6): a single AppImage to make executable and run, on a channel of its own, `linux`. Packed from Windows by vpk's `[linux]` directive; it updates itself like the Windows copies |
 
 The program is self-contained (no .NET to install) and not a single file: the bundled mods are in
 `mods\` beside it, as in a build (docs/MODDING.md). Each copy carries `LICENSE.txt` (GPL-3.0).
@@ -25,9 +26,9 @@ before it is tagged. To see what a release would hold, run it yourself (Windows,
 
     sh tools/pack-release.sh ../release-test
 
-It publishes into `../release-test/publish/win-x64` and `../release-test/publish/win-arm64`, checks
-each publish (the program built for that processor, each bundled mod's dll and mod.json, the
-licence, no file of the game's, no path of your user folder) and packs both into
+It publishes into `../release-test/publish/win-x64`, `../release-test/publish/win-arm64` and `../release-test/publish/linux-x64`, checks
+each publish (the program built for that processor, the SoundFont and the fonts' licence, each bundled mod's dll and mod.json, the
+licence, no file of the game's, no path of your user folder) and packs all three into
 `../release-test/releases`, listing each file's size and SHA-256. It never runs the program or the
 installer.
 

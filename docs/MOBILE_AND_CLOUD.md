@@ -17,7 +17,7 @@ Status: proposal, 2026-10-04. Nothing here is implemented. Companion to docs/MOD
 | UI framework | Avalonia 11.2.3 | Avalonia has Android and iOS targets; the same XAML/C# compiles |
 | Window model | Already one top-level window with an MDI frame inside (`MdiFrame`) | Good: mobile apps have one view. But many dialogs are separate `Window`s (OriginalBox, NamePicker, PasswordBox, Options, Help, Exchange, Hall, Mods, a mod's settings window) and must become in-view overlays |
 | Code structure | `CityWindow` / `DungeonWindow` are large code-behind classes mixing layout, input and game flow | The main cost: a phone layout needs the flow separated from the desktop layout |
-| Audio | `winmm.dll` (WAV through the port's own 8-channel mixer over waveOut, MIDI via MCI) | Must be replaced: a cross-platform player for WAV, and a software MIDI synth (e.g. MeltySynth + a General MIDI SoundFont) |
+| Audio | Done: effects through the port's own 8-channel mixer out via SDL3 (`AudioOut`) everywhere; MIDI through Windows' own player (MCI) on Windows by default, otherwise MeltySynth with the bundled TimGM6mb SoundFont (`MidiPlayer`; Options: Use built-in soundfont) | - |
 | Other Windows APIs | `user32` (foreground/frame), `comdlg32` ChooseFont, `gdi32` | Replace with Avalonia equivalents (font picker from installed fonts; no foreground tricks) |
 | Mods | AssemblyLoadContext + Harmony | Android: plugin loading works under the Mono JIT, Harmony partly. iOS: no runtime code loading or JIT, so mods can only be compiled in (the QoL mod built into the app, its toggles kept) |
 | Game data | Read from the player's `game_files` at runtime | Needs an import step on mobile (below) |

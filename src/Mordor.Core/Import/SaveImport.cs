@@ -126,7 +126,7 @@ public static class SaveImport
         {
             if (!writtenNames.Contains(p.Leader)) continue;
             string file = "party-" + Character.SafeFileName(p.Leader) + ".json";
-            File.WriteAllText(Path.Combine(savesDir, file),
+            SafeFile.WriteAllText(Path.Combine(savesDir, file),
                 JsonSerializer.Serialize(new { Leader = p.Leader, Members = p.Members }, new JsonSerializerOptions { WriteIndented = true }));
             written.Add(file);
         }

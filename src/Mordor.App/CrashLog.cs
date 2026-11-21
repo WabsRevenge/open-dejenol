@@ -19,6 +19,28 @@ public static class CrashLog
 {
     private static readonly object Gate = new();
 
+    /// <summary>
+    /// Which build on which machine, for a crash.log sent in with a bug report: the version, the
+    /// system and the processor (an ARM64 build runs natively; an x64 one may run emulated).
+    /// </summary>
+    private static string Running
+    {
+        get
+        {
+            try
+            {
+                var asm = typeof(CrashLog).Assembly;
+                string version = (asm.GetCustomAttributes(typeof(System.Reflection.AssemblyInformationalVersionAttribute), false)
+                    is { Length: > 0 } a ? ((System.Reflection.AssemblyInformationalVersionAttribute)a[0]).InformationalVersion : asm.GetName().Version?.ToString()) ?? "?";
+                int plus = version.IndexOf('+');   // the commit the SDK appends
+                if (plus > 0) version = version[..plus];
+                return $"OpenDejenol {version}, {System.Runtime.InteropServices.RuntimeInformation.OSDescription}, "
+                     + $"{System.Runtime.InteropServices.RuntimeInformation.ProcessArchitecture} on {System.Runtime.InteropServices.RuntimeInformation.OSArchitecture}";
+            }
+            catch { return "?"; }
+        }
+    }
+
     /// <summary>What the player was last doing, so the log says more than the stack does.</summary>
     public static string Context { get; set; } = "starting up";
 
@@ -46,6 +68,7 @@ public static class CrashLog
             var sb = new StringBuilder();
             sb.AppendLine(new string('-', 78));
             sb.AppendLine($"{DateTime.Now:yyyy-MM-dd HH:mm:ss}  {where}");
+            sb.AppendLine($"running: {Running}");
             sb.AppendLine($"doing: {Context}");
             sb.AppendLine(ex.ToString());
             lock (Gate) PortFiles.Append(Places, sb.ToString());

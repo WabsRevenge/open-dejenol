@@ -16,8 +16,8 @@ namespace Mordor.App;
 /// </summary>
 internal static class VbForm
 {
-    public static readonly FontFamily Sans = new("Microsoft Sans Serif, MS Sans Serif, Arial");
-    public static readonly FontFamily Times = new("Times New Roman");
+    public static readonly FontFamily Sans = PortFonts.Family("Microsoft Sans Serif, MS Sans Serif, Arial");
+    public static readonly FontFamily Times = PortFonts.Family("Times New Roman");
 
     /// <summary>The system button face, which several of these controls take as their BackColor.</summary>
     public static readonly IBrush ButtonFace = Brush.Parse("#F0F0F0");

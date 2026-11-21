@@ -5,7 +5,9 @@
 #   - builds and tests the solution as CI does, then publishes and packs with Velopack, for
 #     Windows x64 (channel "win"): OpenDejenol.Game-win-Setup.exe, OpenDejenol.Game-win-Portable.zip,
 #     OpenDejenol.Game-<version>-full.nupkg, RELEASES and releases.win.json; and for Windows ARM64
-#     (channel "win-arm64"): the same with "win-arm64" in their names (plus, for each, a delta
+#     (channel "win-arm64"): the same with "win-arm64" in their names; and for Linux x64 (channel
+#     "linux"): OpenDejenol.Game.AppImage, OpenDejenol.Game-<version>-linux-full.nupkg, RELEASES-linux
+#     and releases.linux.json (plus, for each, a delta
 #     package against the previous release's full package of that channel, when there is one);
 #   - merges the packages into that existing release with this workflow's GITHUB_TOKEN.
 #     The release's pre-release checkbox is authoritative. Publishing starts the build;
@@ -103,7 +105,7 @@ jobs:
         run: |
           version="${TAG#v}"
           # one upload per channel, each merged into the same release
-          for channel in win win-arm64; do
+          for channel in win win-arm64 linux; do
             set -- --repoUrl "$REPO_URL" --token "$GITHUB_TOKEN" --outputDir "$RUNNER_TEMP/release/releases" --channel "$channel" \
               --tag "$TAG" --releaseName "OpenDejenol $version" --targetCommitish "$GITHUB_SHA"
             if [ "$PRERELEASE" = "true" ]; then set -- "$@" --pre; fi

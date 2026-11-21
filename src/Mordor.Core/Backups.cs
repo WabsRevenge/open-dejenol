@@ -34,7 +34,8 @@ public static class Backups
     public static bool IsGameFile(string path)
     {
         string name = Path.GetFileName(path);
-        return !string.Equals(name, GuildLog.BackupName, StringComparison.OrdinalIgnoreCase)
+        return !name.EndsWith(SafeFile.TempSuffix, StringComparison.OrdinalIgnoreCase)   // a save that never finished (SafeFile)
+            && !string.Equals(name, GuildLog.BackupName, StringComparison.OrdinalIgnoreCase)
             && !string.Equals(name, PortSettings.FileName, StringComparison.OrdinalIgnoreCase);
     }
 

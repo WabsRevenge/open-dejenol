@@ -38,6 +38,12 @@ public partial class TitleWindow : Window
     public TitleWindow()
     {
         InitializeComponent();
+        // away from Windows, the form's Windows faces drawn in their Liberation twins (PortFonts)
+        if (PortFonts.StandIn)
+        {
+            FontFamily = PortFonts.Family("Microsoft Sans Serif, MS Sans Serif, Arial");
+            MordorTitle.FontFamily = PortFonts.Family("Times New Roman");
+        }
         // frmMain's caption, which MDIForm_Load sets before the menu is shown (FRMMAIN.BAS:148-152;
         // Sub Main shows frmMain, MAINMOD2.BAS:6456): "Mordor 1.1", gc0192 + " " + gc0186, and
         // "Mordor 1.1 (Limited Version)" in the limited build - the shareware's frame reads that at
@@ -110,6 +116,11 @@ public partial class TitleWindow : Window
             // the program may have shut down under the box, closing the menu: nothing more is shown
             if (!OriginalBox.CanOwn(this)) return;
             await Welcome();
+            // a character save that would not read: put back from its last good copy, or not, and
+            // either way said - the lists below would otherwise just leave it out (SaveRecovery)
+            if (!OriginalBox.CanOwn(this)) return;
+            SavedCharacters();
+            await ShowSaveNotices();
             // Form_Load's last line, after the welcome: "If m00A8 = True Then cmdCommand(mc002A).Caption =
             // "Ordering/&About"" (FRMMENU.BAS:162), m00A8 a Static the full build never sets. The
             // shareware's About button reads "Ordering/&About" (observed in the original shareware
@@ -172,6 +183,19 @@ public partial class TitleWindow : Window
         // a box closed by the program shutting down, not by its OK, leaves the flag unwritten, as
         // the original ending there would
         if (OriginalBox.CanOwn(this)) PortSettings.Write(SavesDir, "NotFirstTime", "True");
+    }
+
+    /// <summary>
+    /// What SaveRecovery has to tell: a character save that would not read, put back from its last
+    /// good copy or not. A port necessity - the original has no save file to lose - so its own box.
+    /// </summary>
+    private async System.Threading.Tasks.Task ShowSaveNotices()
+    {
+        foreach (string notice in SaveRecovery.TakeNotices())
+        {
+            if (!OriginalBox.CanOwn(this)) return;
+            await OriginalBox.Tell(this, "Save File", notice);
+        }
     }
 
     private bool IsSaveLoaded => _loaded != null && _loaded.Name.Trim() != "";
@@ -475,6 +499,7 @@ public partial class TitleWindow : Window
     {
         string me = IsSaveLoaded ? _loaded!.Name.TrimEnd() : "";
         var saved = SavedCharacters().Where(p => p.ch.Name.TrimEnd() != me).ToList();
+        await ShowSaveNotices();
         int i = exchange
             ? await NamePicker.Ask(this, "Exchange Items", "Exchange Items with who?",
                                    saved.Select(p => p.ch.Name.TrimEnd()).ToList(), Interact.NobodyFor("LOADCHAR"))
@@ -517,6 +542,7 @@ public partial class TitleWindow : Window
     private async void OnCharacterList(object? s, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var saved = SavedCharacters().Select(p => p.ch).ToList();
+        await ShowSaveNotices();
         var rows = saved.Select(c =>
         {
             string row = c.Name.TrimEnd() + " (Level " + c.Guild.Level + " " + c.Guild.Guild + ")";

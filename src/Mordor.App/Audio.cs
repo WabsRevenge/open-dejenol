@@ -1,17 +1,18 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.InteropServices;
 using Mordor.Core;
 
 namespace Mordor.App;
 
 /// <summary>
-/// Plays the original WAV effects and MIDI music through the Windows multimedia API
-/// (winmm.dll), so no third-party audio library is needed. On other platforms every
-/// call is a silent no-op. Toggle with <see cref="Enabled"/>.
+/// Plays the original WAV effects and MIDI music the same way on every platform: out through
+/// SDL3 (<see cref="AudioOut"/>), the music played by the port's own synthesizer
+/// (<see cref="MidiPlayer"/>) - or, on Windows by default, Windows' own MIDI player (<see cref="MciMusic"/>). Toggle with <see cref="Enabled"/>.
 ///
 /// The effects go through the port's WaveMix (<see cref="WaveMixSession"/> over
-/// <see cref="WaveMixChannels"/>, out through <see cref="WaveOutStream"/>): eight channels mixed
+/// <see cref="WaveMixChannels"/>, out through <see cref="AudioOut"/>): eight channels mixed
 /// together, as the original's WAVMIX16 mixes them, where winmm's PlaySound had one sound at a
 /// time and each new one cut off the last.
 /// </summary>
@@ -50,6 +51,7 @@ public static class Audio
     /// </summary>
     public static void Pause()
     {
+        Trace("Pause (minimised)");
         StopMusic();
         Deactivate();
     }
@@ -63,6 +65,7 @@ public static class Audio
     /// </summary>
     public static void Resume()
     {
+        Trace("Resume");
         int? track = _resumeMusic;
         _resumeMusic = null;
         if (track is int t) Music(t);
@@ -100,6 +103,9 @@ public static class Audio
             _muted = true;
             Enabled = false; MusicEnabled = false;
         }
+        // the SoundFont is read in the background, so the title screen's THEME need not wait for it
+        MusicPlayers.SavesDir ??= Saves.DirFor(gameDir);
+        if (!_muted) _playerLoad ??= LoadPlayer();
     }
 
     /// <summary>
@@ -145,7 +151,7 @@ public static class Audio
     /// <summary>MUSIC.BAS's bookkeeping over them.</summary>
     private static WaveMixSession? _session;
     /// <summary>The device, open from the first effect until a minimise or the end.</summary>
-    private static WaveOutStream? _out;
+    private static AudioOut? _out;
     /// <summary>Windows refused the device: not asked again until the game comes back from minimised.</summary>
     private static bool _outFailed;
 
@@ -159,7 +165,7 @@ public static class Audio
         EnsureSession();
         if (_out == null && !_outFailed && _channels != null && !_channels.Closed)
         {
-            _out = WaveOutStream.Open(_channels);
+            _out = OpenEffects(_channels);
             _outFailed = _out == null;
         }
         return _session;
@@ -202,7 +208,6 @@ public static class Audio
     {
         if (_muted) return;
         Enabled = false;
-        if (!OperatingSystem.IsWindows()) return;
         EnsureSession();
         _session!.DeInitialize();
         _channels!.CloseSession();
@@ -219,11 +224,10 @@ public static class Audio
     {
         if (_muted) return true;
         Enabled = true;
-        if (!OperatingSystem.IsWindows()) return true;
         EnsureSession();
         _channels!.OpenSession();
         _outFailed = false;
-        _out ??= WaveOutStream.Open(_channels);
+        _out ??= OpenEffects(_channels);
         if (_out == null) { _outFailed = true; return false; }
         Play("RAISE");
         return true;
@@ -261,7 +265,7 @@ public static class Audio
     public static void SoundCanvasChanged(bool soundCanvas)
     {
         _soundCanvas = soundCanvas;
-        Mci("stop bgm");
+        StopOnly();
         Music(MusicTrack.Theme);
     }
 
@@ -277,7 +281,7 @@ public static class Audio
         {
             if (!_muted) MusicEnabled = !noMusic;
             _soundCanvas = soundCanvas;
-            Mci("stop bgm");
+            StopOnly();
         }
         if (!MusicEnabled) StopMusic();
         else if (!MusicPlaying()) Music(MusicTrack.Theme);
@@ -325,7 +329,7 @@ public static class Audio
 
     private static void Effect(string name, WaveMixRoutine routine)
     {
-        if (!Enabled || !OperatingSystem.IsWindows()) return;
+        if (!Enabled) return;
         if (FramePause.Paused) return;   // WaveMixActivate(..., False) while minimised (FRMMAIN.BAS:210-212)
         if (_options.NoDing && string.Equals(name, "MESSAGE", StringComparison.OrdinalIgnoreCase)) return;
         if (_options.NoHelpSound && string.Equals(name, "HELP", StringComparison.OrdinalIgnoreCase)) return;
@@ -334,14 +338,64 @@ public static class Audio
         try { Session()?.Play(n, routine); } catch { }
     }
 
-    // ---- MIDI music via MCI ----
-    [DllImport("winmm.dll", CharSet = CharSet.Unicode)]
-    private static extern int mciSendString(string command, System.Text.StringBuilder? ret, int retLen, IntPtr callback);
+    // ---- MIDI music: Windows' own player, or the port's synthesizer (MusicPlayers chooses) ----
 
-    private static void Mci(string cmd)
+    /// <summary>The player, made from <see cref="Init"/> - the synthesizer reads its SoundFont in the background.</summary>
+    private static System.Threading.Tasks.Task<IMusicPlayer?>? _playerLoad;
+
+    /// <summary>The player, null when there is none (the synthesizer with no SoundFont: no music).</summary>
+    private static IMusicPlayer? Player()
     {
-        try { mciSendString(cmd, null, 0, IntPtr.Zero); } catch { }
+        _playerLoad ??= LoadPlayer();
+        try { return _playerLoad.Result; } catch { return null; }
     }
+
+    /// <summary>Whether the music is the port's synthesizer (the Options window's box shows this).</summary>
+    public static bool UsingSoundfont => MusicPlayers.UseSynth();
+
+    /// <summary>
+    /// The port's own Use built-in soundfont box, ticked or cleared - live, as the original's
+    /// music boxes are: the player closed and the tag emptied, the other player taken, and THEME
+    /// played on it, so the change is heard at once. Not in the original, which had one player.
+    /// </summary>
+    public static void SoundfontChanged(bool soundfont, bool playTheme = true)
+    {
+        if (UsingSoundfont == soundfont) return;
+        StopMusic();
+        MusicPlayers.Chosen = soundfont;
+        _playerLoad = LoadPlayer();
+        if (playTheme && !_muted && MusicEnabled) Music(MusicTrack.Theme);
+    }
+
+    private static System.Threading.Tasks.Task<IMusicPlayer?> LoadPlayer() =>
+        MusicPlayers.UseSynth()
+            ? MidiPlayer.LoadAsync().ContinueWith(t => t.IsCompletedSuccessfully ? (IMusicPlayer?)t.Result : null)
+            : System.Threading.Tasks.Task.FromResult<IMusicPlayer?>(new MciMusic());
+
+    /// <summary>The effects' output: WaveMix's 16-bit mono at <see cref="WaveMixChannels.Rate"/>.</summary>
+    private static AudioOut? OpenEffects(WaveMixChannels channels) =>
+        AudioOut.Open(AudioOut.S16, 1, WaveMixChannels.Rate, bytes => channels.Mix(MemoryMarshal.Cast<byte, short>(bytes)));
+
+    /// <summary>
+    /// Test hook: MORDOR_TRACE_MUSIC names a file every music event is appended to - each tune
+    /// asked for, played, stopped and closed, and who asked - so a cut-off on another machine can
+    /// be traced without a debugger.
+    /// </summary>
+    internal static void Trace(string what)
+    {
+        if (_trace is not string file) return;
+        try
+        {
+            var callers = new System.Diagnostics.StackTrace(2, false).GetFrames()
+                .Select(f => f.GetMethod()).Where(m => m != null).Take(3)
+                .Select(m => m!.DeclaringType?.Name + "." + m.Name);
+            File.AppendAllText(file, $"{DateTime.Now:HH:mm:ss.fff} {what}  <- {string.Join(" <- ", callers)}\n");
+        }
+        catch { }
+    }
+
+    private static readonly string? _trace =
+        Environment.GetEnvironmentVariable("MORDOR_TRACE_MUSIC") is { Length: > 0 } t ? t : null;
 
     /// <summary>
     /// <c>sub063F</c> (MUSIC.BAS:433-469): play a <see cref="MusicTrack"/> once. Nothing happens if
@@ -351,55 +405,48 @@ public static class Audio
     /// </summary>
     public static void Music(int track)
     {
-        if (!OperatingSystem.IsWindows()) return;
+        Trace($"Music({track}) tag={_tag} enabled={MusicEnabled} paused={FramePause.Paused}");
         if (!MusicEnabled) { StopMusic(); return; }
         // minimised, the player is closed (FRMMAIN.BAS:207-208): the tune asked for waits for Resume
         if (FramePause.Paused) { _resumeMusic = track; return; }
         if (_tag == track) return;
-        Mci("stop bgm"); Mci("close bgm");
+        var player = Player();
+        player?.Close();
         string path = Path.Combine(_dir, MusicTrack.File(track, _soundCanvas) + ".MID");
-        if (!File.Exists(path)) return;
-        Mci($"open \"{Playable(path)}\" type sequencer alias bgm");
-        Mci("play bgm");
+        if (!File.Exists(path)) { Trace("no file " + path); return; }
+        player?.Play(path, Playable(path));
         _tag = track;
     }
 
     /// <summary>
-    /// The file to hand the sequencer: the game's own, or for THEME.MID a copy in the temp folder
-    /// with its Expression set as the sound cards of the time played it (<see cref="MidiExpression"/>).
-    /// The game folder is never written.
+    /// The bytes to hand the sequencer: the game's own file, or for THEME.MID with its Expression
+    /// set as the sound cards of the time played it (<see cref="MidiExpression"/>).
     /// </summary>
-    private static string Playable(string path)
+    private static byte[] Playable(string path)
     {
-        try
-        {
-            byte[]? unmuted = MidiExpression.Unmuted(File.ReadAllBytes(path));
-            if (unmuted == null) return path;
-            string dir = Path.Combine(Path.GetTempPath(), "OpenDejenol");
-            Directory.CreateDirectory(dir);
-            string copy = Path.Combine(dir, Path.GetFileName(path));
-            File.WriteAllBytes(copy, unmuted);
-            return copy;
-        }
-        catch { return path; }
+        byte[] file = File.ReadAllBytes(path);
+        try { return MidiExpression.Unmuted(file) ?? file; }
+        catch { return file; }
     }
 
     /// <summary><c>fn19DC</c> (MUSIC.BAS:291-301): the player stopped and closed, and the tag emptied.</summary>
     public static void StopMusic()
     {
-        if (!OperatingSystem.IsWindows()) return;
-        Mci("stop bgm"); Mci("close bgm");
+        Trace($"StopMusic tag={_tag}");
+        if (_playerLoad is { IsCompletedSuccessfully: true, Result: { } p }) p.Close();
         _tag = null;
     }
 
-    /// <summary><c>mciMusic.Mode = 526</c>, MCI_MODE_PLAY.</summary>
-    private static bool MusicPlaying()
+    /// <summary><c>mciMusic.Command = "Stop"</c>: stopped, still open, the tag kept.</summary>
+    private static void StopOnly()
     {
-        if (!OperatingSystem.IsWindows()) return false;
-        var sb = new System.Text.StringBuilder(64);
-        try { mciSendString("status bgm mode", sb, sb.Capacity, IntPtr.Zero); } catch { return false; }
-        return sb.ToString().Trim() == "playing";
+        Trace($"StopOnly tag={_tag}");
+        if (_playerLoad is { IsCompletedSuccessfully: true, Result: { } p }) p.Stop();
     }
+
+    /// <summary><c>mciMusic.Mode = 526</c>, MCI_MODE_PLAY.</summary>
+    private static bool MusicPlaying() =>
+        _playerLoad is { IsCompletedSuccessfully: true, Result: { } p } && p.Playing;
 
     /// <summary>
     /// <c>timMusic_Timer</c> (FRMMAIN.BAS:291-303), every ten seconds: with music on, not paused
@@ -407,9 +454,10 @@ public static class Audio
     /// </summary>
     public static void TickMusic()
     {
-        if (!OperatingSystem.IsWindows() || !MusicEnabled) return;
+        if (!MusicEnabled) return;
         if (FramePause.Paused) return;   // timMusic_Timer: "If Settings.Paused = False Then" (FRMMAIN.BAS:296)
         if (MusicPlaying()) return;
+        Trace($"TickMusic: nothing playing, tag={_tag}");
         Music(MusicTrack.Next(_tag, LeaderLevel?.Invoke(), _rng));
     }
 

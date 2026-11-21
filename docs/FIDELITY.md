@@ -6783,8 +6783,8 @@ port played every WAV through winmm's `PlaySound`, which plays one sound at a ti
 was playing. The original plays them through WAVMIX16.DLL (MODULE13.BAS:7-18). `fn1A08` (MUSIC.BAS:376-399) configures
 a session mono at 22 kHz, opens all eight channels (`WaveMixOpenChannel(gv20C8, 0, 1)`, WMIX_OPENALL) and activates it.
 The port now does the same thing in software: `WaveMixChannels` (src/Mordor.Core/WaveMix.cs) is eight queues of waves summed
-into one stream, with clipping and no scaling, at 22,050 Hz; `WaveOutStream` (Mordor.App) plays that stream through
-winmm's `waveOut` in buffers of about 17 ms, four ahead. No library was added. Every WAV the game ships is 8-bit mono 22,050 Hz,
+into one stream, with clipping and no scaling, at 22,050 Hz; `AudioOut` (Mordor.App) plays that stream through
+SDL3 on every platform (it was winmm's `waveOut` until the Linux work; SDL asks for the stream as the device needs it). Every WAV the game ships is 8-bit mono 22,050 Hz,
 WaveMix's own format, so nothing is resampled.
 
 `WaveMixSession` is MUSIC.BAS's bookkeeping, line for line:

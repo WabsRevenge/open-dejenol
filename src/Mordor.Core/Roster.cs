@@ -35,7 +35,7 @@ public static class Roster
         try
         {
             Directory.CreateDirectory(savesDir);
-            File.WriteAllText(PathFor(savesDir), JsonSerializer.Serialize(records, new JsonSerializerOptions { WriteIndented = true }));
+            SafeFile.WriteAllText(PathFor(savesDir), JsonSerializer.Serialize(records, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { }
     }
@@ -92,12 +92,19 @@ public static class Roster
         foreach (string f in Directory.GetFiles(savesDir, "*.json").OrderBy(f => f))
         {
             if (Path.GetFileName(f).StartsWith("party-")) continue;
-            try
+            Character? c;
+            try { c = Character.Load(f); }
+            catch (Exception ex)
             {
-                var c = Character.Load(f);
-                if (!string.IsNullOrWhiteSpace(c.Name)) found.Add((f, c));
+                // a character file that will not read is reported and, if it can be, put back from
+                // its last good copy - never just left out (SaveRecovery)
+                c = SaveRecovery.MayBeCharacter(f) ? SaveRecovery.Damaged(f, ex) : null;
+                if (c != null && !string.IsNullOrWhiteSpace(c.Name)) found.Add((f, c));
+                continue;
             }
-            catch { }
+            if (string.IsNullOrWhiteSpace(c.Name)) continue;
+            SaveRecovery.Keep(f);
+            found.Add((f, c));
         }
         return Order(savesDir, found, p => p.Item2.Name);
     }

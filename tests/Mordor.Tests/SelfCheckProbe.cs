@@ -5215,6 +5215,7 @@ public static partial class SelfCheckProbe
         Section(() => InstallerChecks(dir));
         Section(() => LegacyInstallerChecks(dir));
         Section(() => ImportChecks(dir));
+        Section(() => SafeSaveChecks(dir));
 
         Console.WriteLine(_failed == 0 ? "\nall checks passed" : $"\n{_failed} CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;

@@ -23,6 +23,9 @@ class Program
         // Not on a test run (MORDOR_TEST), which keeps to scratch folders and leaves the player's alone.
         if (string.IsNullOrEmpty(Environment.GetEnvironmentVariable("MORDOR_TEST"))) Mordor.Core.UserFolders.MigrateAll();
         CrashLog.Install();
+        // a save that could not be written, or a character file that would not read, is said in crash.log
+        Mordor.Core.SafeFile.Log = CrashLog.Note;
+        Mordor.Core.SaveRecovery.Log = CrashLog.Note;
         if (velopack != null) CrashLog.Write("the installer's start-up hooks", velopack);
         try { BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); }
         catch (Exception ex) { CrashLog.Write("fatal", ex); throw; }
@@ -30,11 +33,14 @@ class Program
 
     // Avalonia configuration, don't remove; also used by visual designer.
     public static AppBuilder BuildAvaloniaApp()
-        => AppBuilder.Configure<App>()
+    {
+        var builder = AppBuilder.Configure<App>()
             .UsePlatformDetect()
-#if DEBUG
-            
-#endif
             .WithInterFont()
             .LogToTrace();
+        // away from Windows, a face the game names that is not installed is drawn in Liberation
+        // Sans, drawn to Arial's widths, not the system's far wider default (PortFonts)
+        if (PortFonts.StandIn) builder = builder.With(new Avalonia.Media.FontManagerOptions { DefaultFamilyName = PortFonts.Sans });
+        return builder;
+    }
 }

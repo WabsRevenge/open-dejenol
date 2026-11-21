@@ -69,7 +69,7 @@ internal static class UiFonts
         string chain = string.Equals(face, DesignFont.NonProFace, StringComparison.OrdinalIgnoreCase)
             ? StandIn()
             : $"{face}, Microsoft Sans Serif, Segoe UI";
-        try { f = new FontFamily(chain); } catch { f = new FontFamily("Microsoft Sans Serif, Segoe UI"); }
+        try { f = PortFonts.Family(chain); } catch { f = PortFonts.Family("Microsoft Sans Serif, Segoe UI"); }
         Families[face] = f;
         return f;
     }

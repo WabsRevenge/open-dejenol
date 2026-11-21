@@ -204,16 +204,15 @@ public sealed class DungeonState
 
     /// <summary>
     /// Every fn0F88 is a Put to the level's file, so this is called at each of them. Written beside
-    /// the file and moved over it, so a game killed half way through keeps the last good file.
+    /// the file and moved over it (SafeFile), so a game killed half way through keeps the last good file.
     /// </summary>
     public void Save(string savesDir)
     {
         try
         {
             Directory.CreateDirectory(savesDir);
-            string p = PathFor(savesDir), temp = p + ".tmp";
-            File.WriteAllText(temp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
-            File.Move(temp, p, overwrite: true);
+            string p = PathFor(savesDir);
+            SafeFile.WriteAllText(p, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { }
     }

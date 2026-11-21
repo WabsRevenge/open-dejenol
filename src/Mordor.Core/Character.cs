@@ -1603,7 +1603,7 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
         Mods = Saves.ModTag?.Invoke();
         // a per-user saves folder (Saves.DirFor) is only named until something is first written there
         if (Path.GetDirectoryName(path) is { Length: > 0 } dir) Directory.CreateDirectory(dir);
-        File.WriteAllText(path, JsonSerializer.Serialize(this, JsonOpts));
+        SafeFile.WriteAllText(path, JsonSerializer.Serialize(this, JsonOpts));
     }
 
     /// <summary>
