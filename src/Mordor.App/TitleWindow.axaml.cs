@@ -86,6 +86,19 @@ public partial class TitleWindow : Window
         // Form_Load (FRMMENU.BAS:142): the focus starts on cmdCommand(0)
         Opened += async (_, _) =>
         {
+            // a saves folder a newer OpenDejenol wrote: refused before anything reads or writes it, as
+            // this game would drop what it does not know of the next time it saved (SaveFormat). A port
+            // necessity, so its own box. Otherwise the folder is marked as this game's layout.
+            if (SaveFormat.TooNew(SavesDir, out string newer))
+            {
+                await OriginalBox.Tell(this, "Saves",
+                    $"These saves were last played with a newer OpenDejenol ({(newer == "" ? "a later version" : newer)}) "
+                    + $"than this one ({Updates.Version}).\n\nUpdate OpenDejenol to keep playing them. Nothing has been changed.");
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime quit)
+                    quit.Shutdown(0);
+                return;
+            }
+            SaveFormat.Stamp(SavesDir, Updates.Version);
             // Sub Main's sub03E3 (MAINMOD2.BAS:6437), before the data is read and so before any box
             // of the menu's: the limited build's "Limitation Notice" (MsgBox 48), and then
             // Limited=True, so that it is not shown again (MODULE1.BAS:932-940; LimitedVersion). The

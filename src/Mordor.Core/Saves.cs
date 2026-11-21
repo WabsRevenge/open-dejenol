@@ -58,6 +58,27 @@ public static class Saves
         return perUser;
     }
 
+    /// <summary>
+    /// The saved file of the character called <paramref name="name"/>, whatever the case of its letters
+    /// on disk; null when there is none. Windows finds Bob.json for "bob" by itself; Linux and a
+    /// browser's storage do not, and would let "bob" be made beside "Bob" - two files that could
+    /// never both live in one Windows folder.
+    /// </summary>
+    public static string? CharacterFile(string savesDir, string name)
+    {
+        string want = Character.SafeFileName(name) + ".json";
+        try
+        {
+            if (!Directory.Exists(savesDir)) return null;
+            return Directory.EnumerateFiles(savesDir, "*.json")
+                .FirstOrDefault(f => string.Equals(Path.GetFileName(f), want, StringComparison.OrdinalIgnoreCase));
+        }
+        catch { return null; }
+    }
+
+    /// <summary>A name no new character may take: a saved file has it, in any case.</summary>
+    public static bool NameTaken(string savesDir, string name) => CharacterFile(savesDir, name) != null;
+
     /// <summary>The folder is there and has a file or folder in it.</summary>
     private static bool HasAnything(string dir)
     {

@@ -27,7 +27,7 @@ public static class SaveRecovery
     /// <summary>The saves folder's files that are not characters, and are not read as one.</summary>
     private static readonly HashSet<string> WorldFiles = new(StringComparer.OrdinalIgnoreCase)
     {
-        "roster.json", "automap.json", "dungeon.json", "store.json", "library.json", "records.json",
+        "roster.json", "automap.json", "dungeon.json", "store.json", "library.json", "records.json", SaveFormat.FileName,
         "confinement.json", "guildmasters.json",
     };
 
@@ -88,7 +88,7 @@ public static class SaveRecovery
                     string damaged = Path.Combine(Path.GetDirectoryName(path) ?? "", DamagedDir,
                         $"{Path.GetFileNameWithoutExtension(file)}-{DateTime.Now:yyyyMMdd-HHmmss}.json");
                     Directory.CreateDirectory(Path.GetDirectoryName(damaged)!);
-                    File.Copy(path, damaged, overwrite: true);
+                    SafeFile.Copy(path, damaged);
                     DateTime when = File.GetLastWriteTime(good);
                     SafeFile.Copy(good, path);
                     var restored = Character.Load(path);

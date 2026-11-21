@@ -3,6 +3,48 @@ using Mordor.Core;
 public static partial class SelfCheckProbe
 {
     /// <summary>
+    /// A short hash of every field written to a save: each saved type's public properties (what
+    /// System.Text.Json writes, less [JsonIgnore]), their types, and every Mordor.Core type and enum
+    /// reached through them; plus the guild log's binary entry.
+    /// </summary>
+    private static string SaveLayoutFingerprint()
+    {
+        var core = typeof(Character).Assembly;
+        Type Nested(Type outer, string name) => outer.GetNestedType(name, System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic)!;
+        var saved = new[]
+        {
+            typeof(Character), typeof(Confinement), typeof(DungeonState), typeof(Guildmasters), typeof(HallRecords),
+            typeof(Librarian.Store), typeof(SharedMap), typeof(StoreStock), Nested(typeof(Party), "Roster"), typeof(GuildLog.Entry),
+        };
+        var seen = new HashSet<Type>();
+        var lines = new List<string>();
+        void Walk(Type t)
+        {
+            if (t.IsArray) { Walk(t.GetElementType()!); return; }
+            if (t.IsGenericType) { foreach (var a in t.GetGenericArguments()) Walk(a); }
+            if (t.Assembly != core || !seen.Add(t)) return;
+            if (t.IsEnum)
+            {
+                lines.Add($"{t.FullName} = " + string.Join(",", Enum.GetValues(t).Cast<object>().Select(v => $"{v}:{Convert.ToInt64(v)}")));
+                return;
+            }
+            foreach (var p in t.GetProperties(System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Instance))
+            {
+                if (p.GetMethod == null || p.GetIndexParameters().Length > 0) continue;
+                var ignore = p.GetCustomAttributes(typeof(System.Text.Json.Serialization.JsonIgnoreAttribute), true)
+                    .Cast<System.Text.Json.Serialization.JsonIgnoreAttribute>().FirstOrDefault();
+                if (ignore is { Condition: System.Text.Json.Serialization.JsonIgnoreCondition.Always }) continue;
+                lines.Add($"{t.FullName}.{p.Name}: {p.PropertyType}");
+                Walk(p.PropertyType);
+            }
+        }
+        foreach (var t in saved) Walk(t);
+        lines.Sort(StringComparer.Ordinal);
+        var hash = System.Security.Cryptography.SHA256.HashData(System.Text.Encoding.UTF8.GetBytes(string.Join("\n", lines)));
+        return $"{lines.Count} fields, " + Convert.ToHexString(hash)[..16];
+    }
+
+    /// <summary>
     /// Saves written so a crash part way through keeps the old file (SafeFile), and a character file
     /// that will not read put back from its last good copy - or at least said - instead of vanishing
     /// from the lists while its name stays taken (SaveRecovery, Roster.Saved). Only scratch folders.
@@ -85,13 +127,95 @@ public static partial class SelfCheckProbe
             Check("...and the player is told once, with where to look",
                   notices.Count == 1 && notices[0].Contains("\"Ann.json\"") && notices[0].Contains("crash.log"), true);
 
-            // ---- every save writer goes through SafeFile ----
+            // ---- a saves folder that moves between Windows, Linux and a browser ----
+            if (OperatingSystem.IsWindows())
+                Check("the file-name rule is exactly Windows' own forbidden set, so no Windows save changes name",
+                      Character.NotInFileNames.SetEquals(Path.GetInvalidFileNameChars()), true);
+            Check("\"Who?\" is Who.json on every system", Character.SafeFileName("Who?") + ".json", "Who.json");
+            Check("\"A:B*C\" is ABC.json on every system", Character.SafeFileName("A:B*C") + ".json", "ABC.json");
+            string moved = Directory.CreateDirectory(Path.Combine(scratch, "moved")).FullName;
+            Make("Newbie").Save(Path.Combine(moved, "oldname.json"));                 // a file under another name
+            Make("Ann").Save(Path.Combine(moved, "Ann.json"));
+            Make("Ann").Save(Path.Combine(moved, "Clash.json"));                      // would be Ann.json, which is taken
+            File.WriteAllText(Path.Combine(moved, "party-x.json"), "{ \"Leader\": \"Newbie\", \"Members\": [\"Newbie\"] }");
+            log.Clear();
+            var names = Roster.Saved(moved).Select(p => Path.GetFileName(p.File)).OrderBy(n => n).ToList();
+            Check("a character saved under another name is renamed to the one it is looked for by",
+                  File.Exists(Path.Combine(moved, "Newbie.json")) && !File.Exists(Path.Combine(moved, "oldname.json")), true);
+            Check("...and listed under it", names.Contains("Newbie.json"), true);
+            Check("a party file follows its leader's name", File.Exists(Path.Combine(moved, "party-Newbie.json")), true);
+            Check("a rename onto a name taken is left, and said",
+                  File.Exists(Path.Combine(moved, "Clash.json")) && log.Any(l => l.Contains("Clash.json") && l.Contains("taken")), true);
+            Check("names are taken in any case of their letters", Saves.NameTaken(moved, "nEWBIE") && Saves.NameTaken(moved, "ANN"), true);
+            Check("...and a free one is free", Saves.NameTaken(moved, "Zed"), false);
+
+            // ---- the save layout's version (SaveFormat) ----
+            string fmt = Directory.CreateDirectory(Path.Combine(scratch, "format")).FullName;
+            Check("a folder with no marker is not too new", SaveFormat.TooNew(fmt, out _), false);
+            SaveFormat.Stamp(fmt, "0.0.test");
+            Check("Stamp marks it with this layout and version", SaveFormat.Read(fmt), (SaveFormat.Current, "0.0.test"));
+            File.WriteAllText(SaveFormat.PathFor(fmt), $"{{ \"Format\": {SaveFormat.Current + 1}, \"WrittenBy\": \"9.9.9\" }}");
+            Check("a folder from a newer layout is too new, and says who wrote it",
+                  SaveFormat.TooNew(fmt, out string by) && by == "9.9.9", true);
+            SaveFormat.Stamp(fmt, "0.0.test");
+            Check("...and Stamp leaves the newer marker alone", SaveFormat.Read(fmt), (SaveFormat.Current + 1, "9.9.9"));
+            Make("Someone").Save(Path.Combine(fmt, "elsewhere.json"));
+            Roster.Saved(fmt);
+            Check("...and its files are never renamed", File.Exists(Path.Combine(fmt, "elsewhere.json")), true);
+            Check("the marker is not taken for a damaged character", SaveRecovery.MayBeCharacter(SaveFormat.PathFor(fmt)), false);
+
+            // ---- the layout's fingerprint: SaveFormat.Current goes up whenever a saved type changes ----
+            // Every field of every type written to a save, nested types too. An older game reading a
+            // newer save would drop the fields it does not know of the next time it saved, so a change
+            // here must come with SaveFormat.Current raised and the fingerprint for the new number added.
+            var layouts = new Dictionary<int, string>
+            {
+                [1] = "221 fields, 2A75F30B4581C0C0",   // 0.1.7
+            };
+            string layout = SaveLayoutFingerprint();
+            Check($"the save layout is the one SaveFormat.Current ({SaveFormat.Current}) stands for - if a saved type changed, "
+                  + "raise SaveFormat.Current and add this fingerprint for it",
+                  layout, layouts.GetValueOrDefault(SaveFormat.Current, "none for this number"));
+
+            // ---- settings.ini, the guild log and Backup/Restore go through SafeFile too ----
+            string ini = Path.Combine(scratch, "ini", "settings.ini");
+            var lines = Ini.Read(ini);
+            lines.Set("Loading Information", "NotFirstTime", "True");
+            lines.Set("Fonts", "Pro", "Courier New");
+            Check("settings.ini: written", lines.Write(ini), true);
+            File.WriteAllLines(ini + ".plain", File.ReadAllLines(ini));
+            Check("settings.ini: byte for byte what File.WriteAllLines wrote", File.ReadAllBytes(ini).SequenceEqual(File.ReadAllBytes(ini + ".plain")), true);
+            Check("settings.ini: reads back", Ini.Read(ini).Text("Fonts", "Pro"), "Courier New");
+            string logDir = Directory.CreateDirectory(Path.Combine(scratch, "guildlog")).FullName;
+            GuildLog.Rewrite(logDir, new List<GuildLog.Entry> { new(2, 7, "Hob joined") });
+            Check("the guild log: written whole and read back", string.Join("|", GuildLog.All(logDir).Select(e => $"{e.Guild},{e.Day},{e.Text}")), "2,7,Hob joined");
+            Check("the guild log: no .tmp left", File.Exists(GuildLog.PathFor(logDir) + SafeFile.TempSuffix), false);
+            string backup = Directory.CreateDirectory(Path.Combine(scratch, "backup")).FullName;
+            Backups.Backup(saves, backup);
+            Check("Backup: the characters copied whole", Character.Load(Path.Combine(backup, "Hob.json")).Name, "Hob");
+            Check("Backup: nothing half-copied left behind", Directory.GetFiles(backup, "*" + SafeFile.TempSuffix).Length, 0);
+
+            // ---- nothing in Mordor.Core writes a file in place any more ----
+            // Every write, copy or create must go through SafeFile, but for these, each named with why:
+            var allowed = new (string File, string Text, string Why)[]
+            {
+                ("SaveImport.cs", "File.Copy(f, Path.Combine(dir, Path.GetFileName(f)), overwrite: false)", "copies into a new before-import folder, never over a save"),
+                ("GuildLog.cs", "File.AppendAllText(Path.Combine(savesDir, TextName)", "GUILDLOG.TXT, a printout appended to"),
+                ("PortFiles.cs", "File.AppendAllText(p, text)", "crash.log and CHARSTAT.TXT, appended to"),
+                ("GuildLog.cs", "new BinaryWriter(buffer,", "builds the log in memory for SafeFile.WriteAllBytes"),
+            };
             string core = Path.Combine(PortTree.Root, "src", "Mordor.Core");
+            var writes = new System.Text.RegularExpressions.Regex(@"(?<![\w.])File\.(WriteAll\w*|AppendAll\w*|Copy|Create|Open\w*)\(|new (BinaryWriter|StreamWriter|FileStream)\(");
             var unsafeWrites = Directory.GetFiles(core, "*.cs", SearchOption.AllDirectories)
                 .Where(p => !p.Contains("Extraction") && !p.EndsWith("InstallerUnpack.cs") && !p.EndsWith("SafeFile.cs"))
-                .Where(p => System.Text.RegularExpressions.Regex.IsMatch(File.ReadAllText(p), @"(?<!Safe)File\.WriteAll(Text|Bytes)\("))
-                .Select(Path.GetFileName).ToList();
-            Check("no save in Mordor.Core is written in place (File.WriteAllText) any more", string.Join(", ", unsafeWrites), "");
+                .SelectMany(p => File.ReadAllLines(p).Select((line, i) => (File: Path.GetFileName(p), Line: i + 1, Text: line.Trim())))
+                .Where(l => !l.Text.StartsWith("//") && writes.IsMatch(l.Text))
+                // reading is not writing: a read-only open, File.OpenRead
+                .Where(l => !System.Text.RegularExpressions.Regex.IsMatch(l.Text, @"FileAccess\.Read\b") && !l.Text.Contains("File.OpenRead(") && !l.Text.Contains("File.OpenText("))
+                .Where(l => !allowed.Any(a => a.File == l.File && l.Text.Contains(a.Text)))
+                .Select(l => $"{l.File}:{l.Line}").ToList();
+            Check("no file in Mordor.Core is written, copied or created in place but through SafeFile (or one of "
+                  + allowed.Length + " named appends and copies)", string.Join(", ", unsafeWrites), "");
         }
         finally
         {

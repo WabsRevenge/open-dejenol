@@ -385,7 +385,8 @@ public sealed class Ini
     /// <summary>False when the file could not be written (a read-only folder, say); never throws.</summary>
     public bool Write(string path)
     {
-        try { File.WriteAllLines(path, _lines); return true; }
+        // written whole and swapped in (SafeFile), as File.WriteAllLines writes it: a line and a line end each
+        try { SafeFile.WriteAllText(path, string.Concat(_lines.Select(l => l + Environment.NewLine))); return true; }
         catch { return false; }
     }
 

@@ -6996,7 +6996,7 @@ public static partial class SelfCheckProbe
             string dead = Between(city, "private void ShowDead()", "private void CityArrivalAfterRaise()");
             string rock = Between(dead, "if (_ch.CauseOfDeath == Rules.DeathRock)", "else if (_ch.DungeonLevel > 0)");
             string below = Between(dead, "else if (_ch.DungeonLevel > 0)", "long cost =");
-            string atZero = Between(dead, "long cost =", "ServicePage.Content = sp;");
+            string atZero = Between(dead, "long cost =", "SetServicePage(sp);");
             Check("dead below ground: Wait for Rescue is offered", below.Contains("new Button { Content = \"_Wait for Rescue\" }") && below.Contains("await WaitForRescue(wait)"), true);
             Check("dead below ground: no Hire Rescuers", below.Contains("RescuersButton(") || dead.Contains("RescuersButton(") || dead.Contains("Content = \"Hire Rescuers\""), false);
             Check("the port-only AddRescuers is gone", city.Contains("AddRescuers"), false);

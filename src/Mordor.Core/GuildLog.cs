@@ -112,16 +112,21 @@ public static class GuildLog
 
     private static void WriteAll(string savesDir, List<Entry> entries)
     {
-        using var w = new BinaryWriter(File.Create(PathFor(savesDir)), Encoding.UTF8);
-        w.Write(entries.Count);
-        foreach (var e in entries)
+        // built whole in memory and swapped in (SafeFile), never rewritten in place
+        var buffer = new MemoryStream();
+        using (var w = new BinaryWriter(buffer, Encoding.UTF8, leaveOpen: true))
         {
-            var bytes = Encoding.UTF8.GetBytes(e.Text);
-            w.Write(e.Guild);
-            w.Write(e.Day);
-            w.Write(bytes.Length);
-            w.Write(bytes);
+            w.Write(entries.Count);
+            foreach (var e in entries)
+            {
+                var bytes = Encoding.UTF8.GetBytes(e.Text);
+                w.Write(e.Guild);
+                w.Write(e.Day);
+                w.Write(bytes.Length);
+                w.Write(bytes);
+            }
         }
+        SafeFile.WriteAllBytes(PathFor(savesDir), buffer.ToArray());
     }
 
     /// <summary>
@@ -138,7 +143,7 @@ public static class GuildLog
         var discarded = entries.Take(cut).ToList();
         var kept = entries.Skip(cut).ToList();
 
-        try { File.Copy(PathFor(savesDir), Path.Combine(savesDir, BackupName), overwrite: true); } catch { }
+        try { SafeFile.Copy(PathFor(savesDir), Path.Combine(savesDir, BackupName)); } catch { }
 
         if (writeText)
         {

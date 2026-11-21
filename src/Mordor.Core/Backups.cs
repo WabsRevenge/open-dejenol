@@ -109,7 +109,9 @@ public static class Backups
         bool allCopied = true;
         foreach (string f in sources)
         {
-            try { File.Copy(f, Path.Combine(toDir, Path.GetFileName(f)), overwrite: true); }
+            // each file whole or not at all (SafeFile): a crash half way through a restore leaves
+            // every save either as it was or as the backup has it, never cut short
+            try { SafeFile.Copy(f, Path.Combine(toDir, Path.GetFileName(f))); }
             catch { allCopied = false; /* Resume Next */ }
         }
         if (!allCopied) return;

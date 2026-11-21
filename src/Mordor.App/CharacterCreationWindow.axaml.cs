@@ -174,7 +174,8 @@ public partial class CharacterCreationWindow : Window
         if (AlignBox.SelectedIndex < 0) { await OriginalBox.Tell(this, "NO ALIGNMENT!", "No Alignment Defined!"); return; }
 
         string saveDir = Saves.DirFor(_gameDir);
-        if (System.IO.File.Exists(System.IO.Path.Combine(saveDir, Character.SafeFileName(name) + ".json")))
+        // taken in any case of its letters: Linux and a browser tell Bob.json and bob.json apart (Saves.NameTaken)
+        if (Saves.NameTaken(saveDir, name))
         {
             await OriginalBox.Tell(this, "NAME ALREADY EXISTS!", $"Name \"{NameBox.Text}\" already exists!\nTry another.");
             return;

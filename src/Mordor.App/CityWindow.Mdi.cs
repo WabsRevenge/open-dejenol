@@ -528,6 +528,24 @@ public partial class CityWindow
     /// form's client, which holds every control. A redraw in place (the Guild's lblCall "UPDATE",
     /// the Bank's) builds the same size again, so the window still fits it.
     /// </summary>
+    /// <summary>
+    /// The service window's page set, or cleared with null. The keyboard is taken off the old page
+    /// first, while the page is still whole. A page taken out with the focus inside it makes Avalonia
+    /// move the focus half way through taking it out; the Store's buy list, a DataGrid, answers a lost
+    /// focus by unloading the row it kept for the keyboard (its current row, scrolled out of view)
+    /// from the very list Avalonia is walking, which threw ArgumentOutOfRangeException out of
+    /// CloseService (a player's crash.log, November 2026: a row clicked, its alignment picked, the list
+    /// scrolled, EXIT). A port necessity: it is the same focus change, made a moment sooner.
+    /// </summary>
+    private void SetServicePage(object? content)
+    {
+        if (ServicePage.Content is Avalonia.Input.InputElement { IsKeyboardFocusWithin: true })
+            FocusManager?.ClearFocus();
+        ServicePage.Content = content;
+        // a crash in town says which window was up, not the dungeon's last key from long before
+        CrashLog.Context = content == null ? "in town" : $"in town, {_svc.Key?.ToString() ?? "a service"} open";
+    }
+
     private void ShowForm(FormPage page)
     {
         bool was = _serviceForm == page.Client;
@@ -538,7 +556,7 @@ public partial class CityWindow
         ServiceScroll.HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
         ServiceScroll.VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
         _serviceChild.BodyMargin = new Avalonia.Thickness(0);
-        ServicePage.Content = page.Page;
+        SetServicePage(page.Page);
         if (!was && ServicePanel.IsVisible) PlaceService();
     }
 
