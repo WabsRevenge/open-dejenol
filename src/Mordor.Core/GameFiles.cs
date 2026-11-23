@@ -85,6 +85,13 @@ public static class GameFiles
         return File.Exists(path) ? path : Path.Combine(gameDir, "DATA", fileName);
     }
 
+    /// <summary>Find a MIDI or WAV file in the game folder, or its MUSIC subfolder.</summary>
+    public static string AudioFile(string gameDir, string fileName)
+    {
+        string path = Path.Combine(gameDir, fileName);
+        return File.Exists(path) ? path : Path.Combine(gameDir, "MUSIC", fileName);
+    }
+
     /// <summary>
     /// MORDOR.EXEs that are known, by SHA-256: a name for the log and the first-run screen, never
     /// a requirement. The 1.1 release is the copy in MordorSetup.exe (Tarma InstallMate

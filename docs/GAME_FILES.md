@@ -126,7 +126,8 @@ In order; the first that fails is the answer, and the player is told which:
 1. The folder exists.
 2. **Required files**: `MORDOR.EXE`, `MDATA1.MDR`, `MDATA2.MDR`, `MDATA3.MDR`, `MDATA5.MDR`,
    `MDATA11.MDR` - what the port reads (sounds and music are optional, as they are now). The MDR
-   files may be in the game folder or its `DATA` subfolder. Missing: refused.
+   files may be in the game folder or its `DATA` subfolder. Optional `.MID` and `.WAV` files may be
+   in the game folder or its `MUSIC` subfolder. Missing required files: refused.
 3. `MORDOR.EXE` is a Windows 3.1 program (MZ, then NE), as Mordor 1.x is. Not: refused.
 4. MDATA1, 2, 3 and 5 open with a data version string (`digit.digit...`); the number itself is not
    checked, so a 1.0 or another 1.1 pressing reads too. Not: refused.
