@@ -61,7 +61,7 @@ public partial class TitleWindow : Window
         }
         catch (Exception ex)
         {
-            loadFailed = "Error reading " + System.IO.Path.Combine(GameDir, "MDATA1.MDR") + "!\r\n"
+            loadFailed = "Error reading " + GameFiles.DataFile(GameDir, "MDATA1.MDR") + "!\r\n"
                        + "Is BasePath in MORDOR.INI correct?";
             CrashLog.Write("loading MDATA1", ex);
         }
@@ -304,7 +304,7 @@ public partial class TitleWindow : Window
     {
         if (_items == null)
         {
-            try { _items = MdrLoader.LoadItems(System.IO.Path.Combine(GameDir, "MDATA3.MDR")).GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First()); }
+            try { _items = MdrLoader.LoadItems(GameFiles.DataFile(GameDir, "MDATA3.MDR")).GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First()); }
             catch { _items = new(); }
         }
         return _items.TryGetValue(id, out var it) ? it : null;
@@ -321,7 +321,7 @@ public partial class TitleWindow : Window
     private int AreaOf(Character c) => c.AreaOr(k =>
     {
         if (k.DungeonLevel <= 0) return -1;
-        try { _dungeon ??= MdrLoader.LoadDungeon(System.IO.Path.Combine(GameDir, "MDATA11.MDR")); }
+        try { _dungeon ??= MdrLoader.LoadDungeon(GameFiles.DataFile(GameDir, "MDATA11.MDR")); }
         catch { return -1; }
         if (k.DungeonLevel > _dungeon.Count) return -1;
         return _dungeon[k.DungeonLevel - 1].AreaIdAt(k.X, k.Y);

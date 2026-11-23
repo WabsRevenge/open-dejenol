@@ -93,7 +93,7 @@ public partial class MainWindow : Window
         string dir = PathBox.Text ?? "";
         try
         {
-            string P(string f) => System.IO.Path.Combine(dir, f);
+            string P(string f) => GameFiles.DataFile(dir, f);
             Mdata1.LoadFrom(dir); RaceData.LoadFrom(dir);   // real tables from MDATA1
             GuildData.LoadFrom(dir);  // real guild requirements from MDATA1
             Audio.Init(dir);

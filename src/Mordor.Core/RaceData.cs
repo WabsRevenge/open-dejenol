@@ -55,7 +55,7 @@ public static class RaceData
     /// </summary>
     public static void LoadFrom(string gameDir)
     {
-        string path = Path.Combine(gameDir, "MDATA1.MDR");
+        string path = GameFiles.DataFile(gameDir, "MDATA1.MDR");
         var races = MdrLoader.LoadRaces(path);
         if (races.Count == 0) throw new InvalidDataException($"No races could be read from {path}.");
         All = races;

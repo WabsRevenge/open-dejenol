@@ -124,16 +124,21 @@ public static class GameArt
         }
     }
 
-    /// <summary>A file of the game folder, whatever the case of its name; null when absent.</summary>
+    /// <summary>A file in the game folder or its DATA subfolder, whatever the case of its name; null when absent.</summary>
     public static string? Find(string gameDir, string name)
     {
-        string direct = Path.Combine(gameDir, name);
-        if (File.Exists(direct)) return direct;
-        try
+        string? In(string dir)
         {
-            return Directory.EnumerateFiles(gameDir).FirstOrDefault(f => Path.GetFileName(f).Equals(name, StringComparison.OrdinalIgnoreCase));
+            string direct = Path.Combine(dir, name);
+            if (File.Exists(direct)) return direct;
+            try
+            {
+                return Directory.EnumerateFiles(dir).FirstOrDefault(f => Path.GetFileName(f).Equals(name, StringComparison.OrdinalIgnoreCase));
+            }
+            catch { return null; }
         }
-        catch { return null; }
+
+        return In(gameDir) ?? In(Path.Combine(gameDir, "DATA"));
     }
 
     /// <summary>The cache's name: the extractor's version and every source file present, hashed.</summary>

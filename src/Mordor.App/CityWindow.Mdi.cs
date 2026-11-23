@@ -781,7 +781,7 @@ public partial class CityWindow
     private int SavedArea(Character c) => c.AreaOr(k =>
     {
         if (k.DungeonLevel <= 0) return -1;
-        try { _areaDungeon ??= MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR")); }
+        try { _areaDungeon ??= MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR")); }
         catch { return -1; }
         return k.DungeonLevel <= _areaDungeon.Count ? _areaDungeon[k.DungeonLevel - 1].AreaIdAt(k.X, k.Y) : -1;
     });

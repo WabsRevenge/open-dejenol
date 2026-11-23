@@ -134,10 +134,10 @@ public partial class DungeonWindow : Window
         playClock.Tick += (_, _) => PlayClock.Shared.Tick(_party.Members, PlayClock.Timer(DateTime.Now));
         playClock.Start();
         Ended += () => playClock.Stop();
-        _monsters = MdrLoader.LoadMonsters(System.IO.Path.Combine(gameDir, "MDATA5.MDR"));
-        _spells = MdrLoader.LoadSpells(System.IO.Path.Combine(gameDir, "MDATA2.MDR"));
+        _monsters = MdrLoader.LoadMonsters(GameFiles.DataFile(gameDir, "MDATA5.MDR"));
+        _spells = MdrLoader.LoadSpells(GameFiles.DataFile(gameDir, "MDATA2.MDR"));
         foreach (var m in _party.Members) m.RecalcSpellPoints();
-        var items = MdrLoader.LoadItems(System.IO.Path.Combine(gameDir, "MDATA3.MDR"));
+        var items = MdrLoader.LoadItems(GameFiles.DataFile(gameDir, "MDATA3.MDR"));
         _items = items;
         _itemsById = items.GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First());
         // the mods' view of the game (ctx.Game): the city has set it, unless the dungeon was started

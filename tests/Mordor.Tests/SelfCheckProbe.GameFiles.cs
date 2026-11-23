@@ -203,6 +203,14 @@ public static partial class SelfCheckProbe
             FullCheck("a copy of just the required files is the full game", GameFiles.Check(good).Verdict, GameFilesVerdict.Full);
             FullCheck("and is named as the 1.1 release by its MORDOR.EXE", GameFiles.Check(good).Recognised, "Mordor 1.1 (full release)");
 
+            string dataSubfolder = Copy("data-subfolder");
+            string dataDir = Directory.CreateDirectory(Path.Combine(dataSubfolder, "DATA")).FullName;
+            foreach (string file in GameFiles.Required.Where(f => f != "MORDOR.EXE"))
+                File.Move(Path.Combine(dataSubfolder, file), Path.Combine(dataDir, file));
+            var nestedCheck = GameFiles.Check(dataSubfolder);
+            FullCheck("the data files are accepted in the DATA subfolder", nestedCheck.Verdict, GameFilesVerdict.Full);
+            FullCheck("and runtime data lookup uses that subfolder", GameFiles.DataFile(dataSubfolder, "MDATA1.MDR"), Path.Combine(dataDir, "MDATA1.MDR"));
+
             foreach (string gone in GameFiles.Required)
             {
                 string d = Copy("no-" + gone);

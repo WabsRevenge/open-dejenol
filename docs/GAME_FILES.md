@@ -125,8 +125,8 @@ In order; the first that fails is the answer, and the player is told which:
 
 1. The folder exists.
 2. **Required files**: `MORDOR.EXE`, `MDATA1.MDR`, `MDATA2.MDR`, `MDATA3.MDR`, `MDATA5.MDR`,
-   `MDATA11.MDR` - what the port reads (sounds and music are optional, as they are now).
-   Missing: refused.
+   `MDATA11.MDR` - what the port reads (sounds and music are optional, as they are now). The MDR
+   files may be in the game folder or its `DATA` subfolder. Missing: refused.
 3. `MORDOR.EXE` is a Windows 3.1 program (MZ, then NE), as Mordor 1.x is. Not: refused.
 4. MDATA1, 2, 3 and 5 open with a data version string (`digit.digit...`); the number itself is not
    checked, so a 1.0 or another 1.1 pressing reads too. Not: refused.
@@ -458,10 +458,11 @@ titles, text, line layout, tab stops and 103 jumps, except:
   reproduce every stop of MORDOR.HLP 1.1, but they are fitted to it, and another release's help
   may come out a point off here and there.
 
-**What must be there.** MORDOR.EXE (already required) and MG11.DLL: the original itself stops
-without MG11.DLL ("Error! Cannot locate graphics file ... Halting Program", MODULE12.BAS:71-75),
-and so does the port - the first-run window comes back with the reason, as it does for an
-MG11.DLL that holds none of the pictures. Anything else missing or unreadable becomes a blank
+**What must be there.** MORDOR.EXE (already required) and MG11.DLL, which may be in the game
+folder or its `DATA` subfolder: the original itself stops without MG11.DLL ("Error! Cannot locate
+graphics file ... Halting Program", MODULE12.BAS:71-75), and so does the port - the first-run window
+comes back with the reason, as it does for an MG11.DLL that holds none of the pictures. Anything
+else missing or unreadable becomes a blank
 picture of the right size with a note in the crash log, and the game goes on; no MORDOR.HLP means
 the help window says the help is unavailable.
 

@@ -215,6 +215,15 @@ public static partial class SelfCheckProbe
             Check("and the city's buttons are the same pictures",
                   new[] { "town_store.png", "town_bank.png", "town_dungeon.png" }.Count(n => PixelHash(Png.Decode(File.ReadAllBytes(Path.Combine(noShotOut, n)))) == BundledPixels[n]), 3);
 
+            string dataArt = Path.Combine(scratch, "data-art");
+            string dataArtFiles = Directory.CreateDirectory(Path.Combine(dataArt, "DATA")).FullName;
+            File.Copy(Path.Combine(dir, "MORDOR.EXE"), Path.Combine(dataArt, "MORDOR.EXE"));
+            File.Copy(Path.Combine(dir, "MG11.DLL"), Path.Combine(dataArtFiles, "MG11.DLL"));
+            var nestedArt = GameArt.Prepare(dataArt, Path.Combine(scratch, "data-art-cache"));
+            Check("MG11.DLL in DATA is accepted by art extraction", nestedArt.Ok, true);
+            if (nestedArt.Ok)
+                Check("and its pictures are read from DATA", PixelHash(Png.Decode(File.ReadAllBytes(Path.Combine(nestedArt.Dir!, "maze_corridor.png")))), BundledPixels["maze_corridor.png"]);
+
             string bare = Path.Combine(scratch, "bare");
             Directory.CreateDirectory(bare);
             foreach (var f in new[] { "MORDOR.EXE", "MG11.DLL" }) File.Copy(Path.Combine(dir, f), Path.Combine(bare, f));

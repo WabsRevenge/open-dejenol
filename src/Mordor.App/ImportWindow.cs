@@ -61,8 +61,8 @@ public static class ImportWindow
         SaveImport.ImportPlan plan;
         try
         {
-            var items = MdrLoader.LoadItems(Path.Combine(gameDir, "MDATA3.MDR"));
-            var monsters = MdrLoader.LoadMonsters(Path.Combine(gameDir, "MDATA5.MDR"));
+            var items = MdrLoader.LoadItems(GameFiles.DataFile(gameDir, "MDATA3.MDR"));
+            var monsters = MdrLoader.LoadMonsters(GameFiles.DataFile(gameDir, "MDATA5.MDR"));
             src = OriginalSaves.Read(data, items, monsters);
             plan = SaveImport.Plan(src, savesDir);
         }

@@ -7,3 +7,5 @@ obj/
 # These are the player's own game state and do not belong in the repository.
 saves/
 saves-backup-*/
+/src/Mordor.App/Properties/launchSettings.json
+/.vs
