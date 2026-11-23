@@ -36,7 +36,7 @@ public partial class CityWindow : Window
         return c => c.AreaOr(k =>
         {
             if (k.DungeonLevel <= 0) return -1;
-            try { maze ??= MdrLoader.LoadDungeon(System.IO.Path.Combine(gameDir, "MDATA11.MDR")); }
+            try { maze ??= MdrLoader.LoadDungeon(GameFiles.DataFile(gameDir, "MDATA11.MDR")); }
             catch { return -1; }
             return k.DungeonLevel > maze.Count ? -1 : maze[k.DungeonLevel - 1].AreaIdAt(k.X, k.Y);
         });
@@ -46,7 +46,7 @@ public partial class CityWindow : Window
     private static Func<Companion, Monster?> MonstersIn(string gameDir)
     {
         List<Monster>? table = null;
-        return c => c.Def(table ??= MdrLoader.LoadMonsters(System.IO.Path.Combine(gameDir, "MDATA5.MDR")));
+        return c => c.Def(table ??= MdrLoader.LoadMonsters(GameFiles.DataFile(gameDir, "MDATA5.MDR")));
     }
 
     /// <summary>
@@ -85,10 +85,10 @@ public partial class CityWindow : Window
         // (MAINMOD2.BAS:3198-3199). gv1B52 turns True only after both (MAINMOD2.BAS:6308).
         AutoloadSaid.Clear();
 
-        _items = MdrLoader.LoadItems(System.IO.Path.Combine(gameDir, "MDATA3.MDR"));
+        _items = MdrLoader.LoadItems(GameFiles.DataFile(gameDir, "MDATA3.MDR"));
         _itemsById = _items.GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First());
-        _monsters = MdrLoader.LoadMonsters(System.IO.Path.Combine(gameDir, "MDATA5.MDR"));
-        _spells = MdrLoader.LoadSpells(System.IO.Path.Combine(gameDir, "MDATA2.MDR"));
+        _monsters = MdrLoader.LoadMonsters(GameFiles.DataFile(gameDir, "MDATA5.MDR"));
+        _spells = MdrLoader.LoadSpells(GameFiles.DataFile(gameDir, "MDATA2.MDR"));
 
         // saves written before InventorySlot.SlotCursed existed carry no flag, so worn gear would
         // come off freely until it was next put on again
@@ -969,7 +969,7 @@ public partial class CityWindow : Window
         // on level 1, with nothing drawn on it. This refused instead, which was this port's own
         // idea, and now that the map opens on arrival it would be the first thing a new player saw.
         int deepest = Math.Max(DungeonState.Load(SavesDir).DeepestReached, map.DeepestVisited);
-        var dungeon = MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR"));
+        var dungeon = MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR"));
         // Chars(0).X and .Y are where modAdjustMap centres a small map (FRMAUTOM.BAS:465, 482),
         // and they still hold the square the leader walked out from
         // and Chars(0) below ground - only ever a body, here - is where Form_Load (FRMAUTOM.BAS:94-98)
@@ -1623,7 +1623,7 @@ public partial class CityWindow : Window
     private async System.Threading.Tasks.Task<string?> AskLine(string title, string prompt, bool secret)
     {
         string? answer = null;
-        var box = new TextBox { PasswordChar = secret ? '*' : ' ', Width = 240 };
+        var box = new TextBox { PasswordChar = secret ? '*' : '\0', Width = 240 };
         var ok = new Button { Content = "OK", IsDefault = true };
         var cancel = new Button { Content = "Cancel", IsCancel = true };
         // fn170D's frmInteract, in its font through the Options fonts (UiFonts)
@@ -2222,7 +2222,7 @@ public partial class CityWindow : Window
         Floor? floor = null;
         try
         {
-            _areaDungeon ??= MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR"));
+            _areaDungeon ??= MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR"));
             if (_ch.DungeonLevel <= _areaDungeon.Count) floor = _areaDungeon[_ch.DungeonLevel - 1];
         }
         catch (Exception ex) { CrashLog.Write("wait for rescue: the dungeon", ex); }
@@ -2756,7 +2756,7 @@ public partial class CityWindow : Window
                 return;
             }
 
-            var dungeon = MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR"));
+            var dungeon = MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR"));
             if (level < 1 || level > dungeon.Count) { await Tell(title, Seer.CannotDetect); return; }
             var spot = Seer.Locate(dungeon[level - 1], mon!, _rng);
             if (spot == null) { await Tell(title, Seer.CannotDetect); return; }
@@ -2843,7 +2843,7 @@ public partial class CityWindow : Window
         CloseAllServices();
         if (_ch.CurHits <= 0 && !_ch.IsDead) _ch.CurHits = 1;
 
-        var dungeon = MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR"));
+        var dungeon = MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR"));
         // a walk down from town, not a character loaded below ground nor a raise below (both of
         // which come here with the character's own level above nought)
         bool fromTown = !_enteringFromLoad && _ch.DungeonLevel < 1;
@@ -3740,7 +3740,7 @@ public partial class CityWindow : Window
         // the whole monster table, one row per index as sub327E loops it (FRMLIBRA.BAS:64-69): the
         // Morgul and the Shadow Ninja share Id 307 and have a record each
         var monsters = _monsters;
-        var spells = MdrLoader.LoadSpells(System.IO.Path.Combine(_gameDir, "MDATA2.MDR"));
+        var spells = MdrLoader.LoadSpells(GameFiles.DataFile(_gameDir, "MDATA2.MDR"));
         Librarian.SpellNameOf = i => i >= 0 && i < spells.Count ? spells[i].Name.Trim() : "a spell";
 
         int today = Librarian.Serial(DateTime.Now);

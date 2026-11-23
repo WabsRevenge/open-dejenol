@@ -188,7 +188,7 @@ public static class Audio
             });
             _session = new WaveMixSession(_channels, WaveMixSession.VbTimer, n =>
             {
-                string path = Path.Combine(_dir, SoundFiles.Names[n] + ".WAV");
+                string path = GameFiles.AudioFile(_dir, SoundFiles.Names[n] + ".WAV");
                 return File.Exists(path) ? path : null;   // fn034F (MUSIC.BAS:34)
             }, SoundFiles.Names.Length);
             var channels = _channels;
@@ -412,7 +412,7 @@ public static class Audio
         if (_tag == track) return;
         var player = Player();
         player?.Close();
-        string path = Path.Combine(_dir, MusicTrack.File(track, _soundCanvas) + ".MID");
+        string path = GameFiles.AudioFile(_dir, MusicTrack.File(track, _soundCanvas) + ".MID");
         if (!File.Exists(path)) { Trace("no file " + path); return; }
         player?.Play(path, Playable(path));
         _tag = track;

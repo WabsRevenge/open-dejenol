@@ -77,9 +77,9 @@ public partial class App : Application
                                            .FirstOrDefault(c => c.Name.Trim() == "Tester")
                     : null;
                 ch ??= Mordor.Core.Character.Create("Tester", Mordor.Core.RaceData.All[0], Mordor.Core.Alignment.Neutral, Mordor.Core.Sex.Male, new[] { 12, 12, 12, 12, 12, 12 });
-                var monsters = Mordor.Core.MdrLoader.LoadMonsters(System.IO.Path.Combine(dir, "MDATA5.MDR"));
+                var monsters = Mordor.Core.MdrLoader.LoadMonsters(Mordor.Core.GameFiles.DataFile(dir, "MDATA5.MDR"));
                 foreach (var m in monsters.Where(m => m.Id != 0 && m.LevelFound <= 2).Take(6)) ch.NoteMonster(m.Id, killed: m.Id % 2 == 0);
-                var items = Mordor.Core.MdrLoader.LoadItems(System.IO.Path.Combine(dir, "MDATA3.MDR"));
+                var items = Mordor.Core.MdrLoader.LoadItems(Mordor.Core.GameFiles.DataFile(dir, "MDATA3.MDR"));
                 foreach (var it in items.Where(i => i.Id != 0 && i.Floor == 1).Take(5)) ch.ItemsSeen.Add(it.Id);
                 ch.Poisoned = true;
                 // MORDOR_TEST_DEAD: arrive dead, to see the morgue's box and the dead screen
@@ -233,7 +233,7 @@ public partial class App : Application
                 // test hook: open the dungeon directly at the level-1 entrance with a throwaway character
                 string dir = TitleWindow.GameDir;
                 Mordor.Core.Mdata1.LoadFrom(dir); Mordor.Core.RaceData.LoadFrom(dir); Mordor.Core.GuildData.LoadFrom(dir);
-                var dungeon = Mordor.Core.MdrLoader.LoadDungeon(System.IO.Path.Combine(dir, "MDATA11.MDR"));
+                var dungeon = Mordor.Core.MdrLoader.LoadDungeon(Mordor.Core.GameFiles.DataFile(dir, "MDATA11.MDR"));
                 var f = dungeon[0]; int sx = 0, sy = 0;
                 for (int y = 0; y < f.Height; y++) for (int x = 0; x < f.Width; x++) if (f.Has(x, y, Mordor.Core.Floor.STAIRS_UP)) { sx = x; sy = y; }
                 // MORDOR_TEST_CHUTE=1: stand on the first chute square instead, to press t on it
@@ -254,7 +254,7 @@ public partial class App : Application
                     ch.Guilds.Insert(0, new Mordor.Core.GuildMembership { Guild = "Wizard", Level = 26 });
                     ch.Stats = new[] { 14, 21, 21, 14, 12, 18 };
                     ch.RecalcSpellPoints(refill: true); ch.CurHits = 5;
-                    var items = Mordor.Core.MdrLoader.LoadItems(System.IO.Path.Combine(dir, "MDATA3.MDR"));
+                    var items = Mordor.Core.MdrLoader.LoadItems(Mordor.Core.GameFiles.DataFile(dir, "MDATA3.MDR"));
                     foreach (var (name, known) in new[] { ("Elven Ring", true), ("Holy Sword", true), ("Bronze Sword", false) })
                         if (items.FirstOrDefault(i => i.Name == name) is { } it)
                             ch.PutInPack(new Mordor.Core.InventorySlot { ItemId = it.Id, Charges = (short)it.Charges, Identified = known });
@@ -271,7 +271,7 @@ public partial class App : Application
                 {
                     // something to swing, or the fight is one "Using no weapon!" after another;
                     // Asmodeus wants a weapon from at least half his floor, so he gets the deepest
-                    var items = Mordor.Core.MdrLoader.LoadItems(System.IO.Path.Combine(dir, "MDATA3.MDR"));
+                    var items = Mordor.Core.MdrLoader.LoadItems(Mordor.Core.GameFiles.DataFile(dir, "MDATA3.MDR"));
                     var weapon = Environment.GetEnvironmentVariable("MORDOR_TEST_ASMODEUS") == "1"
                         ? items.Where(i => i.Type <= 7 && i.Att > 0).OrderByDescending(i => i.Floor).First()
                         : items.First(i => i.Name == "Bronze Sword");
@@ -311,7 +311,7 @@ public partial class App : Application
                 if (Environment.GetEnvironmentVariable("MORDOR_TEST_PETS") is "1" or "caster")
                 {
                     bool casters = Environment.GetEnvironmentVariable("MORDOR_TEST_PETS") == "caster";
-                    var weak = Mordor.Core.MdrLoader.LoadMonsters(System.IO.Path.Combine(dir, "MDATA5.MDR"))
+                    var weak = Mordor.Core.MdrLoader.LoadMonsters(Mordor.Core.GameFiles.DataFile(dir, "MDATA5.MDR"))
                         .Where(m => m.Id != 0 && m.Hits > 0 && (!casters || m.SpellFlags > 0)).OrderBy(m => m.GuildLevel).First();
                     foreach (var member in party.Members)
                         member.Companions.Add(new Mordor.Core.Companion
@@ -323,6 +323,11 @@ public partial class App : Application
             else
             {
                 // no menu until there are Mordor's files to play: the first-run window asks for them if need be
+                void AfterLocate(Avalonia.Controls.Window window)
+                {
+                    if (window is TitleWindow title) title.OfferLegacyImport = true;
+                }
+
                 Avalonia.Controls.Window Start(string dir)
                 {
                     // The game's pictures and help are read out of the player's copy (Art,
@@ -342,7 +347,7 @@ public partial class App : Application
                         new Mordor.Core.GameFolderResolution(
                             new Mordor.Core.GameFilesCheck(dir, Mordor.Core.GameFilesVerdict.Damaged, artError),
                             "art", false, Array.Empty<Mordor.Core.GameFilesCheck>()),
-                        Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync);
+                        Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync, afterLocate: AfterLocate);
                 // Reading the pictures and help out of a copy for the first time takes a while (10 to
                 // 20 seconds): a small window says so meanwhile, the work off the window's thread. A
                 // start that finds them in the cache goes straight on, with nothing in between.
@@ -351,10 +356,12 @@ public partial class App : Application
                     string dir = found.Found.Dir;
                     desktop.MainWindow = GameFolderWindow.WhilePreparing(dir, Art.PrepareAsync,
                         error => error is string artError ? ArtFailed(dir, artError)
-                                 : GameFolderWindow.FirstWindow(found, Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync),
+                                 : GameFolderWindow.FirstWindow(found, Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync,
+                                     afterLocate: AfterLocate),
                         GameFolderWindow.MakeMain);
                 }
-                else desktop.MainWindow = GameFolderWindow.FirstWindow(found, Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync);
+                else desktop.MainWindow = GameFolderWindow.FirstWindow(found, Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync,
+                    afterLocate: AfterLocate);
                 // an installed copy asks for a newer version in the background; the main menu
                 // offers what it finds (Updates, docs/RELEASING.md). Nothing for a test run.
                 Updates.Begin();
