@@ -3740,7 +3740,7 @@ public partial class CityWindow : Window
         // the whole monster table, one row per index as sub327E loops it (FRMLIBRA.BAS:64-69): the
         // Morgul and the Shadow Ninja share Id 307 and have a record each
         var monsters = _monsters;
-        var spells = MdrLoader.LoadSpells(System.IO.Path.Combine(_gameDir, "MDATA2.MDR"));
+        var spells = MdrLoader.LoadSpells(GameFiles.DataFile(_gameDir, "MDATA2.MDR"));
         Librarian.SpellNameOf = i => i >= 0 && i < spells.Count ? spells[i].Name.Trim() : "a spell";
 
         int today = Librarian.Serial(DateTime.Now);
