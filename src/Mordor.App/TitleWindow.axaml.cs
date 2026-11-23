@@ -25,6 +25,7 @@ public partial class TitleWindow : Window
     /// <summary>The player's Mordor folder, set at start from <see cref="GameFolder"/> before this window is made.</summary>
     public static string GameDir { get; set; } = "";
     private string SavesDir => Saves.DirFor(GameDir);
+    internal bool OfferLegacyImport { get; set; }
 
     /// <summary>Sub Main runs once a run, and with it the limited build's "Public Version" box.</summary>
     private static bool _publicBoxShown;
@@ -132,8 +133,21 @@ public partial class TitleWindow : Window
             // a character save that would not read: put back from its last good copy, or not, and
             // either way said - the lists below would otherwise just leave it out (SaveRecovery)
             if (!OriginalBox.CanOwn(this)) return;
-            SavedCharacters();
+            var saved = SavedCharacters();
             await ShowSaveNotices();
+            if (!OriginalBox.CanOwn(this)) return;
+            if (OfferLegacyImport)
+            {
+                OfferLegacyImport = false;
+                if (Mordor.Core.Import.OriginalSaves.FindDataDir(GameDir) != null && saved.Count == 0
+                    && await OriginalBox.YesNoDefaultNo(this, "Import Original Saves",
+                        "This Mordor folder contains the original character data file (MDATA4.MDR), and you have no saved characters here.\n\nWould you like to import your legacy characters now?"))
+                {
+                    if (!OriginalBox.CanOwn(this)) return;
+                    await ImportWindow.Run(this, GameDir, SavesDir, false);
+                    if (!OriginalBox.CanOwn(this)) return;
+                }
+            }
             // Form_Load's last line, after the welcome: "If m00A8 = True Then cmdCommand(mc002A).Caption =
             // "Ordering/&About"" (FRMMENU.BAS:162), m00A8 a Static the full build never sets. The
             // shareware's About button reads "Ordering/&About" (observed in the original shareware

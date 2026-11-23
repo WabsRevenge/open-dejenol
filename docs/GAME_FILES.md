@@ -480,9 +480,11 @@ one with neither `cityw1.png` nor `CITYW1.BMP` gets the program's own city pictu
 ## Importing the original's saves
 
 A player who has played the original can bring the game across: **Options, File Backups, "Import
-Original Saves..."** (from the main menu only, as Backup and Restore are). It reads the original's
-`DATA` folder - or the game's folder with `DATA` inside it, as `BasePath + "DATA\"` (gc1C74) - and
-writes the port's JSON into the saves folder in use.
+Original Saves..."** (from the main menu only, as Backup and Restore are). After choosing a game folder
+with **Locate Mordor**, the port offers this import when that folder contains `MDATA4.MDR` and the
+saves folder has no characters. It reads the original's `DATA` folder - or the game's folder with
+`DATA` inside it, as `BasePath + "DATA\"` (gc1C74) - and writes the port's JSON into the saves folder
+in use.
 
 Code: `src/Mordor.Core/Import/VbLayout.cs` (the record types and each file's `Len`),
 `src/Mordor.Core/Import/OriginalSaves.cs` (reading, field by field into the port's model),

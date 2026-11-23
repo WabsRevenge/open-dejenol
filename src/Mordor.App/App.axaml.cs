@@ -323,6 +323,11 @@ public partial class App : Application
             else
             {
                 // no menu until there are Mordor's files to play: the first-run window asks for them if need be
+                void AfterLocate(Avalonia.Controls.Window window)
+                {
+                    if (window is TitleWindow title) title.OfferLegacyImport = true;
+                }
+
                 Avalonia.Controls.Window Start(string dir)
                 {
                     // The game's pictures and help are read out of the player's copy (Art,
@@ -342,7 +347,7 @@ public partial class App : Application
                         new Mordor.Core.GameFolderResolution(
                             new Mordor.Core.GameFilesCheck(dir, Mordor.Core.GameFilesVerdict.Damaged, artError),
                             "art", false, Array.Empty<Mordor.Core.GameFilesCheck>()),
-                        Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync);
+                        Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync, afterLocate: AfterLocate);
                 // Reading the pictures and help out of a copy for the first time takes a while (10 to
                 // 20 seconds): a small window says so meanwhile, the work off the window's thread. A
                 // start that finds them in the cache goes straight on, with nothing in between.
@@ -351,10 +356,12 @@ public partial class App : Application
                     string dir = found.Found.Dir;
                     desktop.MainWindow = GameFolderWindow.WhilePreparing(dir, Art.PrepareAsync,
                         error => error is string artError ? ArtFailed(dir, artError)
-                                 : GameFolderWindow.FirstWindow(found, Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync),
+                                 : GameFolderWindow.FirstWindow(found, Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync,
+                                     afterLocate: AfterLocate),
                         GameFolderWindow.MakeMain);
                 }
-                else desktop.MainWindow = GameFolderWindow.FirstWindow(found, Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync);
+                else desktop.MainWindow = GameFolderWindow.FirstWindow(found, Start, GameFolderWindow.MakeMain, prepare: Art.PrepareAsync,
+                    afterLocate: AfterLocate);
                 // an installed copy asks for a newer version in the background; the main menu
                 // offers what it finds (Updates, docs/RELEASING.md). Nothing for a test run.
                 Updates.Begin();

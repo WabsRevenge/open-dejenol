@@ -40,6 +40,8 @@ public sealed class GameFolderWindow : Window
     /// <summary>Called with a playable Mordor's folder once one has been picked (and remembered).</summary>
     public Action<string>? Accepted { get; set; }
 
+    private bool _acceptedByLocate;
+
     /// <summary>
     /// Gets a picked folder ready before it is handed over - the game's pictures and help read out
     /// of it (<see cref="Art.PrepareAsync"/>) - while this window says so, its buttons off: null
@@ -188,6 +190,7 @@ public sealed class GameFolderWindow : Window
             Problem.Text = Describe(check, chosen: true);
             return;
         }
+        _acceptedByLocate = true;
         await Accept(check, "game folder chosen");
     }
 
@@ -211,6 +214,7 @@ public sealed class GameFolderWindow : Window
 
     private async Task UnpackNow(string installer)
     {
+        _acceptedByLocate = false;
         Problem.Text = "";
         Busy("Unpacking " + Path.GetFileName(installer) + " ...");
         bool handedOver = false;
@@ -300,7 +304,7 @@ public sealed class GameFolderWindow : Window
     /// once one is picked. <paramref name="start"/> is never called without a playable folder.
     /// </summary>
     public static Window FirstWindow(GameFolderResolution found, Func<string, Window> start, Action<Window>? becomeMain = null, IReadOnlyList<string>? downloads = null,
-                                     Func<string, Task<string?>>? prepare = null)
+                                     Func<string, Task<string?>>? prepare = null, Action<Window>? afterLocate = null)
     {
         if (found.IsPlayable)
         {
@@ -315,6 +319,7 @@ public sealed class GameFolderWindow : Window
         gate.Accepted = dir =>
         {
             var next = start(dir);
+            if (gate._acceptedByLocate) afterLocate?.Invoke(next);
             becomeMain?.Invoke(next);
             next.Show();
             gate.Close();

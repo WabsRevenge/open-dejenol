@@ -2218,12 +2218,12 @@ Console.WriteLine("\nthe first-run window, preparing the game:");
         Environment.SetEnvironmentVariable("MORDOR_CRASHLOG", Path.Combine(scratchRoot, "crash.log"));
         Environment.SetEnvironmentVariable(GameFolder.EnvDir, Directory.CreateDirectory(Path.Combine(scratchRoot, "not-mordor")).FullName);
 
-        int started = 0; Window? mainNow = null;
+        int started = 0, located = 0; Window? mainNow = null;
         Window Start(string d) { started++; return menu = new Window { Width = 200, Height = 100, Title = "the menu" }; }
         var pending = new TaskCompletionSource<string?>();
         string? preparing = null;
         Task<string?> Prep(string d) { preparing = d; return pending.Task; }
-        var gate = (GameFolderWindow)GameFolderWindow.FirstWindow(GameFolder.Resolve(), Start, w => mainNow = w, Array.Empty<string>(), Prep);
+        var gate = (GameFolderWindow)GameFolderWindow.FirstWindow(GameFolder.Resolve(), Start, w => mainNow = w, Array.Empty<string>(), Prep, _ => located++);
         gateWin = gate;
         gate.Show(); Pump();
         void PressLocate()
@@ -2240,15 +2240,15 @@ Console.WriteLine("\nthe first-run window, preparing the game:");
         pending.SetResult("The game's pictures could not be read from " + picked + ": (the check's)");
         Pump();
         Check("not ready: it says why, the buttons back, nothing started, nothing kept",
-              (gate.Problem.Text, gate.Status.IsVisible, gate.LocateButton.IsEnabled, started, File.Exists(ini), gate.IsVisible),
-              ("The game's pictures could not be read from " + picked + ": (the check's)", false, true, 0, false, true));
+              (gate.Problem.Text, gate.Status.IsVisible, gate.LocateButton.IsEnabled, started, located, File.Exists(ini), gate.IsVisible),
+              ("The game's pictures could not be read from " + picked + ": (the check's)", false, true, 0, 0, false, true));
         pending = new TaskCompletionSource<string?>();
         PressLocate();
         Check("picked again: preparing again, the reason cleared", (gate.Status.IsVisible, gate.Problem.Text, gate.LocateButton.IsEnabled), (true, "", false));
         pending.SetResult(null);
         Pump();
-        Check("ready: the game's window shown as the main window, the first-run window gone, the folder kept",
-              (started, menu?.IsVisible == true, mainNow == menu, gate.IsVisible, GameFolder.Configured(ini)), (1, true, true, false, picked));
+        Check("ready: the game's window shown as the main window, the first-run window gone, the folder kept, and Locate handoff noted",
+              (started, located, menu?.IsVisible == true, mainNow == menu, gate.IsVisible, GameFolder.Configured(ini)), (1, 1, true, true, false, picked));
         menu?.Close(); Pump();
 
         // the start that must extract first
