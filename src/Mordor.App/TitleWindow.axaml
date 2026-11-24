@@ -4,7 +4,6 @@
         Title=""
         Width="599" Height="398" CanResize="False"
         WindowStartupLocation="CenterScreen"
-        RequestedThemeVariant="Light"
         FontFamily="Microsoft Sans Serif, MS Sans Serif, Arial"
         Background="#C0C0C0">
     <!--

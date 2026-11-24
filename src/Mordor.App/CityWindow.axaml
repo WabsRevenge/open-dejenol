@@ -25,8 +25,9 @@
         -->
         <app:Toolbar DockPanel.Dock="Top" x:Name="Tools"/>
 
-        <Panel>
-            <app:MdiHost x:Name="Host"/>
+        <Border x:Name="Backdrop">
+            <Panel>
+                <app:MdiHost x:Name="Host"/>
 
             <!--
                 The Shed. Everything here is lifted out in the constructor and handed to a child
@@ -313,7 +314,7 @@
                     sub0760) - which is what the Viewbox's Fill does.
                 -->
                 <Viewbox x:Name="CityBox" Stretch="Fill">
-                    <Canvas x:Name="CityPanel" Width="480" Height="203" Background="#12121a"
+                    <Canvas x:Name="CityPanel" Width="480" Height="203" Background="Transparent"
                             app:UiFonts.Font="frmCityMain.lblSelection(0)">
                         <Canvas.Styles>
                             <Style Selector="Button.pic">
@@ -376,5 +377,6 @@
                 -->
             </Panel>
         </Panel>
+        </Border>
     </DockPanel>
 </Window>

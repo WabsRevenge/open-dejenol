@@ -15,7 +15,7 @@ public sealed class MdiDemoWindow : Window
         Title = "OpenDejenol — MDI bench";
         Width = 1100;
         Height = 760;
-        Background = Brush.Parse("#0a0a10");
+        Background = ThemeSelection.ContentSurface;
         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace");
 
         var host = new MdiHost();

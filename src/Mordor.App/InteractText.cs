@@ -28,7 +28,7 @@ public static class InteractText
             Title = title,
             Width = 380,
             SizeToContent = SizeToContent.Height,
-            Background = Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -38,7 +38,7 @@ public static class InteractText
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = label, Foreground = Brushes.LightGray },
+                        new TextBlock { Text = label, Foreground = ThemeSelection.DialogText },
                         box,
                         new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { okButton, cancel } },
                     },

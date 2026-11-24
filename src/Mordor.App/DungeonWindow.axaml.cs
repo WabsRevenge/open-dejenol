@@ -102,6 +102,14 @@ public partial class DungeonWindow : Window
         // the Options window's fonts, read before any control is built (UiFonts)
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
+        ThemeSelection.ApplyWindowSurface(this);
+        ThemeSelection.ApplyItemCommandTheme((Canvas)SheetEquipBtn.Parent!, SheetEquipBtn, SheetUseBtn, SheetDropBtn, SheetInfoBtn);
+        Host.Background = ThemeSelection.ContentSurface;
+        DungeonCanvas.Background = FormPage.Face;
+        PackList.Background = ThemeSelection.ContentSurface;
+        SheetSpellBox.Background = ThemeSelection.ContentSurface;
+        MessageLog.Background = ThemeSelection.ContentSurface;
+        MessageLog.BorderBrush = FormPage.Bevel;
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)
         Title = LimitedVersion.FrameCaption;
         // MDIForm_QueryUnload (FRMMAIN.BAS:167-175): a close the user asks for - the X, Alt+F4, the
@@ -2603,7 +2611,7 @@ public partial class DungeonWindow : Window
         {
             Title = title,
             Width = 560, SizeToContent = SizeToContent.Height,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -2613,7 +2621,7 @@ public partial class DungeonWindow : Window
                     Spacing = 14,
                     Children =
                     {
-                        new TextBlock { Text = body, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = body, Foreground = ThemeSelection.DialogText, TextWrapping = TextWrapping.Wrap },
                         ok,
                     },
                 },
@@ -2754,7 +2762,7 @@ public partial class DungeonWindow : Window
         {
             Title = title,
             Width = 380, Height = 210,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -2764,7 +2772,7 @@ public partial class DungeonWindow : Window
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText, TextWrapping = TextWrapping.Wrap },
                         box,
                         new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8, Children = { ok, cancel } },
                     },
@@ -3053,7 +3061,7 @@ public partial class DungeonWindow : Window
         {
             Title = title,
             Width = 460, SizeToContent = SizeToContent.Height,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -3063,7 +3071,7 @@ public partial class DungeonWindow : Window
                     Spacing = 12,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText, TextWrapping = TextWrapping.Wrap },
                         new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8, Children = { yesBtn, noBtn } },
                     },
                 },

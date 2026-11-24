@@ -64,7 +64,14 @@ public partial class AutomapWindow : Window
     /// <summary>The Control Panel's "Auto Change Lev.", Chars().M5914 (FRMAUTOM.BAS:310).</summary>
     private bool _autoChangeLevel = true;
 
-    public AutomapWindow() { InitializeComponent(); _floors = Array.Empty<Floor>(); _map = new SharedMap(); }
+    public AutomapWindow()
+    {
+        InitializeComponent();
+        ThemeSelection.ApplyWindowSurface(this);
+        MapClip.Background = ThemeSelection.ContentSurface;
+        _floors = Array.Empty<Floor>();
+        _map = new SharedMap();
+    }
 
     /// <summary>
     /// Hands the map itself over to somebody else and leaves this window empty.

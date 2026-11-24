@@ -39,6 +39,7 @@ public partial class TitleWindow : Window
     public TitleWindow()
     {
         InitializeComponent();
+        ThemeSelection.Attach(this);
         // away from Windows, the form's Windows faces drawn in their Liberation twins (PortFonts)
         if (PortFonts.StandIn)
         {
@@ -583,8 +584,7 @@ public partial class TitleWindow : Window
         var win = new Window
         {
             Title = "Character List", Width = 420, SizeToContent = SizeToContent.Height, CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush.Parse("#101018"),
-            RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = ThemeSelection.WindowSurface,
             FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
             Content = new Border
             {

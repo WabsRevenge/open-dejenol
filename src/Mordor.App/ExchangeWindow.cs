@@ -236,7 +236,7 @@ public sealed class ExchangeWindow
         {
             Title = title, SizeToContent = SizeToContent.WidthAndHeight, CanResize = false,
             WindowStartupLocation = WindowStartupLocation.CenterOwner, ShowInTaskbar = false,
-            RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Light, FontFamily = VbForm.Sans,
+            FontFamily = VbForm.Sans,
             Content = new Grid
             {
                 Margin = new Thickness(10), ColumnDefinitions = new ColumnDefinitions("*,Auto"),

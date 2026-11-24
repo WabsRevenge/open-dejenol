@@ -87,7 +87,7 @@ internal static class VbForm
     {
         Title = title, Width = width, Height = height, CanResize = false,
         WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = back,
-        RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Light, ShowInTaskbar = false,
+        ShowInTaskbar = false,
         FontFamily = Sans, Content = content,
     };
 }

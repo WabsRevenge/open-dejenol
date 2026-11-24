@@ -42,7 +42,7 @@ public sealed class ModsWindow : Window
         var host = ModHost.Active;
         Title = "Mods";
         SizeToContent = SizeToContent.WidthAndHeight;
-        Background = Brush.Parse("#101018");
+        Background = ThemeSelection.WindowSurface;
         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         CanResize = false;

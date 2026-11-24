@@ -32,7 +32,7 @@ internal static class PartyOptionsDialog
         var who = new ListBox
         {
             Width = 110,
-            Background = Brush.Parse("#0a0a10"),
+            Background = ThemeSelection.ContentSurface,
             ItemsSource = party.Members.Select(m => m.Name.TrimEnd()).ToList(),
             SelectedIndex = party.SelectedIndex,
         };
@@ -113,7 +113,7 @@ internal static class PartyOptionsDialog
         {
             Title = "Party Options",
             Width = 400, SizeToContent = SizeToContent.Height,
-            Background = Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {

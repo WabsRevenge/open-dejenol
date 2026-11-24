@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
@@ -71,6 +72,20 @@ public partial class CityWindow : Window
         // the Options window's fonts, read before any control is built (UiFonts)
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
+        ThemeSelection.Attach(this);
+        ThemeSelection.ApplyItemCommandTheme((Canvas)PackEquipBtn.Parent!, PackEquipBtn, PackUseBtn, PackDropBtn, PackInfoBtn);
+        PackList.Background = ThemeSelection.ContentSurface;
+        SpellList.Background = ThemeSelection.ContentSurface;
+        MessageLog.Background = ThemeSelection.ContentSurface;
+        MessageLog.BorderBrush = FormPage.Bevel;
+        var backdrop = Art.Bitmap("main_background.png");
+        Backdrop.Background = new ImageBrush(backdrop)
+        {
+            TileMode = TileMode.Tile,
+            Stretch = Stretch.None,
+            DestinationRect = new RelativeRect(0, 0, backdrop.PixelSize.Width, backdrop.PixelSize.Height, RelativeUnit.Absolute),
+        };
+        Host.Background = Brushes.Transparent;
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)
         Title = LimitedVersion.FrameCaption;
         // sub16F8 runs from the idle loop; a quarter second is as near as a timer need come
@@ -1208,7 +1223,7 @@ public partial class CityWindow : Window
         FormPage.Label(root, "Stats Required", ServiceForms.Guild.StatsCaption, FormPage.Maroon);  // Label2(0)
         // elaElastic(1) holds lblStatName and lblStat, Courier New 8.25; Form_Load loads 1..5 each
         // at the one before's Left + Width (FRMCTYG.BAS:631-640), and sub294F fills the numbers
-        var stats = FormPage.Elastic(root, ServiceForms.Guild.StatsBox, new SolidColorBrush(Color.FromRgb(0x0a, 0x0a, 0x10)));
+        var stats = FormPage.Elastic(root, ServiceForms.Guild.StatsBox, ThemeSelection.FormListSurface);
         for (int i = 0; i < 6; i++)
         {
             FormPage.Label(stats, RaceData.StatNamesLong[i][..3], FormPage.Across(ServiceForms.Guild.lblStatName0, i), DesignFonts.GuildStatName);
@@ -1589,7 +1604,7 @@ public partial class CityWindow : Window
         {
             Title = title,
             Width = 420, Height = 300,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -1599,7 +1614,7 @@ public partial class CityWindow : Window
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = Brushes.LightGray },
+                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText },
                         list,
                         new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ok, cancel } },
                     },
@@ -1631,7 +1646,7 @@ public partial class CityWindow : Window
         {
             Title = title,
             Width = 380, SizeToContent = SizeToContent.Height,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -1641,7 +1656,7 @@ public partial class CityWindow : Window
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = Brushes.LightGray },
+                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText },
                         box,
                         new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ok, cancel } },
                     },
@@ -1666,7 +1681,7 @@ public partial class CityWindow : Window
         {
             Title = title,
             Width = 460, SizeToContent = SizeToContent.Height,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -1676,7 +1691,7 @@ public partial class CityWindow : Window
                     Spacing = 12,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText, TextWrapping = TextWrapping.Wrap },
                         new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { yesBtn, noBtn } },
                     },
                 },
@@ -1698,7 +1713,7 @@ public partial class CityWindow : Window
         {
             Title = title,
             Width = 420, SizeToContent = SizeToContent.Height,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -1708,7 +1723,7 @@ public partial class CityWindow : Window
                     Spacing = 12,
                     Children =
                     {
-                        new TextBlock { Text = text, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = text, Foreground = ThemeSelection.DialogText, TextWrapping = TextWrapping.Wrap },
                         okBtn,
                     },
                 },

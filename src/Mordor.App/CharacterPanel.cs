@@ -156,7 +156,7 @@ public sealed class CharacterPanel : UserControl
 
     private static TextBlock Page() => new()
     {
-        Foreground = Brushes.Gainsboro,
+        Foreground = ThemeSelection.FormInk,
         TextWrapping = TextWrapping.Wrap,
     };
 
@@ -309,7 +309,7 @@ public sealed class CharacterPanel : UserControl
             var t = UiFonts.Set(new TextBlock
             {
                 Text = text,
-                Foreground = color ?? Brushes.Gainsboro,
+                Foreground = color ?? ThemeSelection.FormInk,
                 FontWeight = font.Bold ? FontWeight.Bold : FontWeight.Normal,
                 TextWrapping = TextWrapping.NoWrap,
                 ClipToBounds = false,
@@ -336,7 +336,7 @@ public sealed class CharacterPanel : UserControl
                 box.Height = Math.Max(box.Height, UiFonts.LineHeight(form, font) + 2);
                 box.Child = UiFonts.Set(new TextBlock
                 {
-                    Text = text, Foreground = Brushes.Gainsboro,
+                    Text = text, Foreground = ThemeSelection.FormInk,
                     FontWeight = font.Bold ? FontWeight.Bold : FontWeight.Normal,
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 }, form, font);
@@ -409,8 +409,8 @@ public sealed class CharacterPanel : UserControl
         _stats.Height = Math.Ceiling(bottom);
     }
 
-    /// <summary>lblSpecial's ForeColor, &amp;HFF (pure red), in the dark theme.</summary>
-    private static readonly IBrush StateRed = new SolidColorBrush(Color.FromRgb(0xff, 0x40, 0x40));
+    /// <summary>lblSpecial's red ForeColor, adapted for each theme.</summary>
+    private static IBrush StateRed => ThemeSelection.FormMaroon;
 
     /// <summary>
     /// The Char page, painted as the original paints it: each piece of <see cref="CharStatFile.Paint"/>
@@ -442,7 +442,7 @@ public sealed class CharacterPanel : UserControl
         page.Children.Clear();
         var face = new Typeface(PictureFace);
         FormattedText Measure(string s) => new(s, System.Globalization.CultureInfo.CurrentCulture,
-                                               FlowDirection.LeftToRight, face, PageFontSize, Brushes.Gainsboro);
+                                               FlowDirection.LeftToRight, face, PageFontSize, ThemeSelection.FormInk);
         // the widest glyph of the ANSI set the picture box's font covers, and the line height
         double maxWidth = Enumerable.Range(0x20, 0xE0).Where(ch => ch < 0x7F || ch > 0x9F)
                                     .Max(ch => Measure(((char)ch).ToString()).WidthIncludingTrailingWhitespace);
@@ -484,7 +484,7 @@ public sealed class CharacterPanel : UserControl
             var t = UiFonts.Set(new TextBlock
             {
                 Text = p.Text,
-                Foreground = Brushes.Gainsboro,
+                Foreground = ThemeSelection.FormInk,
                 FontWeight = p.Bold ? FontWeight.Bold : FontWeight.Normal,
                 FontStyle = p.Italic ? FontStyle.Italic : FontStyle.Normal,
                 ClipToBounds = false,   // an italic's last letter leans past the box
@@ -530,7 +530,7 @@ public sealed class CharacterPanel : UserControl
                 Focusable = false,
                 HorizontalAlignment = HorizontalAlignment.Stretch,
                 HorizontalContentAlignment = HorizontalAlignment.Left,
-                Background = Brush.Parse("#16161f"),
+                Background = ThemeSelection.RaisedSurface,
             };
             b.Click += (_, _) => BufferFired?.Invoke(slot);
 

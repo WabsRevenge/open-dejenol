@@ -83,6 +83,7 @@ public partial class HelpWindow : Window
     public HelpWindow(string? openAt = null)
     {
         InitializeComponent();
+        ThemeSelection.ApplyWindowSurface(this);
         Opened += (_, _) => OpenWindows.Add(this);
         Closed += (_, _) => OpenWindows.Remove(this);
         // a session end closes every window at once, the help among them; but the help goes only

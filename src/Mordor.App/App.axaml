@@ -1,7 +1,6 @@
 <Application xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             x:Class="Mordor.App.App"
-             RequestedThemeVariant="Dark">
+             x:Class="Mordor.App.App">
 
     <Application.Styles>
         <!-- one accent, the port's own, rather than Windows': with Windows set to pick its accent from
