@@ -71,6 +71,7 @@ public partial class CityWindow : Window
         // the Options window's fonts, read before any control is built (UiFonts)
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
+        KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)
         Title = LimitedVersion.FrameCaption;
         // sub16F8 runs from the idle loop; a quarter second is as near as a timer need come
@@ -2473,6 +2474,14 @@ public partial class CityWindow : Window
             sp.Children.Add(btn); sp.Children.Add(msg);
             visit = Visit;
         }
+        // frmDungeonMain's Exit, which sub0930's screen keeps at every depth: cmdAction 7 queues q
+        // (FRMDUNM.BAS:85-86), and fn1521 case 81 lets the dead leave after "Exit to Main Menu?"
+        // (MAINMOD2.BAS:3619-3631) - the q this window already takes (LeaveTown). The port's screen
+        // had only the label and cmdWait, so a body the morgue could not be paid for had no way out
+        // but a key nobody is told of (issue #8), and the close box points at the EXIT buttons.
+        var exit = new Button { Content = "Exit", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
+        exit.Click += (_, _) => LeaveTown(null, null!);
+        sp.Children.Add(exit);
         SetServicePage(sp);
 
         if (_arrivedDead)

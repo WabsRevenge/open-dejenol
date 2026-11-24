@@ -1144,6 +1144,40 @@ top.Close();
         Call("ShowDead");
         Pump();
         Check("Town: dead and alone, the dead screen is up and the town is not shown", (DeadUp(), cityChild.IsVisible).ToString(), "(True, False)");
+
+        // frmDungeonMain's Exit is on sub0930's screen at every depth (cmdAction 7 is q, which fn1521
+        // lets the dead take, MAINMOD2.BAS:3619-3631): in the morgue, below ground and in the rock.
+        // Without it a body the morgue cannot be paid for had no way out (issue #8). Its click asks
+        // "Exit to Main Menu?"; No leaves the screen as it was.
+        {
+            Button? DeadExit()
+            {
+                var dead = services.Cast<object>().First(s => Of<GameWindow?>(s, "Key") == GameWindow.Dungeon);
+                return (Of<ContentControl>(dead, "Page").Content as Panel)?.Children.OfType<Button>()
+                       .FirstOrDefault(b => b.Content as string == "Exit");
+            }
+            int levelWas = hero.DungeonLevel, causeWas = hero.CauseOfDeath;
+            foreach (var (where, level, cause) in new[] { ("in the morgue", 0, Rules.DeathOrdinary), ("below ground", 3, Rules.DeathOrdinary), ("in the rock", 3, Rules.DeathRock) })
+            {
+                hero.DungeonLevel = level; hero.CauseOfDeath = cause;
+                Call("ShowDead");
+                Pump();
+                Check($"Town: the dead screen {where} has the dungeon's Exit", DeadExit() != null, true);
+            }
+            hero.DungeonLevel = levelWas; hero.CauseOfDeath = causeWas;
+            Call("ShowDead");
+            Pump();
+            DeadExit()!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Pump();
+            var asked = town.OwnedWindows.FirstOrDefault(w => w.Title == "EXIT");
+            Check("Town: the dead screen's Exit asks \"Exit to Main Menu?\"", asked != null, true);
+            if (asked != null)
+            {
+                asked.Close();   // No
+                Pump();
+            }
+            Check("Town: answered No, the dead screen stays up and the game goes on", (DeadUp(), town.IsVisible).ToString(), "(True, True)");
+        }
         var friend = new Character
         {
             Name = "Uicheckb", Race = RaceData.All[0].Name, CurHits = 10, MaxHits = 10,
