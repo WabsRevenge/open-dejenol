@@ -44,16 +44,17 @@ public partial class CityWindow : Window
         _tileBitmap?.Dispose();
     }
 
-    private readonly Party _party;
+    // The parameterless constructor is for the XAML designer; the runtime constructor below sets these.
+    private readonly Party _party = null!;
 
     /// <summary>The character the city's screens are showing, the party's selected member.</summary>
     private Character _ch => _party.Selected;
 
-    private readonly string _gameDir;
-    private readonly List<Item> _items;
-    private readonly Dictionary<short, Item> _itemsById;
-    private readonly List<Monster> _monsters;
-    private readonly List<Spell> _spells;
+    private readonly string _gameDir = null!;
+    private readonly List<Item> _items = null!;
+    private readonly Dictionary<short, Item> _itemsById = null!;
+    private readonly List<Monster> _monsters = null!;
+    private readonly List<Spell> _spells = null!;
     private readonly Random _rng = new();
 
     public CityWindow(Character ch, string gameDir)
