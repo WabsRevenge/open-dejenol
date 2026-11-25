@@ -39,6 +39,7 @@ public partial class TitleWindow : Window
     public TitleWindow()
     {
         InitializeComponent();
+        KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
         ThemeSelection.Attach(this);
         // away from Windows, the form's Windows faces drawn in their Liberation twins (PortFonts)
         if (PortFonts.StandIn)

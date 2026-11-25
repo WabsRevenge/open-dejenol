@@ -122,6 +122,7 @@ public partial class DungeonWindow : Window
         SheetSpellBox.Background = ThemeSelection.ContentSurface;
         MessageLog.Background = ThemeSelection.ContentSurface;
         MessageLog.BorderBrush = FormPage.Bevel;
+        KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)
         Title = LimitedVersion.FrameCaption;
         // MDIForm_QueryUnload (FRMMAIN.BAS:167-175): a close the user asks for - the X, Alt+F4, the
