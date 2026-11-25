@@ -148,15 +148,15 @@ internal static class PartyOptionsDialog
 internal static class PartyRowColours
 {
     /// <summary>QBColor(0): every Name and Hits label before the switch colours one (MULTIMOD.BAS:613-616).</summary>
-    public static readonly IBrush Plain = Brushes.WhiteSmoke;
+    public static IBrush Plain => ThemeSelection.PartyPlainInk;
     /// <summary>QBColor(mc0116 = 2): the selected member's Name and Hits (MULTIMOD.BAS:640-641).</summary>
-    public static readonly IBrush Selected = Brushes.LightGreen;
+    public static IBrush Selected => ThemeSelection.PartySelectedInk;
     /// <summary>QBColor(mc014C = 1): lblStatus reading "OK" (FRMGROUP.BAS:446-448).</summary>
-    public static readonly IBrush Well = Brushes.CornflowerBlue;
+    public static IBrush Well => ThemeSelection.PartyWellInk;
     /// <summary>QBColor(mc014E = 4): lblStatus with Po/Di/Pa in it (FRMGROUP.BAS:449-450).</summary>
-    public static readonly IBrush Ailing = Brushes.IndianRed;
+    public static IBrush Ailing => ThemeSelection.PartyAilingInk;
     /// <summary>lblSpells and lblOption are never recoloured in code; they are blue in game_files/bm5.png.</summary>
-    public static readonly IBrush Fixed = Brushes.CornflowerBlue;
+    public static IBrush Fixed => ThemeSelection.PartyFixedInk;
 
     public static IBrush NameAndHits(bool selected) => selected ? Selected : Plain;
     /// <summary>Only lblName is made bold, "frmParty!lblName(p00FA).FontBold = True" (MULTIMOD.BAS:642).</summary>

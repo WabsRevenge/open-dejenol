@@ -45,6 +45,13 @@ internal static class ThemeSelection
     internal static SolidColorBrush FormBlue { get; } = new(Color.Parse("#6495ed"));
     internal static SolidColorBrush FormMaroon { get; } = new(Color.Parse("#cd5c5c"));
     internal static SolidColorBrush FormNavy { get; } = new(Color.Parse("#8aa8e8"));
+    internal static SolidColorBrush StoreMutedInk { get; } = new(Color.Parse("#808080"));
+    internal static SolidColorBrush PartyPlainInk { get; } = new(Color.Parse("#f5f5f5"));
+    internal static SolidColorBrush PartySelectedInk { get; } = new(Color.Parse("#90ee90"));
+    internal static SolidColorBrush PartyFixedInk { get; } = new(Color.Parse("#6495ed"));
+    internal static SolidColorBrush PartyWellInk { get; } = new(Color.Parse("#6495ed"));
+    internal static SolidColorBrush PartyAilingInk { get; } = new(Color.Parse("#cd5c5c"));
+    internal static SolidColorBrush PartyHeaderInk { get; } = new(Color.Parse("#888888"));
 
     public static void Initialize(IClassicDesktopStyleApplicationLifetime desktop)
     {
@@ -68,6 +75,13 @@ internal static class ThemeSelection
     }
 
     public static void ApplyWindowSurface(Window window) => window.Background = WindowSurface;
+
+    internal static void ApplyPartyHeader(Grid header)
+    {
+        foreach (Control child in header.Children)
+            if (child is TextBlock label)
+                label.Foreground = PartyHeaderInk;
+    }
 
     internal static void ApplyItemCommandTheme(Canvas canvas, params Button[] buttons)
     {
@@ -181,6 +195,13 @@ internal static class ThemeSelection
         FormBlue.Color = Color.Parse(light ? "#0000FF" : "#6495ed");
         FormMaroon.Color = Color.Parse(light ? "#800000" : "#cd5c5c");
         FormNavy.Color = Color.Parse(light ? "#000080" : "#8aa8e8");
+        StoreMutedInk.Color = Color.Parse(light ? "#666666" : "#808080");
+        PartyPlainInk.Color = Color.Parse(light ? "#202020" : "#f5f5f5");
+        PartySelectedInk.Color = Color.Parse(light ? "#006400" : "#90ee90");
+        PartyFixedInk.Color = Color.Parse(light ? "#000080" : "#6495ed");
+        PartyWellInk.Color = Color.Parse(light ? "#000080" : "#6495ed");
+        PartyAilingInk.Color = Color.Parse(light ? "#800000" : "#cd5c5c");
+        PartyHeaderInk.Color = Color.Parse(light ? "#666666" : "#888888");
         foreach (Window window in _desktop.Windows)
             window.Background = WindowSurface;
     }

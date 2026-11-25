@@ -103,6 +103,18 @@ public partial class DungeonWindow : Window
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
         ThemeSelection.ApplyWindowSurface(this);
+        PosText.Foreground = ThemeSelection.FormInk;
+        CombatPanel.Background = FormPage.Face;
+        CombatPanel.BorderBrush = FormPage.Bevel;
+        MonsterList.Background = ThemeSelection.FormListSurface;
+        CombatHit.Foreground = ThemeSelection.FormNavy;
+        CombatMonsterHit.Foreground = ThemeSelection.FormMaroon;
+        MsgText.Foreground = ThemeSelection.FormInk;
+        ChestPanel.Background = FormPage.Face;
+        ChestPanel.BorderBrush = FormPage.Bevel;
+        ChestText.Foreground = ThemeSelection.FormNavy;
+        ChestGauge.Foreground = ThemeSelection.FormBlue;
+        ThemeSelection.ApplyPartyHeader(PartyHeader);
         ThemeSelection.ApplyItemCommandTheme((Canvas)SheetEquipBtn.Parent!, SheetEquipBtn, SheetUseBtn, SheetDropBtn, SheetInfoBtn);
         Host.Background = ThemeSelection.ContentSurface;
         DungeonCanvas.Background = FormPage.Face;
@@ -6565,7 +6577,7 @@ public partial class DungeonWindow : Window
         var t = new TextBlock
         {
             Text = text,
-            Foreground = Brushes.Khaki,
+            Foreground = ThemeSelection.FormInk,
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
         };
         t.PointerPressed += (_, e) => { TargetGroup(group - 1); Focus(); e.Handled = true; };
@@ -6580,13 +6592,13 @@ public partial class DungeonWindow : Window
             {
                 Width = 12, Child = new Border
                 {
-                    Width = 2, Height = 9, Background = Brushes.Khaki,
+                    Width = 2, Height = 9, Background = ThemeSelection.FormInk,
                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
                 },
             });
         else
-            row.Children.Add(new TextBlock { Text = glyph, Width = 12, Foreground = Brushes.Khaki, FontWeight = FontWeight.Bold,
+            row.Children.Add(new TextBlock { Text = glyph, Width = 12, Foreground = ThemeSelection.FormInk, FontWeight = FontWeight.Bold,
                                              TextAlignment = TextAlignment.Center });
         row.Children.Add(t);
         return row;

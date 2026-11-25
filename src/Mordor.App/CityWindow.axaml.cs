@@ -73,6 +73,7 @@ public partial class CityWindow : Window
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
         ThemeSelection.Attach(this);
+        ThemeSelection.ApplyPartyHeader(PartyHeader);
         ThemeSelection.ApplyItemCommandTheme((Canvas)PackEquipBtn.Parent!, PackEquipBtn, PackUseBtn, PackDropBtn, PackInfoBtn);
         PackList.Background = ThemeSelection.ContentSurface;
         SpellList.Background = ThemeSelection.ContentSurface;
@@ -83,7 +84,7 @@ public partial class CityWindow : Window
         {
             TileMode = TileMode.Tile,
             Stretch = Stretch.None,
-            DestinationRect = new RelativeRect(0, 0, backdrop.PixelSize.Width, backdrop.PixelSize.Height, RelativeUnit.Absolute),
+            DestinationRect = new RelativeRect(0, 0, backdrop.Size.Width, backdrop.Size.Height, RelativeUnit.Absolute),
         };
         Host.Background = Brushes.Transparent;
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)

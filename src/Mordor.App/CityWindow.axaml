@@ -25,9 +25,10 @@
         -->
         <app:Toolbar DockPanel.Dock="Top" x:Name="Tools"/>
 
-        <Border x:Name="Backdrop">
-            <Panel>
-                <app:MdiHost x:Name="Host"/>
+        <Grid>
+            <Border x:Name="Backdrop">
+                <Panel>
+                    <app:MdiHost x:Name="Host"/>
 
             <!--
                 The Shed. Everything here is lifted out in the constructor and handed to a child
@@ -375,8 +376,9 @@
                     the rest, FRMCTYM.BAS:192-203), shown modeless, so several can be up at once.
                     Each gets a child window of its own, built in code (CityWindow.Services.cs).
                 -->
+                </Panel>
             </Panel>
-        </Panel>
         </Border>
-    </DockPanel>
+    </Grid>
+            </DockPanel>
 </Window>

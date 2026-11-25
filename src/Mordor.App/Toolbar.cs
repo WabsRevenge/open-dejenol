@@ -65,7 +65,7 @@ public sealed class Toolbar : UserControl
 
     public Toolbar()
     {
-        Background = Brush.Parse("#1a1a24");
+        Background = ThemeSelection.RaisedSurface;
 
         // No tooltips: VB3 buttons have no such property, and frmMain has no cmdTool_MouseMove to
         // put a hint anywhere either - only Click, KeyDown and KeyPress (FRMMAIN.BAS:48-120). The
@@ -99,8 +99,8 @@ public sealed class Toolbar : UserControl
         AttachedToVisualTree += (_, _) => { Mordor.Modding.ModHost.Active.Changed += retip; ApplyModTips(); };
         DetachedFromVisualTree += (_, _) => Mordor.Modding.ModHost.Active.Changed -= retip;
 
-        _gold = Readout("#e8e0c0");
-        _experience = Readout("#8fd9d9");
+        _gold = Readout(Brush.Parse("#e8e0c0"));
+        _experience = Readout(ThemeSelection.FormNavy);
         _readouts = new StackPanel
         {
             Spacing = 0,
@@ -214,9 +214,9 @@ public sealed class Toolbar : UserControl
     }
 
     // lblGold and lblExperience, MS Sans Serif 8.25 (MORDOR.EXE, frmMain): the "NonPro" role
-    private static TextBlock Readout(string colour) => UiFonts.Set(new TextBlock
+    private static TextBlock Readout(IBrush foreground) => UiFonts.Set(new TextBlock
     {
-        Foreground = Brush.Parse(colour),
+        Foreground = foreground,
     }, DesignFonts.Main, "lblGold");
 
     /// <summary>
