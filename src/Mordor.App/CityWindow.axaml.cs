@@ -5,12 +5,45 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+
+using Avalonia.Media.Imaging;
+
 using Mordor.Core;
 
 namespace Mordor.App;
 
 public partial class CityWindow : Window
 {
+    private Bitmap? _tileBitmap;
+
+    public CityWindow()
+    {
+        InitializeComponent();
+        RenderOptions.SetBitmapInterpolationMode(this, Avalonia.Media.Imaging.BitmapInterpolationMode.None);
+    }
+
+    public bool SetTiledBackground(Bitmap bmp)
+    {
+
+        Backdrop.Background = new ImageBrush(bmp)
+        {
+            TileMode = TileMode.Tile,
+            Stretch = Stretch.Fill,
+            DestinationRect = new RelativeRect(
+                0, 0, bmp.Size.Width, bmp.Size.Height, RelativeUnit.Absolute)
+        };
+
+        _tileBitmap?.Dispose();   // free the previous one when swapping
+        _tileBitmap = bmp;
+        return true;
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        base.OnClosed(e);
+        _tileBitmap?.Dispose();
+    }
+
     private readonly Party _party;
 
     /// <summary>The character the city's screens are showing, the party's selected member.</summary>
@@ -80,12 +113,7 @@ public partial class CityWindow : Window
         MessageLog.Background = ThemeSelection.ContentSurface;
         MessageLog.BorderBrush = FormPage.Bevel;
         var backdrop = Art.Bitmap("main_background.png");
-        Backdrop.Background = new ImageBrush(backdrop)
-        {
-            TileMode = TileMode.Tile,
-            Stretch = Stretch.None,
-            DestinationRect = new RelativeRect(0, 0, backdrop.Size.Width, backdrop.Size.Height, RelativeUnit.Absolute),
-        };
+        SetTiledBackground(backdrop);
         Host.Background = Brushes.Transparent;
         KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)

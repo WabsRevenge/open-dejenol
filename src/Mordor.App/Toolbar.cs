@@ -99,7 +99,7 @@ public sealed class Toolbar : UserControl
         AttachedToVisualTree += (_, _) => { Mordor.Modding.ModHost.Active.Changed += retip; ApplyModTips(); };
         DetachedFromVisualTree += (_, _) => Mordor.Modding.ModHost.Active.Changed -= retip;
 
-        _gold = Readout(Brush.Parse("#e8e0c0"));
+        _gold = Readout(ThemeSelection.ToolbarGoldInk);
         _experience = Readout(ThemeSelection.FormNavy);
         _readouts = new StackPanel
         {
@@ -127,14 +127,14 @@ public sealed class Toolbar : UserControl
             {
                 Text = Librarian.Resistances[i][..Math.Min(3, Librarian.Resistances[i].Length)],
                 FontWeight = FontWeight.Bold,
-                Foreground = Brush.Parse("#8fb0ff"),
+                Foreground = ThemeSelection.ToolbarResistanceInk,
                 Margin = new Thickness(0, 0, 8, 0),
                 [Grid.ColumnProperty] = i,
             }, DesignFonts.Main, "picToolbar");
             var value = UiFonts.Set(new TextBlock
             {
                 Text = " -",
-                Foreground = Brushes.Gainsboro,
+                Foreground = ThemeSelection.ToolbarResistanceValueInk,
                 Margin = new Thickness(0, 0, 8, 0),
                 [Grid.ColumnProperty] = i,
                 [Grid.RowProperty] = 1,

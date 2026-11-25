@@ -76,7 +76,8 @@ public partial class MainWindow : Window
             picker.Close();
         };
         await OriginalBox.ShowOver(picker, this);
-        if (picked != null) new CityWindow(picked, dir).Show();
+        if (picked != null) 
+            new CityWindow(picked, dir).Show();
     }
 
     private async void OnNewCharacter(object? sender, Avalonia.Interactivity.RoutedEventArgs e)

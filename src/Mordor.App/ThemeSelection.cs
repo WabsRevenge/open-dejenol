@@ -45,6 +45,9 @@ internal static class ThemeSelection
     internal static SolidColorBrush FormBlue { get; } = new(Color.Parse("#6495ed"));
     internal static SolidColorBrush FormMaroon { get; } = new(Color.Parse("#cd5c5c"));
     internal static SolidColorBrush FormNavy { get; } = new(Color.Parse("#8aa8e8"));
+    internal static SolidColorBrush ToolbarGoldInk { get; } = new(Color.Parse("#e8e0c0"));
+    internal static SolidColorBrush ToolbarResistanceInk { get; } = new(Color.Parse("#8fb0ff"));
+    internal static SolidColorBrush ToolbarResistanceValueInk { get; } = new(Color.Parse("#dcdcdc"));
     internal static SolidColorBrush StoreMutedInk { get; } = new(Color.Parse("#808080"));
     internal static SolidColorBrush PartyPlainInk { get; } = new(Color.Parse("#f5f5f5"));
     internal static SolidColorBrush PartySelectedInk { get; } = new(Color.Parse("#90ee90"));
@@ -195,6 +198,9 @@ internal static class ThemeSelection
         FormBlue.Color = Color.Parse(light ? "#0000FF" : "#6495ed");
         FormMaroon.Color = Color.Parse(light ? "#800000" : "#cd5c5c");
         FormNavy.Color = Color.Parse(light ? "#000080" : "#8aa8e8");
+        ToolbarGoldInk.Color = Color.Parse(light ? "#705000" : "#e8e0c0");
+        ToolbarResistanceInk.Color = Color.Parse(light ? "#000080" : "#8fb0ff");
+        ToolbarResistanceValueInk.Color = Color.Parse(light ? "#202020" : "#dcdcdc");
         StoreMutedInk.Color = Color.Parse(light ? "#666666" : "#808080");
         PartyPlainInk.Color = Color.Parse(light ? "#202020" : "#f5f5f5");
         PartySelectedInk.Color = Color.Parse(light ? "#006400" : "#90ee90");
