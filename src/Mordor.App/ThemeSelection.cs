@@ -152,53 +152,68 @@ internal static class ThemeSelection
         if (!OperatingSystem.IsWindows()) return;
 
         IntPtr themeMenu = IntPtr.Zero;
-        Win32Properties.CustomWndProcHookCallback hook = (IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam, ref bool handled) =>
-        {
-            if (message == WmInitMenuPopup && wParam == themeMenu)
-                UpdateCheck(themeMenu);
-            else if (message == WmSysCommand)
+
+        Win32Properties.CustomWndProcHookCallback hook =
+            (IntPtr hwnd, uint message, IntPtr wParam, IntPtr lParam, ref bool handled) =>
             {
-                uint command = unchecked((uint)wParam.ToInt64()) & 0xFFF0;
-                Choice? selected = command switch
+                if (message == WmInitMenuPopup && wParam == themeMenu)
                 {
-                    ScWindowsTheme => Choice.Windows,
-                    ScLightTheme => Choice.Light,
-                    ScDarkTheme => Choice.Dark,
-                    _ => null,
-                };
-                if (selected is Choice choice)
-                {
-                    Select(choice);
                     UpdateCheck(themeMenu);
-                    handled = true;
                 }
-            }
-            return IntPtr.Zero;
-        };
+                else if (message == WmSysCommand)
+                {
+                    uint command = unchecked((uint)wParam.ToInt64()) & 0xFFF0;
+
+                    Choice? selected = command switch
+                    {
+                        ScWindowsTheme => Choice.Windows,
+                        ScLightTheme => Choice.Light,
+                        ScDarkTheme => Choice.Dark,
+                        _ => null,
+                    };
+
+                    if (selected is Choice choice)
+                    {
+                        Select(choice);
+                        UpdateCheck(themeMenu);
+                        handled = true;
+                    }
+                }
+
+                return IntPtr.Zero;
+            };
 
         Win32Properties.AddWndProcHookCallback(window, hook);
+
         window.Opened += (_, _) =>
         {
             IntPtr hwnd = window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
-            IntPtr systemMenu = hwnd == IntPtr.Zero ? IntPtr.Zero : GetSystemMenu(hwnd, false);
+            if (hwnd == IntPtr.Zero) return;
+
+            // Reset system menu to remove any previous theme submenu.
+            GetSystemMenu(hwnd, true);
+
+            IntPtr systemMenu = GetSystemMenu(hwnd, false);
             themeMenu = CreatePopupMenu();
 
-            
-            if (!HasMenuItem(systemMenu, "Theme Selection")  &&
-                (systemMenu == IntPtr.Zero || themeMenu == IntPtr.Zero
-                || !AppendMenuW(themeMenu, 0, new IntPtr(unchecked((int)ScWindowsTheme)), "Windows (system)")
-                || !AppendMenuW(themeMenu, 0, new IntPtr(unchecked((int)ScLightTheme)), "Light")
-                || !AppendMenuW(themeMenu, 0, new IntPtr(unchecked((int)ScDarkTheme)), "Dark")
+            if (systemMenu == IntPtr.Zero || themeMenu == IntPtr.Zero
+                || !AppendMenuW(themeMenu, 0,
+                    new IntPtr(unchecked((int)ScLightTheme)), "Light")
+                || !AppendMenuW(themeMenu, 0,
+                    new IntPtr(unchecked((int)ScDarkTheme)), "Dark")
                 || !AppendMenuW(systemMenu, MfSeparator, IntPtr.Zero, null)
                 || !AppendMenuW(systemMenu, MfPopup, themeMenu, "Theme Selection"))
-                )
             {
-                CrashLog.Note("could not add theme selection to the Windows system menu (" + Marshal.GetLastWin32Error() + ")");
+                CrashLog.Note("Could not add theme selection to Windows system menu ("
+                    + Marshal.GetLastWin32Error() + ")");
                 return;
             }
+
             UpdateCheck(themeMenu);
         };
-        window.Closed += (_, _) => Win32Properties.RemoveWndProcHookCallback(window, hook);
+
+        window.Closed += (_, _) =>
+            Win32Properties.RemoveWndProcHookCallback(window, hook);
     }
 
     private static void Select(Choice choice)
@@ -285,7 +300,7 @@ internal static class ThemeSelection
         {
             Choice.Light => ScLightTheme,
             Choice.Dark => ScDarkTheme,
-            _ => ScWindowsTheme,
+            _ => ScLightTheme,
         };
         CheckMenuRadioItem(menu, ScWindowsTheme, ScDarkTheme, command, 0);
     }
