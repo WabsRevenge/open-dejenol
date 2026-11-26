@@ -25,7 +25,7 @@ OpenDejenol comes bundled with a few mods. These include:
 
 <p align="center"><img src="docs/images/dps-meter-xp.png" width="400" alt="The DPS Meter in XP mode: experience gained per character, split into Damage and Chests"></p>
 
-**Cartographer** - Annotate the minimap to denote areas of interest and waypoints. Right-click squares to highlight them with a color, or link it to a destination square. Hover or click waypoints to interact with them.
+**Cartographer** - Annotate the minimap to denote areas of interest and waypoints. Right-click squares to highlight them with a color, or link it to a destination square. Hover or click waypoints to interact with them. Right-click a square for the shortest route to it from where you stand (or from any other square), counted in actions - each step and each turn is one - through what your map shows, taking your waypoints if you like, casting Ethereal Portal through walls at a cost you set, and steering round the hazards you choose.
 
 <p align="center"><img src="docs/images/cartographer.png" width="450" alt="The automap with Cartographer: coloured squares and a waypoint's arrow to its destination"></p>
 
@@ -35,24 +35,29 @@ OpenDejenol comes bundled with a few mods. These include:
 
 ## Requirements
 
-- Your own copy of Mordor: The Depths of Dejenol - the full version or the shareware. The full version can be purchased from [Decklin's Domain](https://www.decklinsdemise.com/mordor.htm) as `MordorSetup.exe`, and the free demo is `MordorDemoSetup.exe` from the same site. Those installers don't run on Windows 10 or 11, and you don't need to run them: OpenDejenol unpacks the game from the installer itself.
-- 64-bit Windows 10 or 11, or macOS 12 or later on Apple Silicon (built from source; see below)
+- Your own copy of Mordor: The Depths of Dejenol - the full version or the shareware, available from [Decklin's Domain](https://www.decklinsdemise.com/mordor.htm). OpenDejenol reads the full game's `M1FULL.zip` or `MordorSetup.exe`, and the demo's `MordorDemoSetup.exe`, without running their old installers.
+- 64-bit Windows 10 or 11, on an x64 (Intel or AMD) or ARM64 (e.g. Snapdragon) PC, 64-bit x64 Linux (including Steam Deck / SteamOS and Bazzite), or macOS 12 or later on Apple Silicon (built from source; see below)
 
 ## Installing and running
 
 Download the latest release from the [Releases page](https://github.com/uncanardnoir/open-dejenol/releases):
 
-- **OpenDejenol.Game-win-Setup.exe** - the installer (64-bit Windows 10 or 11). It installs for your user only, needs no administrator rights or .NET, and adds Start-menu and desktop shortcuts. Uninstall it from Settings > Apps.
+- **OpenDejenol.Game-win-Setup.exe** - the installer (x64 Windows 10 or 11). It installs for your user only, needs no administrator rights or .NET, and adds Start-menu and desktop shortcuts. Uninstall it from Settings > Apps.
 - **OpenDejenol.Game-win-Portable.zip** - unzip anywhere and run `OpenDejenol.exe`.
+- **OpenDejenol.Game-win-arm64-Setup.exe** and **OpenDejenol.Game-win-arm64-Portable.zip** - the same two, built natively for ARM64 Windows PCs. An ARM64 copy only ever updates to ARM64 builds.
+- **OpenDejenol.Game.AppImage** - for Linux (x64): make it executable (`chmod +x OpenDejenol.Game.AppImage`, or Properties > Permissions in your file manager) and run it. It updates itself like the Windows builds. The music plays through OpenDejenol's own synthesizer with the bundled TimGM6mb SoundFont; on Windows that is an option (Options > Use built-in soundfont).
 
 Releases aren't code-signed yet, so Windows may say "Windows protected your PC" the first time: choose More info, then Run anyway.
 
 On first run, OpenDejenol looks for your Mordor. If it can't find one, choose **Use the installer...**
-and pick the `MordorSetup.exe` (or `MordorDemoSetup.exe`) you downloaded - if it's in your Downloads
+and pick the `M1FULL.zip`, `MordorSetup.exe` or `MordorDemoSetup.exe` you downloaded - if it's in your Downloads
 folder, OpenDejenol offers it. It unpacks the game into `%LOCALAPPDATA%\OpenDejenol\game`. A Mordor
 already installed some other way can be chosen with **Locate Mordor...** instead. The choice is
 remembered in `%APPDATA%\OpenDejenol`. When a newer version is out, it offers the
 update on the main menu. To build it yourself instead, see [Building from source](#building-from-source).
+
+For `M1FULL.zip`, select the original ZIP directly. There is no need to extract it or select its
+`SETUP.EXE` or `.WIP` files; OpenDejenol reads the game and audio from the package itself.
 
 ## Building from source
 
@@ -74,8 +79,8 @@ update on the main menu. To build it yourself instead, see [Building from source
   which are not set up.
 - `make verify` builds as CI does; `make check GAME=<path to your Mordor folder>` runs the suites.
   `tools/check.sh` is Windows-only.
-- Sound effects and music play through AudioToolbox, with no library added; the MIDI music uses
-  macOS's built-in General MIDI synthesiser, so it sounds different from a Windows synthesiser.
+- Sound effects and music play through OpenDejenol's cross-platform SDL3 audio output and built-in
+  MIDI synthesiser with the bundled TimGM6mb SoundFont (the same audio path as Linux).
 - Known on Apple Silicon: Harmony patches do not apply, so a third-party mod that patches the game
   through `ctx.Harmony` is disabled there (the bundled mods use none), and a few pixel-exact window
   checks differ.

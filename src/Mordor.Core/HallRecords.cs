@@ -279,7 +279,7 @@ public sealed class HallRecords
         try
         {
             Directory.CreateDirectory(savesDir);
-            File.WriteAllText(PathFor(savesDir), JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            SafeFile.WriteAllText(PathFor(savesDir), JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { }
     }

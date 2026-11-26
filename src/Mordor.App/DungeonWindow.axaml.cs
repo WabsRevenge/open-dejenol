@@ -102,6 +102,7 @@ public partial class DungeonWindow : Window
         // the Options window's fonts, read before any control is built (UiFonts)
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
+        KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)
         Title = LimitedVersion.FrameCaption;
         // MDIForm_QueryUnload (FRMMAIN.BAS:167-175): a close the user asks for - the X, Alt+F4, the
@@ -134,10 +135,10 @@ public partial class DungeonWindow : Window
         playClock.Tick += (_, _) => PlayClock.Shared.Tick(_party.Members, PlayClock.Timer(DateTime.Now));
         playClock.Start();
         Ended += () => playClock.Stop();
-        _monsters = MdrLoader.LoadMonsters(System.IO.Path.Combine(gameDir, "MDATA5.MDR"));
-        _spells = MdrLoader.LoadSpells(System.IO.Path.Combine(gameDir, "MDATA2.MDR"));
+        _monsters = MdrLoader.LoadMonsters(GameFiles.DataFile(gameDir, "MDATA5.MDR"));
+        _spells = MdrLoader.LoadSpells(GameFiles.DataFile(gameDir, "MDATA2.MDR"));
         foreach (var m in _party.Members) m.RecalcSpellPoints();
-        var items = MdrLoader.LoadItems(System.IO.Path.Combine(gameDir, "MDATA3.MDR"));
+        var items = MdrLoader.LoadItems(GameFiles.DataFile(gameDir, "MDATA3.MDR"));
         _items = items;
         _itemsById = items.GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First());
         // the mods' view of the game (ctx.Game): the city has set it, unless the dungeon was started
@@ -190,7 +191,15 @@ public partial class DungeonWindow : Window
         // level an established game next visits would log "was the first to go to level N"
         if (_dstate.DeepestReached == 0) _dstate.DeepestReached = _map.DeepestVisited;
         Audio.Init(gameDir);
-        Audio.Music("DUNGEON");
+        Audio.Music(MusicTrack.Dungeon);
+        // sub1A50 asks Chars(m0112).DungeonLevel whether the party is in town (MUSIC.BAS:79-97). The
+        // original's record holds the level from the walk down on: "Chars(m0040).DungeonLevel = 1"
+        // (FRMCTYM.BAS:208). The port's record follows _level only at a save or a change of area, so
+        // until then it still said 0, the town. The next tune was then CITY, and once that had
+        // played, CITY every time: it was the tag, and nothing more played. Below, it is _level.
+        var townLevel = Audio.LeaderLevel;
+        Audio.LeaderLevel = () => _level;
+        Ended += () => Audio.LeaderLevel = townLevel;
         _nav = NavFor(_level);
         _nav.SetPosition(x, y);
         // the way the record faces (Chars(Me).Facing, MAIN.TXT:329); the walk down from town sets
@@ -1684,6 +1693,7 @@ public partial class DungeonWindow : Window
         PackList.ItemsSource = rows;
         PackList.SelectedIndex = Math.Clamp(sel, 0, Character.PackSize - 1);
         (_packShownFor, _packShown) = (_ch, PackStamp());
+        RefreshPartyRows();   // a mod column may read the pack (the QoL quest mark)
     }
 
     /// <summary>
@@ -1799,6 +1809,15 @@ public partial class DungeonWindow : Window
             _combat?.ItemOrders.Clear();
         }
 
+        RefreshPartyRows();
+    }
+
+    /// <summary>
+    /// The party rows alone, without modUpdateStats' clearing of orders: what <see cref="RefreshPack"/>
+    /// asks for, so a mod column that reads the pack (the QoL quest mark) follows it.
+    /// </summary>
+    private void RefreshPartyRows()
+    {
         PartyRows.Children.Clear();
         var modColumns = ModSlots.PartyHeader(PartyHeader, 5);   // the mods' party columns, if any (docs/MODDING.md)
         for (int i = 0; i < _party.Size; i++)
@@ -3110,6 +3129,10 @@ public partial class DungeonWindow : Window
     /// <summary>Called after a successful step: handle chutes/teleporters, then roll for an encounter.</summary>
     private string AfterMove()
     {
+        // The move precedes sub0835 (fn1521, MAINMOD2.BAS:3770-3902). Keep the character
+        // records at that position before a pit or a leave round can unload someone dead.
+        // SaveChar comes later, after the prune, so it cannot move an already saved body.
+        SavePos();   // in-memory only; does not force an autosave
         var fl = _nav.Floor;
         int x = _nav.X, y = _nav.Y;
 

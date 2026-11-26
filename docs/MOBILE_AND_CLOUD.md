@@ -1,7 +1,82 @@
 # Mobile and cloud saves - spec (not yet built)
 
-Status: proposal, 2026-10-04. Companion to docs/MODDING.md. Built since: M3 for macOS only, as the iCloud Saves
-mod (2026-10-30, "M3 on the Mac today" below); the rest is not implemented.
+Status: proposal, 2026-10-04; direction decided 2026-11-21 (next section). Built since: M3 for macOS only, as the iCloud Saves mod (2026-10-30, "M3 on the Mac today" below). Companion to docs/MODDING.md.
+
+## Decided, 2026-11-21
+
+**A website first, not store apps.** The game runs in the browser (Avalonia's WebAssembly target) from
+a free static host. It reaches Android, iPhone/iPad, Macs and Chromebooks with no store, no
+sideloading and no Android developer verification. A native Android app stays the fallback if the
+browser build is too slow on phones (the M phases below).
+
+**Two modes, one game.** The same Mordor.Core, the same saves, presentation only:
+- **Desktop mode:** today's MDI layout in a browser tab, mouse and keyboard. The pop-up `Window`s
+  become in-page overlays, and keys the browser keeps (Ctrl+W, F1) get alternatives.
+- **Mobile mode:** first a tablet, or a phone in landscape, with the original layout scaled and touch
+  aids (movement pad, command bar, bigger targets, long-press for right-click). Then a phone layout,
+  one full-screen panel at a time (M2 below).
+- Chosen automatically from the device (touch, screen size), with a switch in settings remembered
+  per device. Touch aids are interface conveniences: rules, numbers and messages are unchanged
+  (fidelity is behaviour, not graphics).
+
+**The full-version gate stays.** Decklin's Domain owns Mordor and sells the full game ($9.95, through
+e-junkie); only the demo installer is a free download (decklinsdemise.com/mordor.htm, checked
+2026-11-21). The site ships none of the game. The player picks `MordorSetup.exe`, `M1FULL.zip` or
+`MordorDemoSetup.exe` with the browser's file picker; it is unpacked in the page, on their device, and
+never sent anywhere. Mordor.Core's GameFiles decides full or shareware, as on the PC. The site cannot
+fetch the demo from Decklin's server itself (browsers block cross-site downloads unless that site
+allows them), so a one-tap demo needs Decklin's cooperation. Contact Decklin's Domain before going
+public: it is their game, a Play listing would need their permission, and they might sell the full
+game in-app.
+
+**Send to phone / Send to PC.** The PC game shows a QR code: a one-time code (about 10 minutes, then
+spent) for a small server the PC runs on the home network for the transfer. The phone scans it, the
+PC's own page hands the game files - and, if wanted, the saves - to the site. Only on the same Wi-Fi;
+nothing passes through any server of ours. A page from a public HTTPS site cannot read a plain
+home-network address (Chrome asks permission, Safari blocks), so the handover goes through the PC's
+own page; the spike settles the details per browser. The same channel backs saves up the other way.
+
+**Saves that move and do not vanish.**
+- Done in 0.1.7: one file-name rule on every system, names taken in any case, files renamed to that
+  rule when a folder arrives from another system, and `saves-format.json` (an older game refuses a
+  newer folder untouched; a self-check fingerprints the save layout so the number is raised). Also
+  SafeFile and SaveRecovery (0.1.6): no save is left half-written, and an unreadable character is put
+  back from its last good copy.
+- In the browser: ask for persistent storage (`navigator.storage.persist()`); prompt "Add to home
+  screen" (on iOS that alone stops Safari wiping the site's data after about 7 days unused); the same
+  safe saving inside the browser's storage; Export saves to a file, Send to PC, and a reminder after
+  a few sessions with no backup. `settings.ini` stays with its device and never travels.
+
+**Hosting:** Cloudflare Pages (free, no bandwidth cap, custom headers if threads need them, 25 MB per
+file) or GitHub Pages (free, about 100 GB a month, no custom headers). A first visit loads perhaps
+10-30 MB, then cached.
+
+**Telemetry, opt-in.** A first-run question, changeable in Options, documented in the README with the
+code that sends it:
+- website visits: Cloudflare Web Analytics (no cookies);
+- the game (PC and web): at most one anonymous ping a day - a random install ID tied to nothing, the
+  version, platform, processor, full or demo, mode, mods on - to a small Cloudflare Worker that only
+  counts;
+- crash reports: "Send this crash report?", with `crash.log` scrubbed of user paths.
+Never sent: character names, save contents, file paths; the Worker keeps no IP addresses. Until then,
+GitHub's per-file download counts give a free rough measure (installers for new players, update
+packages for copies that update). Needs a free Cloudflare account in the owner's name.
+
+### Build order (each step ships on its own)
+
+1. Saves that move between systems - **done for 0.1.7**.
+2. Browser spike (2-3 days): an Avalonia Browser head; the title screen in a desktop browser;
+   importing the demo through the file picker; town, dungeon, a fight, a save; sound silent. Measure
+   load time and speed on a phone browser. No virtualization needed, unlike the Android emulator.
+3. Website, desktop mode: overlays for the pop-ups, Web Audio for the effects mixer and MeltySynth,
+   persistent browser saves, the home-screen prompt, Export. Mods: not loadable in the browser (no
+   runtime code); the QoL mod built in.
+4. Send to phone / Send to PC.
+5. Mobile mode, tablet.
+6. Mobile mode, phone (needs the game flow taken out of CityWindow/DungeonWindow first).
+7. Cloud sync, if wanted (the M3 design below; Cloudflare Workers and its database cover a small
+   backend free).
+Alongside: hosting set up, telemetry once the Cloudflare account exists, and Decklin's Domain asked.
 
 ## Goals
 
@@ -18,11 +93,13 @@ mod (2026-10-30, "M3 on the Mac today" below); the rest is not implemented.
 | UI framework | Avalonia 11.2.3 | Avalonia has Android and iOS targets; the same XAML/C# compiles |
 | Window model | Already one top-level window with an MDI frame inside (`MdiFrame`) | Good: mobile apps have one view. But many dialogs are separate `Window`s (OriginalBox, NamePicker, PasswordBox, Options, Help, Exchange, Hall, Mods, a mod's settings window) and must become in-view overlays |
 | Code structure | `CityWindow` / `DungeonWindow` are large code-behind classes mixing layout, input and game flow | The main cost: a phone layout needs the flow separated from the desktop layout |
-| Audio | `winmm.dll` (WAV through the port's own 8-channel mixer over waveOut, MIDI via MCI) | Must be replaced: a cross-platform player for WAV, and a software MIDI synth (e.g. MeltySynth + a General MIDI SoundFont) |
+| Audio | Done: effects through the port's own 8-channel mixer out via SDL3 (`AudioOut`) everywhere; MIDI through Windows' own player (MCI) on Windows by default, otherwise MeltySynth with the bundled TimGM6mb SoundFont (`MidiPlayer`; Options: Use built-in soundfont) | - |
 | Other Windows APIs | `user32` (foreground/frame), `comdlg32` ChooseFont, `gdi32` | Replace with Avalonia equivalents (font picker from installed fonts; no foreground tricks) |
 | Mods | AssemblyLoadContext + Harmony | Android: plugin loading works under the Mono JIT, Harmony partly. iOS: no runtime code loading or JIT, so mods can only be compiled in (the QoL mod built into the app, its toggles kept) |
 | Game data | Read from the player's `game_files` at runtime | Needs an import step on mobile (below) |
 | Bundled originals | None in the build since 2026-10: pictures and help are extracted from the player's copy at first run (docs/GAME_FILES.md). Still in the repo: `decompiled*/`, and git history holds the old Assets | A public repo needs a fresh history (no Assets/help in old commits) and a decision on `decompiled*/` |
+
+## Native app phases (the fallback since 2026-11-21; the website comes first)
 
 ## Phase M0 - feasibility spike (about 1-2 days of agent work)
 

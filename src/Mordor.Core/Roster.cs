@@ -35,7 +35,7 @@ public static class Roster
         try
         {
             Directory.CreateDirectory(savesDir);
-            File.WriteAllText(PathFor(savesDir), JsonSerializer.Serialize(records, new JsonSerializerOptions { WriteIndented = true }));
+            SafeFile.WriteAllText(PathFor(savesDir), JsonSerializer.Serialize(records, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { }
     }
@@ -89,17 +89,82 @@ public static class Roster
     {
         var found = new List<(string, Character)>();
         if (!Directory.Exists(savesDir)) return found;
-        foreach (string f in Directory.GetFiles(savesDir, "*.json").OrderBy(f => f))
+        // a folder a newer game wrote is read, never rearranged (SaveFormat)
+        bool mine = !SaveFormat.TooNew(savesDir, out _);
+        foreach (string listed in Directory.GetFiles(savesDir, "*.json").OrderBy(f => f))
         {
-            if (Path.GetFileName(f).StartsWith("party-")) continue;
+            string f = listed;
+            if (Path.GetFileName(f).StartsWith("party-"))
+            {
+                if (mine) PartyFileNamed(f);
+                continue;
+            }
+            Character? c;
             try
             {
-                var c = Character.Load(f);
-                if (!string.IsNullOrWhiteSpace(c.Name)) found.Add((f, c));
+                c = Character.Load(f);
+                if (mine && !string.IsNullOrWhiteSpace(c.Name)) f = FileNamed(f, Character.SafeFileName(c.Name) + ".json");
             }
-            catch { }
+            catch (Exception ex)
+            {
+                // a character file that will not read is reported and, if it can be, put back from
+                // its last good copy - never just left out (SaveRecovery)
+                c = SaveRecovery.MayBeCharacter(f) ? SaveRecovery.Damaged(f, ex) : null;
+                if (c != null && !string.IsNullOrWhiteSpace(c.Name)) found.Add((f, c));
+                continue;
+            }
+            if (string.IsNullOrWhiteSpace(c.Name)) continue;
+            SaveRecovery.Keep(f);
+            found.Add((f, c));
         }
         return Order(savesDir, found, p => p.Item2.Name);
+    }
+
+    /// <summary>
+    /// A file renamed to the name the game looks for it by, when a saves folder came from another
+    /// system: a Linux "Who?.json" is Who.json under the one rule (Character.SafeFileName), and a
+    /// Windows fifi.json holding "Fifi" is Fifi.json where case counts. On Windows a difference of
+    /// case alone is the same file, and is left as it is. A name already taken is left too, and said
+    /// in crash.log. The file as it now is.
+    /// </summary>
+    private static string FileNamed(string path, string want)
+    {
+        string have = Path.GetFileName(path);
+        if (want == ".json" || want == "party-.json" || have == want) return path;
+        if (OperatingSystem.IsWindows() && string.Equals(have, want, StringComparison.OrdinalIgnoreCase)) return path;
+        string dir = Path.GetDirectoryName(path) ?? "";
+        string target = Path.Combine(dir, want);
+        bool caseOnly = string.Equals(have, want, StringComparison.OrdinalIgnoreCase);
+        try
+        {
+            if (!caseOnly && File.Exists(target))
+            {
+                SaveRecovery.Log?.Invoke($"{path} would be {want}, which is taken: left as it is");
+                return path;
+            }
+            File.Move(path, target);
+            string good = SaveRecovery.GoodPathFor(path);
+            if (File.Exists(good)) File.Move(good, SaveRecovery.GoodPathFor(target), overwrite: true);
+            SaveRecovery.Log?.Invoke($"{have} renamed {want}, the name it is saved under on every system");
+            return target;
+        }
+        catch (Exception e)
+        {
+            SaveRecovery.Log?.Invoke($"{path} could not be renamed {want}: {e.Message}");
+            return path;
+        }
+    }
+
+    /// <summary>A party file renamed for its leader, as <see cref="FileNamed"/> does a character's.</summary>
+    private static void PartyFileNamed(string path)
+    {
+        try
+        {
+            using var doc = JsonDocument.Parse(File.ReadAllText(path));
+            if (doc.RootElement.TryGetProperty("Leader", out var leader) && leader.GetString() is { Length: > 0 } name)
+                FileNamed(path, "party-" + Character.SafeFileName(name) + ".json");
+        }
+        catch { }
     }
 
     /// <summary>A deleted character's record is blanked, not removed (sub2D18).</summary>

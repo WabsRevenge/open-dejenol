@@ -83,7 +83,7 @@ public static partial class ModProbe
         Check("a mod running with no round hook (Kaizen): no context made", made, 0);
         Check("... and none of those hooks the round (CombatRoundHooked, API version 16)",
               $"{off.CombatRoundHooked} {ModHost.Empty().CombatRoundHooked} {kzHost.CombatRoundHooked}", "False False False");
-        Check("API version 16 or later (CombatRound arrived in 14; ByHand and CombatRoundHooked in 16)", ModApi.ApiVersion >= 16, true);
+        Check("API version 15 or later (CombatRound, ByHand and CombatRoundHooked arrived in 15)", ModApi.ApiVersion >= 15, true);
         // the dungeon's side, which no headless check reaches: the tick asks the host first, and the
         // player's own order gestures mark the one in command
         string dm = PortSource("src/Mordor.App", "DungeonWindow.Mods.cs").Replace("\r\n", "\n");

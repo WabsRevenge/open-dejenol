@@ -19,6 +19,8 @@ public static partial class ModProbe
         public readonly List<string> Calls = new();
         public bool Monsters;
         public Func<Character, Spell, Character?, bool>? OnCast;
+        /// <summary>The stand-in's Use, for a test that needs the charge spent and the heal landed.</summary>
+        public Func<Character, InventorySlot, Character?, bool>? OnUse;
         /// <summary>What the gate said to the last command (the stand-in's OnCast may set it).</summary>
         public RefusalKind? Refusal;
         /// <summary>A cast that has not finished yet, for an awaited hook: the casts wait on it.</summary>
@@ -33,7 +35,7 @@ public static partial class ModProbe
                 Calls.Add($"cast {c.Name} {s.Name.Trim()} {t?.Name ?? "-"}");
                 return Pending ?? Task.FromResult(OnCast?.Invoke(c, s, t) ?? true);
             },
-            (c, slot, t) => { Refusal = null; Calls.Add($"use {c.Name} {item(slot.ItemId)?.Name.Trim()} {t?.Name ?? "-"}"); return Task.FromResult(true); },
+            (c, slot, t) => { Refusal = null; Calls.Add($"use {c.Name} {item(slot.ItemId)?.Name.Trim()} {t?.Name ?? "-"}"); return Task.FromResult(OnUse?.Invoke(c, slot, t) ?? true); },
             Said.Add, () => Refusal);
     }
 
@@ -66,7 +68,7 @@ public static partial class ModProbe
         var kz = off.Discovered.FirstOrDefault(d => d.Id == "Kaizen");
         Check("Kaizen manifest found, no problem", kz != null && kz.Problem == null, true);
         Check("its two toggles, both off by default", string.Join(",", kz?.Manifest.Settings.Select(t => $"{t.Key}={t.Default}") ?? Array.Empty<string>()), "BuffOnEntry=False,HealBeforeTown=False");
-        Check("version 1.2.0 (the lists edited by drag and drop)", kz?.Manifest.Version, "1.2.0");
+        Check("version 1.3.0 (the heal-out uses the guild crests)", kz?.Manifest.Version, "1.3.0");
         Check("no table for the Mods page: the buff lists are in the Kaizen window", kz?.Manifest.Tables.Count, 0);
         Check("QoL has no table", off.Discovered.First(d => d.Id == "QoL").Manifest.Tables.Count, 0);
         Check("not enabled by default", off.IsEnabled("Kaizen"), false);
@@ -257,6 +259,56 @@ public static partial class ModProbe
         healer.CurSpellPoints = 5000;
         var crowded = new FakeDungeon { Monsters = true };
         Check("monsters present: nothing cast", RunHeal(crowded, hurtParty), "0");
+
+        // ---- the crests, once no spell can be cast ----
+        Console.WriteLine("Kaizen heal-out: the guild crests, which the city refills:");
+        var healerCrest = items.First(i => i.Name.Trim() == "Crest of the Healer");
+        var thiefCrest = items.First(i => i.Name.Trim() == "Crest of the Thief");
+        Check("the Healer's crest holds a heal, the Thief's does not",
+              (IsHeal(ItemUse.SpellOf(healerCrest, spells)!), ItemUse.SpellOf(thiefCrest, spells) is Spell ts && IsHeal(ts)), (true, false));
+        object? CrestOf(IReadOnlyList<Character> m, Func<InventorySlot, bool>? spentSlot = null) =>
+            healOut.GetMethod("Crest")!.Invoke(null, new object[] { m, (IReadOnlyList<Spell>)spells, lookup, spentSlot ?? (_ => false) });
+        string CrestSaid(object? pick)
+        {
+            if (pick == null) return "none";
+            var (who, slot) = ((Character, InventorySlot))pick;
+            return $"{who.Name} slot {Array.IndexOf(who.Pack, slot) + 1}";
+        }
+        foreach (var m in hurtParty.Members) for (int i = 0; i < Character.PackSize; i++) m.Pack[i] = null;
+        a.Pack[0] = new InventorySlot { ItemId = healerCrest.Id, Known = IdLevel.All, Charges = 6 };
+        Check("a crest in the Hands (slot 1), which the city does not refill: left alone", CrestSaid(CrestOf(hurtParty.Members)), "none");
+        a.Pack[4] = new InventorySlot { ItemId = thiefCrest.Id, Known = IdLevel.All, Charges = 12 };
+        Check("a crest that holds no heal: passed over", CrestSaid(CrestOf(hurtParty.Members)), "none");
+        b.Pack[6] = new InventorySlot { ItemId = healerCrest.Id, Known = IdLevel.Barely, Charges = 6 };
+        Check("one not fully identified: passed over", CrestSaid(CrestOf(hurtParty.Members)), "none");
+        b.Pack[6]!.Known = IdLevel.All; b.Pack[6]!.Charges = 0;
+        Check("one with no charge left: passed over", CrestSaid(CrestOf(hurtParty.Members)), "none");
+        b.Pack[6]!.Charges = 6;
+        healer.Pack[2] = new InventorySlot { ItemId = healerCrest.Id, Known = IdLevel.All, Charges = 6 };
+        Check("the first living member's, in party order", CrestSaid(CrestOf(hurtParty.Members)), "Bob slot 7");
+        Check("... one already tried passed over", CrestSaid(CrestOf(hurtParty.Members, s => s == b.Pack[6])), "Hal slot 3");
+
+        var crestHeals = new FakeDungeon
+        {
+            OnCast = (_, _, _) => false,
+            OnUse = (c, slot, t) => { slot.Charges--; t!.CurHits = Math.Min(t.MaxHits, t.CurHits + 50); return true; },
+        };
+        foreach (var m in hurtParty.Members) m.CurHits = 300;
+        healer.CurSpellPoints = 0;
+        RunHeal(crestHeals, hurtParty);
+        Check("no points: the crests heal, each use on the one missing the most",
+              crestHeals.Calls.Count > 0 && crestHeals.Calls.All(c => c.StartsWith("use ") && c.Contains("Crest of the Healer")), true);
+        Check("... both crests' twelve charges were enough for 4 x 100 missing: everyone full, charges left",
+              (hurtParty.Members.All(m => m.CurHits == m.MaxHits), b.Pack[6]!.Charges + healer.Pack[2]!.Charges), (true, 4));
+        foreach (var m in hurtParty.Members) m.CurHits = 37;
+        b.Pack[6]!.Charges = 6; healer.Pack[2]!.Charges = 6;
+        RunHeal(crestHeals, hurtParty);
+        Check("not enough charges: all twelve used, then it stops", (crestHeals.Calls.Count, b.Pack[6]!.Charges + healer.Pack[2]!.Charges), (12, 0));
+        var crestRefused = new FakeDungeon { OnCast = (_, _, _) => false, OnUse = (_, _, _) => false };
+        b.Pack[6]!.Charges = 6; healer.Pack[2]!.Charges = 6;
+        Check("crests refused: each tried once, then it stops", RunHeal(crestRefused, hurtParty), "2");
+        healer.CurSpellPoints = 5000;
+        foreach (var m in hurtParty.Members) { m.CurHits = 37; for (int i = 0; i < Character.PackSize; i++) m.Pack[i] = null; }
 
         // ---- the buff lists ----
         Console.WriteLine("Kaizen buff lists: each member's own, in party order, each row done or skipped:");
@@ -630,7 +682,7 @@ public static partial class ModProbe
         Check("a switch and a redraw: told each time", told, 3);
         // AskCastOnWho: the game's own box, for a mod's window (API version 4)
         var someSpell = spells.First(s => s.Name.Trim() != "");
-        Check("API version 16 (7: IModLifecycle, mods switched on and off on the main menu; 8: ExperienceGained; 9: MessageLineColour; 10: choice settings; 11: settings windows; 12: PartyGoldTo gone, TownIncomeBank, the arrival Party Pool, ShortfallAnswer.From, option tooltips; 13: the Automap hooks; 14: CombatRound; 15: Saved and MainMenuOpened; 16: ByHand, CombatRoundHooked, the menu shut during MainMenuOpened)", ModApi.ApiVersion, 16);
+        Check("API version 16 (7: IModLifecycle, mods switched on and off on the main menu; 8: ExperienceGained; 9: MessageLineColour; 10: choice settings; 11: settings windows; 12: PartyGoldTo gone, TownIncomeBank, the arrival Party Pool, ShortfallAnswer.From, option tooltips; 13: the Automap hooks; 14: AutomapView.You and Record, AutomapInfo; 15: CombatRound, ByHand, CombatRoundHooked; 16: Saved and MainMenuOpened with the menu shut)", ModApi.ApiVersion, 16);
         Check("no box (headless): Cancel", game.AskCastOnWho(someSpell).GetAwaiter().GetResult() == null, true);
         string asked = "";
         int answer = 1, startedOn = -1;

@@ -36,7 +36,7 @@ public partial class CityWindow : Window
         return c => c.AreaOr(k =>
         {
             if (k.DungeonLevel <= 0) return -1;
-            try { maze ??= MdrLoader.LoadDungeon(System.IO.Path.Combine(gameDir, "MDATA11.MDR")); }
+            try { maze ??= MdrLoader.LoadDungeon(GameFiles.DataFile(gameDir, "MDATA11.MDR")); }
             catch { return -1; }
             return k.DungeonLevel > maze.Count ? -1 : maze[k.DungeonLevel - 1].AreaIdAt(k.X, k.Y);
         });
@@ -46,7 +46,7 @@ public partial class CityWindow : Window
     private static Func<Companion, Monster?> MonstersIn(string gameDir)
     {
         List<Monster>? table = null;
-        return c => c.Def(table ??= MdrLoader.LoadMonsters(System.IO.Path.Combine(gameDir, "MDATA5.MDR")));
+        return c => c.Def(table ??= MdrLoader.LoadMonsters(GameFiles.DataFile(gameDir, "MDATA5.MDR")));
     }
 
     /// <summary>
@@ -71,6 +71,7 @@ public partial class CityWindow : Window
         // the Options window's fonts, read before any control is built (UiFonts)
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
+        KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)
         Title = LimitedVersion.FrameCaption;
         // sub16F8 runs from the idle loop; a quarter second is as near as a timer need come
@@ -85,10 +86,10 @@ public partial class CityWindow : Window
         // (MAINMOD2.BAS:3198-3199). gv1B52 turns True only after both (MAINMOD2.BAS:6308).
         AutoloadSaid.Clear();
 
-        _items = MdrLoader.LoadItems(System.IO.Path.Combine(gameDir, "MDATA3.MDR"));
+        _items = MdrLoader.LoadItems(GameFiles.DataFile(gameDir, "MDATA3.MDR"));
         _itemsById = _items.GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First());
-        _monsters = MdrLoader.LoadMonsters(System.IO.Path.Combine(gameDir, "MDATA5.MDR"));
-        _spells = MdrLoader.LoadSpells(System.IO.Path.Combine(gameDir, "MDATA2.MDR"));
+        _monsters = MdrLoader.LoadMonsters(GameFiles.DataFile(gameDir, "MDATA5.MDR"));
+        _spells = MdrLoader.LoadSpells(GameFiles.DataFile(gameDir, "MDATA2.MDR"));
 
         // saves written before InventorySlot.SlotCursed existed carry no flag, so worn gear would
         // come off freely until it was next put on again
@@ -136,10 +137,12 @@ public partial class CityWindow : Window
         };
 
         Audio.Init(gameDir);
-        Audio.Music("CITY");
+        // gv1B52 for the music timer, from the party's load to the menu (MAINMOD2.BAS:6308-6317)
+        Audio.LeaderLevel = () => _party.Leader.DungeonLevel;
+        Audio.Music(MusicTrack.City);
         // no HELLO: the port played one on arrival in town, but FRMCTYM.BAS plays no sound at all,
         // and the original's only HELLO is the dungeon's, for strangers on the square (MAZEMOD.BAS:371-372)
-        Closed += (_, _) => Audio.Music("THEME");
+        Closed += (_, _) => Audio.LeaderLevel = null;
         // sub14E0 (MAINMOD2.BAS:3166-3178): "If Chars(Me).DungeonLevel = 0 And Chars(Me).DeathState =
         // False Then frmCityMain.Show", else frmDungeonMain is shown and frmCityMain is never loaded,
         // so its Form_Load - the rest, the ageing, the store turned over (FRMCTYM.BAS:105-134) - does
@@ -625,6 +628,11 @@ public partial class CityWindow : Window
                                 : $"You are no longer carrying \"{m.CarryingCharacter.TrimEnd()}\".");
                 m.CarryingCharacter = "";
             }
+            // FRMCTYM.BAS:133, the last thing in each one's turn: sub15F7 fills their guild items
+            // back up, "Your Guild Item(s) were recharged when you entered the city." or
+            // "\"Ann\" had their Guild Item(s) recharged when they entered the city." (MAINMOD2.BAS:4250-4271).
+            // The port had no recharge at all.
+            if (ItemUse.RechargeGuildItems(m, party, Lookup) is string recharged) lines.Add(recharged);
         }
         // mdrcharAddAge calls mdrReplenishStore with the days you just aged, so other
         // adventurers have been trading with the store while you recovered
@@ -965,7 +973,7 @@ public partial class CityWindow : Window
         // on level 1, with nothing drawn on it. This refused instead, which was this port's own
         // idea, and now that the map opens on arrival it would be the first thing a new player saw.
         int deepest = Math.Max(DungeonState.Load(SavesDir).DeepestReached, map.DeepestVisited);
-        var dungeon = MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR"));
+        var dungeon = MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR"));
         // Chars(0).X and .Y are where modAdjustMap centres a small map (FRMAUTOM.BAS:465, 482),
         // and they still hold the square the leader walked out from
         // and Chars(0) below ground - only ever a body, here - is where Form_Load (FRMAUTOM.BAS:94-98)
@@ -1053,7 +1061,7 @@ public partial class CityWindow : Window
         _serviceKeys = null;
         closing.Key = null;
         ServicePanel.IsVisible = false;
-        ServicePage.Content = null;
+        SetServicePage(null);
         // a child window unloaded hands the activation to the one beneath it: another service
         // still up, the topmost, or the town
         var under = OpenServices.OrderByDescending(o => o.Child.ZIndex).FirstOrDefault();
@@ -1619,7 +1627,7 @@ public partial class CityWindow : Window
     private async System.Threading.Tasks.Task<string?> AskLine(string title, string prompt, bool secret)
     {
         string? answer = null;
-        var box = new TextBox { PasswordChar = secret ? '*' : ' ', Width = 240 };
+        var box = new TextBox { PasswordChar = secret ? '*' : '\0', Width = 240 };
         var ok = new Button { Content = "OK", IsDefault = true };
         var cancel = new Button { Content = "Cancel", IsCancel = true };
         // fn170D's frmInteract, in its font through the Options fonts (UiFonts)
@@ -2218,7 +2226,7 @@ public partial class CityWindow : Window
         Floor? floor = null;
         try
         {
-            _areaDungeon ??= MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR"));
+            _areaDungeon ??= MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR"));
             if (_ch.DungeonLevel <= _areaDungeon.Count) floor = _areaDungeon[_ch.DungeonLevel - 1];
         }
         catch (Exception ex) { CrashLog.Write("wait for rescue: the dungeon", ex); }
@@ -2469,7 +2477,15 @@ public partial class CityWindow : Window
             sp.Children.Add(btn); sp.Children.Add(msg);
             visit = Visit;
         }
-        ServicePage.Content = sp;
+        // frmDungeonMain's Exit, which sub0930's screen keeps at every depth: cmdAction 7 queues q
+        // (FRMDUNM.BAS:85-86), and fn1521 case 81 lets the dead leave after "Exit to Main Menu?"
+        // (MAINMOD2.BAS:3619-3631) - the q this window already takes (LeaveTown). The port's screen
+        // had only the label and cmdWait, so a body the morgue could not be paid for had no way out
+        // but a key nobody is told of (issue #8), and the close box points at the EXIT buttons.
+        var exit = new Button { Content = "Exit", HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Right };
+        exit.Click += (_, _) => LeaveTown(null, null!);
+        sp.Children.Add(exit);
+        SetServicePage(sp);
 
         if (_arrivedDead)
         {
@@ -2752,7 +2768,7 @@ public partial class CityWindow : Window
                 return;
             }
 
-            var dungeon = MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR"));
+            var dungeon = MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR"));
             if (level < 1 || level > dungeon.Count) { await Tell(title, Seer.CannotDetect); return; }
             var spot = Seer.Locate(dungeon[level - 1], mon!, _rng);
             if (spot == null) { await Tell(title, Seer.CannotDetect); return; }
@@ -2839,7 +2855,7 @@ public partial class CityWindow : Window
         CloseAllServices();
         if (_ch.CurHits <= 0 && !_ch.IsDead) _ch.CurHits = 1;
 
-        var dungeon = MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR"));
+        var dungeon = MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR"));
         // a walk down from town, not a character loaded below ground nor a raise below (both of
         // which come here with the character's own level above nought)
         bool fromTown = !_enteringFromLoad && _ch.DungeonLevel < 1;
@@ -2913,7 +2929,7 @@ public partial class CityWindow : Window
         if (win.ExitedToMainMenu) { Save(); Close(); return; }
         // a session end answered Yes from the dungeon has already unloaded the party
         if (OriginalBox.Ending) return;
-        Audio.Music("CITY");
+        Audio.Music(MusicTrack.City);
         // Waiting out a rescue leaves the body at level 0 still in frmDungeonMain: cmdWait_Click ends
         // in sub0930 Me (FRMDUNM.BAS:194), its boxes, and the city is not loaded - no Form_Load, no
         // rest. The rest comes after a raise, when sub14CC shows frmCityMain (MAINMOD2.BAS:3150-3152).
@@ -2930,7 +2946,7 @@ public partial class CityWindow : Window
         // with none, nothing is asked and nothing moves
         var (deposited, depositLine) = Mordor.Modding.ModHost.Active.ArrivedInTown(_party, _ch, Mordor.Modding.TownArrivalKind.Walked);
         RefreshSummary(); Save();
-        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 15)
+        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 16)
         Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);
         if (_ch.CanLevelUp()) ShowGuild(null, null!);
         foreach (var line in rested) Log(line);
@@ -3738,7 +3754,7 @@ public partial class CityWindow : Window
         // the whole monster table, one row per index as sub327E loops it (FRMLIBRA.BAS:64-69): the
         // Morgul and the Shadow Ninja share Id 307 and have a record each
         var monsters = _monsters;
-        var spells = MdrLoader.LoadSpells(System.IO.Path.Combine(_gameDir, "MDATA2.MDR"));
+        var spells = MdrLoader.LoadSpells(GameFiles.DataFile(_gameDir, "MDATA2.MDR"));
         Librarian.SpellNameOf = i => i >= 0 && i < spells.Count ? spells[i].Name.Trim() : "a spell";
 
         int today = Librarian.Serial(DateTime.Now);

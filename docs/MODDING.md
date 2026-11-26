@@ -28,9 +28,9 @@ and the first mod.
 | Settings windows (mod.json `settingsWindow`: a title and groups of settings by key, `ModSettingsWindowSpec`; the Mods page shows a **Settings...** button for the mod in place of its settings, on both pages and while the mod is off, one window per mod; `ModHost.MigrateSettings` runs the mod's static `Migrate(ModSettings)` first; `ModSettingsWindow` draws each group with a heading box that switches its toggles together, shown mixed when they differ) - API version 11 | built (2026-10-25, for the Quality of Life mod) |
 | `PartyGoldTo` and `CombatEngine.GoldTo` removed (the dungeon's gold is always monGetGold's even share, with any mod); `TownIncomeToBank` replaced by `TownIncomeBank` (the member whose account a sale's gold goes into, or null for the seller's hand; `TownIncome.Party`); `TownArrivalAction.PartyPool` with `TownArrivalAnswer.PoolTo` (the Bank's Party Pool into one member's account, `Party.PoolOnHandToBank`); `ShortfallAnswer.From` (who covers a shortfall, in order) and a shortfall now covered from the givers' bank accounts only; `ModChoiceSpec.OptionDescriptions` (a tooltip per option) - API version 12 | built (2026-10-25, for the Quality of Life mod's Town gold) |
 | The Automap hooks (see "The Automap" under **UI** below): `ModUI.AutomapMenu` (items for the right-click menu, whose first item is the original's re-plot), `AutomapMarks` (tints, frames and arrows drawn on the map's own squares), `AutomapHover`, `AutomapClick`; `AutomapView` (`ShownLevel`, `DeepestLevel`, `LevelSize`, `ShowLevel`, `Refresh`, `PickSquare`, `CancelPick`, `Picking`), `AutomapSquare`, `AutomapMark`, `AutomapMenuItem`; `ModHost.AutomapHooked`; `AutomapLayout.SquareAt` - API version 13 | built (2026-10-26, for the Cartographer mod) |
-| The Action `CombatRound` (each tick of an engaged fight, before any character acts: synchronous, not awaited) with a `CombatRoundContext` - a token for the fight (not the engine), the monster list as shown (`MonsterGroupView`: slot, fn0E23's name for the one in command, the count only where the list shows one, the name for one; no hit points), each member's order (`CombatOrderView`, with `OpeningChest`) and aim, and the commands a player gives between ticks for a named member: `Order` (f, d, space), `Cast` (a spell made the order, as a spell buffer fires it), `UseItem` (an item at All made the order), `Aim` (a number key 1-4); `ModHost.CombatRound` - API version 14. With no mod hooked no context is made and the round is the original's | built (2026-10-30, for the Auto-combat mod) |
-| The event `Saved` (`SavePoint`, `SavePointKind`: the game's saves are on disk at a save point - the party back in town up the stairs, after the arrival's save; the game ending, Exit to Main Menu or the program closing, after the city's last save; `ModHost.SavePointReached`) and the action `MainMenuOpened` (`MainMenuContext`: the main menu at the program's start, nothing loaded, after its own start-up boxes and before a preloaded character goes in; the saves folder, `Ask` - the game's box over the menu with the mod's buttons, `OriginalBox.Choose` - and `Quit`; `ModHost.MainMenuOpened`, `ModHost.MainMenuHooked`) - API version 15. With no mod listening or hooked, the city and the menu do exactly what they did | built (2026-10-30, for the iCloud Saves mod) |
-| `CombatRoundContext.ByHand(c)` (whether the player has given the member an order by hand in this fight - f, d or space, a number key, Cast or Use, or a spell buffer, with them in command - so a mod giving orders by rules leaves them alone until it ends) and `ModHost.CombatRoundHooked` (the dungeon asks it at each tick first, so with no round hook a tick makes no list and no context); the main menu shut while `MainMenuOpened` hooks run - API version 16 | built (2026-10-30, from the review of the macOS port) |
+| What the Automap shows, for a mod's own reckoning: `AutomapView.You` (the square and facing its arrow is drawn with, `AutomapPosition`; null in town and while lost, when it draws none) and `AutomapView.Record(square)` (`AutomapRecord`: whether the square has been walked, and the flag word the map draws it from - never the maze); `ModUI.AutomapInfo` (a line in place of the status line's "You are at ...", asked straight after the marks) - API version 14 | built (2026-11-16, for the Cartographer mod's routes) |
+| The Action `CombatRound` (each tick of an engaged fight, before any character acts: synchronous, not awaited) with a `CombatRoundContext` - a token for the fight (not the engine), the monster list as shown (`MonsterGroupView`: slot, fn0E23's name for the one in command, the count only where the list shows one, the name for one; no hit points), each member's order (`CombatOrderView`, with `OpeningChest`) and aim, `ByHand(c)` (whether the player has given the member an order by hand in this fight - f, d or space, a number key, Cast or Use, or a spell buffer, with them in command - so a mod giving orders by rules leaves them alone until it ends), and the commands a player gives between ticks for a named member: `Order` (f, d, space), `Cast` (a spell made the order, as a spell buffer fires it), `UseItem` (an item at All made the order), `Aim` (a number key 1-4); `ModHost.CombatRound` and `ModHost.CombatRoundHooked` - API version 15. With no mod hooked, a tick makes no list and no context and the round is the original's | built (2026-10-30, for the Auto-combat mod) |
+| The event `Saved` (`SavePoint`, `SavePointKind`: the game's saves are on disk at a save point - the party back in town up the stairs, after the arrival's save; the game ending, Exit to Main Menu or the program closing, after the city's last save; `ModHost.SavePointReached`) and the action `MainMenuOpened` (`MainMenuContext`: the main menu at the program's start, nothing loaded, after its own start-up boxes and before a preloaded character goes in, with the menu shut while hooks run; the saves folder, `Ask` - the game's box over the menu with the mod's buttons, `OriginalBox.Choose` - and `Quit`; `ModHost.MainMenuOpened`, `ModHost.MainMenuHooked`) - API version 16. With no mod listening or hooked, the city and the menu do exactly what they did | built (2026-10-30, for the iCloud Saves mod) |
 | Events `BlowLanded`, `HitsChanged`, `FightStarted/Ended`; restyling; data and asset mods | not yet |
 
 The Store's alignment choice is back to the original's lock by default; the unlocked choice is in the Quality of Life
@@ -170,9 +170,10 @@ All seventeen conveniences are built (eleven toggles since 1.8.0, six since 1.9.
 
 ### The Kaizen mod (`src/Mods/Mordor.Mod.Kaizen`, id `Kaizen`)
 
-Version 1.2.0 (1.0.0 agreed with the user 2026-10-04; 1.1.0 the same day: one buff list per character, edited in
+Version 1.3.0 (1.0.0 agreed with the user 2026-10-04; 1.1.0 the same day: one buff list per character, edited in
 the Kaizen window, in place of the Mods page's one table; 1.2.0, 2026-10-08, the user's request: the window's
-drop-downs replaced by drag and drop, the way the spell buffers are set). It does the purely mechanical casting a player would otherwise do
+drop-downs replaced by drag and drop, the way the spell buffers are set; 1.3.0, 2026-11-15, the user's request: the
+heal-out uses the guild crests that hold a heal once no spell can be cast). It does the purely mechanical casting a player would otherwise do
 by hand, at exactly two moments and never otherwise: no keys, no reacting to anything (a buff stripped by an
 extinguisher square is not noticed), no questions. The principles it is held to: nothing depends on timing, it
 reveals nothing the player was not told, it replaces no judgement (a simple mechanical rule, or the player's own
@@ -184,7 +185,7 @@ off until ticked; each is read as its moment comes.
 | Toggle | What it does |
 |---|---|
 | Buff on entering the dungeon | When the party goes down from town (the city's Dungeon picture or d; not a character loaded below ground, not after a raise below), every member's own **buff list** is run once: the members in party order, each list in its order, the list's owner the caster. Each row: **Spell or item** (a spell of the owner's, or an item in the owner's pack, by name) and **Target** (a party member, for a spell that asks "Cast on Who?"; none for a party-wide spell, which asks nobody by hand either). A spell row is cast through the sheet's Cast; a spell the owner does not know (any more) is still sent, and the game's own refusal says why. An item row finds the first pack slot whose item is known at All by that name, else the first the pack names so at a lower level (the item's name once Mostly known, the type's at Partial, the class's at Barely); an item is used only when known at All: below that the game shows nothing of what it casts, so nothing about it is looked at and the row is skipped with one line naming it as the pack does, `Kaizen: "Holy Sword" is not fully identified; use it by hand.` A row whose spell (or item's spell) asks "Cast on Who?" and whose target is not in the party now is passed over **without a word**: the lists are kept per character and parties vary. A party-wide row's target is not looked at (the cast by hand asks nobody), so it is done whoever it names. A dead member's list is skipped with one line, `Kaizen: "Gon" is dead.` Other skips, with the game's own refusal (not enough spell points, spell level or a stat too low, does not know it, "Anti-Magic area!", out of charges, an aligned item, ...) or, where the game has no words, a line of the mod's: `Kaizen: "Sight Veil" needs a target.`, `Kaizen: There is no spell called "X".`, `Kaizen: "Cas" has no item called "X".`, `Kaizen: "X" holds no spell.`, and `Kaizen: "Teleport" asks for more than a target; cast it by hand.` for a spell whose case asks something else (a map spell, a raise, a bind, a lock: only the effects `SpellThrown` handles are sent). Then the next row. A cast refused with "Anti-Magic area!" (an anti-magic or extinguish square) ends the whole run there, every later row and list, as a player would stop. Kaizen never chooses the spell, single or mass, or the caster |
-| Heal before returning to town | On the stairs up out of level 1 (after a won round is finished, before the dungeon closes and before the town's rest; not a rescue, not Exit to Main Menu), a greedy loop: **target** the living member (companions are not looked at) missing the most hits, MaxHits − CurHits, party order on a tie, and stop when nobody is missing any; **caster** the first member in party order with a healing spell (`Spellbook.IsHealing`, of the heal effects) they can cast (`CastGate.Unfit` null) and afford (spell points at least `Spellbook.Cost`); **spell** that caster's affordable heal with the most hits per spell point on average, the average being `Rules.SpellHealAverage` at the caster's spell level (`Rules.SpellLevel` of the current guild's level, the level the cast heals at) with no cap at the hits missing, and for a party-wide heal (Mass Heal) that average times the living members missing hits; the first on a tie, in the spell page's order. Cast through the game, repeat. A cast refused, or one that spends no points, takes that caster and spell out for the rest of the loop; at most 250 casts; a cast refused with "Anti-Magic area!" ends the loop at once. Spells only, no items. The per-cast lines, refusals and sounds are the game's, reading as if the caster were in command (as switching to them and casting by hand would): `"Hal" threw "Heal" on "Bob".` |
+| Heal before returning to town | On the stairs up out of level 1 (after a won round is finished, before the dungeon closes and before the town's rest; not a rescue, not Exit to Main Menu), a greedy loop: **target** the living member (companions are not looked at) missing the most hits, MaxHits − CurHits, party order on a tie, and stop when nobody is missing any; **caster** the first member in party order with a healing spell (`Spellbook.IsHealing`, of the heal effects) they can cast (`CastGate.Unfit` null) and afford (spell points at least `Spellbook.Cost`); **spell** that caster's affordable heal with the most hits per spell point on average, the average being `Rules.SpellHealAverage` at the caster's spell level (`Rules.SpellLevel` of the current guild's level, the level the cast heals at) with no cap at the hits missing, and for a party-wide heal (Mass Heal) that average times the living members missing hits; the first on a tie, in the spell page's order. Cast through the game, repeat. A cast refused, or one that spends no points, takes that caster and spell out for the rest of the loop; at most 250 casts; a cast refused with "Anti-Magic area!" ends the loop at once. When no spell can be cast and somebody is still hurt (since 1.3.0), the guild crests that hold a heal (`ItemUse.IsGuildIssued`, `ItemUse.SpellOf` a heal: the Healer's Restoration, the Paladin's Minor Heal) are used through the game's Use on the same target: the first living member in party order with one in pack slots 2 to 40 (not the Hands, which the city does not refill), known at All, with a charge left, the first such slot in pack order. The city fills every guild item back up as the party comes in (sub15F7, `ItemUse.RechargeGuildItems`), so the charges cost nothing. A use refused, or one that spends no charge, takes that slot out; the cap counts uses and casts together. No other item is used. The per-cast lines, refusals and sounds are the game's, reading as if the caster were in command (as switching to them and casting by hand would): `"Hal" threw "Heal" on "Bob".` |
 
 The buff lists are made in the **Kaizen window** (the toolbar's **Kaizen** button after the icons, in town and in
 the dungeon; one of the mod windows `AddWindow` gives: a child window of the game's frame like Objects & Spells, which takes no
@@ -326,11 +327,16 @@ buttons and the mode kept, the XP bars and shares, Reset at once).
 ### The Cartographer mod (`src/Mods/Mordor.Mod.Cartographer`, id `Cartographer`)
 
 Version 1.0.0 (2026-10-26, the user's request): "Mark squares on the automap with colours and waypoints". Off until
-ticked on the Mods page, as the others; no toggles. It is purely the player's own annotation of the Automap: it reads
-nothing of the maze (any square of a level the map can show may be marked, explored or not), reveals nothing, and changes
-nothing in the game. With the mod off - or with no mod - the Automap is exactly the original's: the right button
+ticked on the Mods page, as the others. It is the player's own annotation of the Automap: it reads nothing of the maze
+(any square of a level the map can show may be marked, explored or not; a route reads only the map's own record), reveals
+nothing, and changes nothing in the game. With the mod off - or with no mod - the Automap is exactly the original's: the right button
 re-plots at once and nothing is drawn over the map (the `AutomapHooked` test, below). It has no window and no Avalonia
 of its own: the game draws its menu and marks through the Automap hooks (API version 13).
+
+Version 1.1.0 (2026-11-16, the user's request): **routes** - "the shortest distance from my current square (by default,
+or any other square) to another square", counted in actions, a turn being one; taking marked waypoints when switched on;
+a penalty of the player's choosing for each hazard ("pits count as 2 movement"). Described under **Routes** below. Its
+settings (**Route settings...** on the Automap's menu: waypoints, hazards) are new with it; the marks and notes are as 1.0.0's.
 
 - **The menu.** A right-click on a square of the map (picMaze; not the grey round it, the numbers or the level row)
   opens a small menu in the game's menu style (the Kaizen window's, in the Automap form's own font) instead of
@@ -358,6 +364,54 @@ of its own: the game draws its menu and marks through the Automap hooks (API ver
   `AutomapView.ShowLevel`) and frames the destination white (bold); the highlight stays until the next click on a square
   of the map. A double click still resizes the window, as the original's does. "Auto Change Lev." still follows the
   party to its own level at its next step, as without the mod.
+- **Routes** (1.1.0, `RoutePlanner`). The menu ends, after a line, with **Route to here** (from where the party stands,
+  greyed when the map draws no arrow - in town, lost - or on the party's own square), **Route from here...** (from the
+  square clicked to a square picked after it, `Click where the route goes (any level). Esc cancels.`, starting facing
+  whichever way is best), while a route is shown, **Clear route**, and **Route settings...** (below). The route is drawn in Tableau's green, #59A14F:
+  an arrow along each straight run of steps, the start framed, the end framed bold, and both ends of a stairs or
+  waypoint move framed; on each level, its part. The status line (`AutomapInfo`) says what it costs - `Route to
+  12,5,3: 23 actions (17 steps, 4 turns, 1 stairs, 1 waypoint, +2 for hazards).` (the parts that are nought left out
+  but steps and turns), `Route 3,4,1 to 12,5,3: ...` from another square, `No known route to 12,5,3.`, or `Route to
+  12,5,3: where you are is not known.` while lost. A route to here follows the party as it walks and turns (the map
+  asks for the marks at every step). It is reckoned on the map's own record alone (`view.Record`, `view.You`) - what
+  the player can see on the map, never the maze:
+  - an action is a key: a step forward (Up), a turn left, right or about (each one key, the about face included), and
+    `t` on stairs the map shows, which lands on the same square a level down or up, facing the same way (UseStairs).
+    There is no step back in the game, so none here. Shift with a turn (a turn and a step) counts as the two it is;
+  - only walked squares (drawn black) are walked through, and a waypoint's destination; the destination may be any
+    square, one never walked only as the last step (`It ends on a square not yet explored.`);
+  - a wall on the map blocks, and the level's edges are walls; a door, or a secret door once found, does not. A secret
+    door not found is on the map as a wall, and so it is here;
+  - walls are written down from every square stood on out of fog (MapRecord.OnEntry), so the only edges the map cannot
+    know are those between two squares stood on only in fog: taken as drawn, open, and said (`Walls in fog are not on
+    the map.`);
+  - a facing square the map shows turns the party as the game does (MAZEMOD.BAS:1714-1729); a rotator leaves it facing
+    any way, counted at its worst, one turn to go on;
+  - a teleporter or a chute the map shows is never stepped onto (where it leads, the map does not say) unless it is the
+    destination or a waypoint's source;
+  - **Take waypoints** (on at first): a waypoint is the player's word for where its source leads. Stepping onto
+    the source puts the party on the destination at once, facing the same way, as a teleporter does - the destination's
+    own square then entered, its hazard counted and its facing followed; a waypoint on stairs is taken with `t`, as the
+    stairs are. A source is not otherwise walked across. Off: waypoints are plain squares;
+  - **Hazards**: for each of Pit, Water, Quicksand, Fog, Rotator, Extinguisher, Anti-magic and Stud - every feature the
+    map can draw that does something to a party on it - a whole number from 0 (the default) to 999, or Avoid: the extra
+    actions counted on stepping onto one, or never onto one unless it is the destination (which counts nothing extra).
+  - **Ethereal Portal** (Don't use at first, `PortalCost=Off`): given a whole number, a cast counts that many actions
+    and goes one square the way the party faces whatever is in the way, wrapping round at the level's edge
+    (`DungeonNav.StepThrough`, MAINMOD2.BAS:1170-1184); the square is then entered as a step enters it (the square
+    routine runs, 1209-1210: hazards, facing squares, a waypoint's source). Only onto a square stood on - one never
+    walked may be rock, which kills the party - so never onto a destination not yet explored; and never cast where the
+    map shows anti-magic or an extinguisher (mdrcharCheckCast refuses it there). The status line says `1 Ethereal
+    Portal at 3`; a portal through the wall beside is drawn as its own arrow, and both its ends framed. Whether anyone
+    in the party knows the spell, or has the points, is the player's to know: the cost is theirs to set;
+  Dijkstra over (level, square, facing), facing including "any way" after a rotator; ties go to the first found.
+  **Route settings...** opens the mod's own small window (Avalonia, RouteSettingsWindow, over the window that asked;
+  one at a time): the Take waypoints box, an Ethereal Portal row (a number box and Don't use, ticked at first), then a row per hazard - its name, a box taking digits only (anything else
+  typed or pasted is taken out; empty counts 0) and an Avoid box that greys it. Each change is written to settings.ini
+  at once (`[Mod:Cartographer]`: `RouteWaypoints=True`, `PitExtra=2`, `StudExtra=Avoid`; `+2` and `None` read as 2 and 0),
+  and the host's settings change has the Automap ask the marks again, so a route shown follows as the numbers are typed.
+  The Mods page shows the switch alone. Nothing of a route is kept: it is let go when the mod is switched off (which
+  closes the window too), and is not saved.
 
 The notes are kept per world - the shared automap (automap.json) is the saves folder's, and so are they - in
 `cartographer.json` in the saves folder (`ctx.DataDirectory`, beside settings.ini; `MORDOR_SAVES` moves it):
@@ -370,7 +424,11 @@ The `mods` probe asserts the manifest and default, nothing hooked with mods off,
 and clearing, waypoints picked across levels, given up and replaced, the marks (tints, the source's yellow, the hover's
 frame and its arrow on the same level only), a click going to the destination and highlighting it until the next click,
 the file's round trip, a hand-edited and a garbled file, switching off and on, `AutomapLayout.SquareAt`, and the hooks
-guarded (a mod throwing in its marks, or in a pick's answer, disabled). `Mordor.UiCheck` drives the real Automap child
+guarded (a mod throwing in its marks, or in a pick's answer, disabled); and routes on a made-up record - the settings (read back and written, Route settings... opening the window),
+turns counted (about face one), the facing followed, Ethereal Portal (off by default, through a wall at its cost, not when dearer, refused on anti-magic, never onto a square not stood on), each hazard's extra and Avoid (and a hazard kept off still a
+destination), walls, facing squares and rotators, teleporters and chutes kept off, fog's unknown walls, a waypoint
+taken and switched off, stairs across levels drawn on each, a square never walked as the last step only, Route from
+here..., Clear route, and the route let go when the mod is switched off. `Mordor.UiCheck` drives the real Automap child
 headless: mods off (the re-plot at once, no menu, nothing drawn), the menu (its first item the re-plot, reached through
 it), colouring, a waypoint picked on another level through the level bar, Escape and the right button giving up, the
 hover's arrow (none across levels), the click's navigation and highlight, a new session reading the file back, the mod
@@ -384,8 +442,8 @@ read at every round: **Fight by the rules** (`FightByRules`, also a checkbox at 
 the rules can be stopped mid-fight with one click) and **Leave the one in command to me** (`LeaveInCommand`: the
 character in command is never given an order by the rules). A member the player gives an order by hand - f, d or
 space, a number key, Cast, Use or a spell buffer, with them in command - is left alone until the fight ends
-(`CombatRoundContext.ByHand`, API version 16), so the key pressed plays rather than being replaced at the next tick.
-It gives each member's fight order every round of an engaged fight, through `ModActions.CombatRound` (API version 14), and does
+(`CombatRoundContext.ByHand`, API version 15), so the key pressed plays rather than being replaced at the next tick.
+It gives each member's fight order every round of an engaged fight, through `ModActions.CombatRound` (API version 15), and does
 nothing else: no fight is started by it (it is asked only at the tick of an engaged fight, never while monsters
 only wait, never for the free round a step gives them), nothing is cast or used there and then (an order is what
 the round then plays, as by hand), and every order goes through the game's own keys and Cast, so its checks,
@@ -477,7 +535,7 @@ copies of the saved world kept in the player's iCloud Drive, so a game can be ca
 build ships it (`src/Mods/ShipMods.targets`: a publish for an osx runtime, or a build on a Mac); the Windows release
 has no `mods/ICloudSaves`, and `tools/pack-release.sh` refuses one. Placed by hand on another system it loads, writes
 "macOS only" to mods.log and hooks nothing. It needs no Harmony; it uses `Saved` and
-`MainMenuOpened` (API version 15), added for it.
+`MainMenuOpened` (API version 16), added for it.
 
 - **Where**: `~/Library/Mobile Documents/com~apple~CloudDocs/OpenDejenol/Snapshots/`, with plain file I/O - macOS
   syncs the folder. Not CloudKit or an iCloud container: both need an entitlement and a provisioning profile from a
@@ -683,7 +741,7 @@ public sealed class Entry : Mordor.Modding.IMod
   it - nought for an award to a character already pinned, and never below nought (a total past a lowered pin is
   pulled back to it, which is not counted as a loss). Raised right after the award, after any DamageDealt for the
   same blow; observe only - with no mod listening nothing more happens, and listening changes nothing.
-  `Saved(SavePoint)` (API version 15): the game's saves are on disk at a save point - `Kind` `ArrivedInTown` (the
+  `Saved(SavePoint)` (API version 16): the game's saves are on disk at a save point - `Kind` `ArrivedInTown` (the
   stairs up into town, raised after the town's save of the arrival, so after `ArrivedInTown`, which comes before it)
   or `GameEnded` (Exit to Main Menu or the program closing, raised after the city's last save - and after the
   dungeon's, when the session ends below). For a mod that copies the saves (the iCloud Saves mod). Observe only, and
@@ -813,6 +871,15 @@ public sealed class Entry : Mordor.Modding.IMod
     then opens no menu) answers `done(null)`. One pick at a time: a second answers the first with null. `done` is
     guarded for the mod that asked, and not called once that mod has stopped running. On a form shorter than full size
     the picture lies over the level row (modAdjustMap), so the prompt is hidden there; < and > still page the map.
+  - `AutomapInfo` (`view => line or null`, API version 14): a line for the status line (lblInfo) in place of the
+    original's "You are at ...", asked each time the marks are, straight after them; the first running mod with a
+    line decides, a waiting pick's prompt still comes first, and with none the line is the original's.
+  - `view.You` (API version 14): `AutomapPosition(Square, Facing)`, where the map's arrow stands - null whenever
+    medDrawCursor draws none (in town, and while lost). `view.Record(square)`: `AutomapRecord(Walked, Flags)`, what
+    the map has written down - the explored cell (drawn black) and the flag word the square is drawn from (`Floor`'s
+    bit numbers: the east and north walls and doors, a secret door once found, the seven features stepping on it
+    records, the ones perception noticed). Nothing for a square off the level or past the deepest. It is the map's
+    record and never the maze: a secret door not found is a wall here, as on the map.
   Every one of these calls into a mod is guarded: a throw disables the mod, and the Automap carries on with what the
   other mods give, or the original's.
 - **Actions** (moments the mod may act, each awaited by the game before it goes on; null = nothing happens there):
@@ -846,7 +913,7 @@ public sealed class Entry : Mordor.Modding.IMod
   One moment at a time: while a moment's hooks are awaited the stairs taken again do nothing, and the host runs no
   hooks of a second call made meanwhile (`ModHost.ActionRunning`). On the Mods page, Enter in a list cell keeps the
   edit and does not press Close.
-  `MainMenuOpened` (API version 15), a `Func<MainMenuContext, Task>`: the main menu is up at the program's start with
+  `MainMenuOpened` (API version 16), a `Func<MainMenuContext, Task>`: the main menu is up at the program's start with
   nothing loaded and no game in play - once a run, after the menu's own start-up boxes (the limitation notice, the
   welcome) and before a character marked Preload Character goes in. The menu reads its characters only when asked, so
   a mod may change the saves folder here. `MainMenuContext`: `SavesDirectory`; `Ask(title, text, buttons...)`, the
@@ -862,12 +929,12 @@ public sealed class Entry : Mordor.Modding.IMod
   by hand passes neither, and runs as before. `CheckCast` takes `asCommander` (the "you" wording for any caster)
   and `SpellThrown.Apply`/`Line` an optional `commander` (null: `party.Selected`); a cast by hand is the one in
   command casting, so both give what they always gave.
-- **The fight's round** (API version 14): `ModActions.CombatRound`, an `Action<CombatRoundContext>`, called at
+- **The fight's round** (API version 15): `ModActions.CombatRound`, an `Action<CombatRoundContext>`, called at
   each tick of an engaged fight (timCombat, FRMDUNM.BAS:616; the round, MULTIMOD.BAS:497) before any character
   acts - not awaited, not for monsters only waiting, not for the free round a step gives them. The live mods'
   hooks run in load order, each with a context of its own, closed as its hook returns. With none hooked
   (`ModHost.CombatRound`) no context is made, nothing is read and the round is the original's. A hook that
-  throws disables its mod. The dungeon asks `ModHost.CombatRoundHooked` first (API version 16), so with none hooked a
+  throws disables its mod. The dungeon asks `ModHost.CombatRoundHooked` first (API version 15), so with none hooked a
   tick makes no list and no context. An order given by hand while monsters only wait counts too: it is carried
   into the fight they become. `CombatRoundContext`: `Party`/`Members`, `Spells`, `Item`, `Fight` (a token, the same
   object every round of one fight - not the engine, which holds the monsters' hits; that is the API's convention, not

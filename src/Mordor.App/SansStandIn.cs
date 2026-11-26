@@ -77,7 +77,7 @@ internal sealed class SansStandIn : IFontCollection
                 && tahoma.FamilyName.Equals("Tahoma", StringComparison.OrdinalIgnoreCase)
                 && (tahoma.FontSimulations & FontSimulations.Bold) == 0)
                 f = tahoma;
-            else if (FontManager.Current.TryGetGlyphTypeface(new Typeface(new FontFamily("Microsoft Sans Serif, Segoe UI"), style, weight), out var sans))
+            else if (FontManager.Current.TryGetGlyphTypeface(new Typeface(PortFonts.Family("Microsoft Sans Serif, Segoe UI"), style, weight), out var sans))
                 f = sans;
         }
         catch { f = null; }

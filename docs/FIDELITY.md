@@ -1745,6 +1745,17 @@ If slot.M572A = False Then  "Item is not cursed!"   : Exit Sub    ' the slot's c
 If slot.M577E = 0      Then "Item isn't equipped!"  : Exit Sub    ' the slot's equipped bit
 ```
 
+**Uncurse input event ordering (2026-11-09).** `txtUncurse_Change` (FRMCTYS.BAS:937-942)
+invalidates the old quote synchronously; Enter and drag/drop then format the slot caption and
+enable a fresh quote (944-974). Avalonia's queued `TextChanged` ran after that fresh quote,
+clearing its price and greying Uncurse again. The port now observes `TextBox.TextProperty`
+synchronously and writes the new fee after formatting the caption. One Enter or drop retains
+the quote, while a subsequent edit invalidates it immediately. Headless Store regression tests
+exercise a Ball and Chain and a known cursed item through real input/drop and button clicks,
+check the fee is paid once, and reload the saved character to verify equipment, curse flags
+and experience. In the affected build, confirming the already-formatted caption with Enter
+again enables Uncurse; this workaround was also verified through payment and save/reload.
+
 This is the only place in the game that tests the slot flag without also testing equipped - the
 other six reads all pair them - which is what makes both refusals visible and both of them odd.
 
@@ -5984,7 +5995,7 @@ rest still follows.
 - Port necessity: the frame's scroll range holds still while a window's resize grip is held, as it already did for a
   title-bar drag, so shrinking the window that sets the range cannot move the others under the pointer.
 
-**The port's own: the menu waits for the mods - 2026-10-30.** With a mod hooking `MainMenuOpened` (API version 15;
+**The port's own: the menu waits for the mods - 2026-10-30.** With a mod hooking `MainMenuOpened` (API version 16;
 docs/MODDING.md), the main menu's buttons but Exit are off while its hook runs, and the status line under them
 (the port's own, where a failed delete's message goes) reads "Waiting for the mods...". With no mod hooked the menu
 is the original's.
@@ -6777,8 +6788,8 @@ port played every WAV through winmm's `PlaySound`, which plays one sound at a ti
 was playing. The original plays them through WAVMIX16.DLL (MODULE13.BAS:7-18). `fn1A08` (MUSIC.BAS:376-399) configures
 a session mono at 22 kHz, opens all eight channels (`WaveMixOpenChannel(gv20C8, 0, 1)`, WMIX_OPENALL) and activates it.
 The port now does the same thing in software: `WaveMixChannels` (src/Mordor.Core/WaveMix.cs) is eight queues of waves summed
-into one stream, with clipping and no scaling, at 22,050 Hz; `WaveOutStream` (Mordor.App) plays that stream through
-winmm's `waveOut` in buffers of about 17 ms, four ahead. No library was added. Every WAV the game ships is 8-bit mono 22,050 Hz,
+into one stream, with clipping and no scaling, at 22,050 Hz; `AudioOut` (Mordor.App) plays that stream through
+SDL3 on every platform (it was winmm's `waveOut` until the Linux work; SDL asks for the stream as the device needs it). Every WAV the game ships is 8-bit mono 22,050 Hz,
 WaveMix's own format, so nothing is resampled.
 
 `WaveMixSession` is MUSIC.BAS's bookkeeping, line for line:
@@ -7163,3 +7174,77 @@ the original - sub0BDE only fills an order that is empty, the party window clear
 (FRMGROUP.BAS:418-422), and nothing clears them when a character is unloaded and another loaded. The port starts
 every session with no orders, so that left-over state, which depends on what was played before in the same run, is
 not carried.
+
+**Guild items recharge on entering the city - corrected 2026-10-31.** The city's Form_Load ends each character's
+turn - after the rest, the carried body left behind and the save - with `sub15F7 gv1A84` (FRMCTYM.BAS:103-134), and
+sub15F7 (MAINMOD2.BAS:4250-4271) fills every guild-issued item in pack slots 1 to 39 (`For l0654 = 1 To mc0190 - 1`,
+mc0190 = 40; slot 0, the hands, is not looked at) whose charges are below the item's own back up to them. A guild
+item is one whose `Ailments` - the port's `SpecialType` - is 500 to 500 + NumGuilds - 1: the twelve crests, of which
+nine carry charges (MDATA3: Paladin 12, Thief 12, Villain, Seeker, Scavenger, Mage, Sorcerer, Wizard and Healer 6;
+Nomad, Warrior and Ninja none). If any was filled, one line: "Your Guild Item(s) were recharged when you entered the
+city." with nobody else loaded (`UBound(Chars) = m00A6`, m00A6 = 0), else `"Ann" had their Guild Item(s) recharged
+when they entered the city.` It runs wherever frmCityMain is loaded: walking up out of level 1, a raise at level 0,
+and a character signed in at level 0 (whose lines are dropped, said before gv1B52 is True). The community's
+Guild_Crests page says the same ("Crests will recharge by themselves as soon as you enter town"). The port had no
+recharge at all: a Crest of the Thief used down stayed down. `ItemUse.RechargeGuildItems` is sub15F7, called last in
+each member's turn of `RestOnArrival`, so its line follows that member's rest and body lines as in the original.
+One difference of timing, not of play: the original saves each character before sub15F7, so the refilled charges
+reach the file at the next save; the port's arrival saves once after the whole turn, with them. Checked by
+selfcheck (GuildRechargeChecks).
+The same day every other write of `Pack().Charges` in the source was set against the port's and found to match:
+the crest awarded to a new Guildmaster (FRMCTYG.BAS:746, `Guildmasters`), a purchase (FRMCTYS.BAS:74), a sale of a
+charge-sold kind (FRMCTYS.BAS:240-262), Combine (FRMCTYS.BAS:677, `Combining`), an item taken out
+(mdrcharRemoveItem, MAINMOD2.BAS:4343), a charge spent (mdrcharSubtractItemUse, MAINMOD2.BAS:5689-5708, and its
+callers at 843 and 6145) and a chest's item (MONSMOD.BAS:3816-3827, `Loot.RollCharges`), with the reads that gate on
+charges (sub15CD's two refusals, 6098-6105; the buy and sell prices, FRMCTYS.BAS:605-607 and 735-746).
+
+**Bodies stay on the fatal square — corrected 2026-11-07.** Movement precedes the square
+routine (fn1521, MAINMOD2.BAS:3770-3902); a pit can then kill someone before the area settles
+(MAZEMOD.BAS:1743-1774, 1879-1889). The party update saves each dead member before unloading
+them (FRMGROUP.BAS:321-348). The port moved its navigator first but updated the character
+records only in a later `SaveChar`, after that unload. A fall could therefore save the body
+on the previous square, or in the previous room, making Pickup report nobody in the area.
+`AfterMove` now synchronizes the in-memory party position before processing the square or
+the departure round. This does not add a disk write or change No Autosave. A headless
+regression walks into a fatal pit both within a room and across a room boundary, checks
+the saved body location, then picks it up through the normal dialog with autosaves off.
+
+**Which tune plays - corrected 2026-11-12, from a bug report.** The title screen played INTRO.MID; frmMenu's Form_Load
+asks for track 7 (`sub063F mc0090`, mc0090 = 7, FRMMENU.BAS:132), which `sub10AB`'s table makes THEME.MID
+(MUSIC.BAS:401-422). INTRO is asked for once, by `mdrEndProgram` as the program quits (MAINMOD.BAS:935), and closed
+again by fn19DC two lines later. The audit behind the report found two more differences:
+- Use Sound Canvas MIDI (M5F39) was saved and never read. With it, sub10AB names the Sound Canvas files instead:
+  CITYSC, MAINSC, INTROSC, DUNGEOSC, GENERASC, GEN2SC, GEN3SC, THEMESC. Ticking or clearing it stops the player and asks
+  for THEME at once (FRMOPTIO.BAS:110-114).
+- The port looped each place's tune. The original plays a tune once. `sub063F` (MUSIC.BAS:433-469) does nothing when
+  asked for the tune in `mciMusic.Tag`, finished or not; `mciMusic_Done` would reset the tag (FRMMAIN.BAS:122-124), but
+  sub063F turns Notify off before every Open and Play, so it never fires. Every ten seconds with no tune playing,
+  `timMusic` calls `sub1A50` (MUSIC.BAS:79-97): with no party in play THEME, so the menu falls quiet after one THEME;
+  in play, 26 times in 100 the tag's own tune (nothing, or CITY after a minimise emptied the tag), else CITY when the
+  leader (`Chars(m0112)`, a Static never set, so 0) is in town, else a random one of tracks 1 to 7 - MAIN, DUNGEON,
+  INTRO, GENERAL, GEN2, GEN3, THEME. A choice equal to the tag does nothing and the timer asks again ten seconds later.
+  Coming back from minimised runs sub1A50 too (FRMMAIN.BAS:221), where the port restarted the place's tune.
+- The Options window's No Music is live, as the original's box is (FRMOPTIO.BAS:76-87): ticked closes the player,
+  cleared plays THEME. Cancel puts the flags back and stops the player (FRMOPTIO.BAS:138-154), and closing the window
+  either way asks for THEME unless a tune is playing (Form_Unload, FRMOPTIO.BAS:376-387) - so a Cancel in the dungeon
+  changes the tune to THEME, as in the original.
+- The title window no longer restarts the music each time it is activated; the original has no such call.
+`Mordor.Core.MusicTrack` holds the table and sub1A50; `Audio` keeps the tag. Checked by selfcheck (MusicChecks).
+
+**The title tune is heard - the port's own, 2026-11-13.** With the title asking for THEME, it played silent on
+Windows. THEME.MID sets Expression (controller 11) to 0 on all five of its channels at its first tick and never
+raises it; the sound cards of 1995 ignored Expression, and Windows' synthesizer obeys it, so every note of the
+two and a half minutes sounds at nothing - the original under a modern Windows is silent at its menu too, unless
+Use Sound Canvas MIDI is on (THEMESC.MID has no such zeros). The port hands the sequencer a copy, in the temp
+folder, with those five values at 127, the controller's default: the tune as those cards played it. No other
+byte changes, and no other of the sixteen MIDIs is touched - GEN3SC's four Expression 0s are among 512 changes
+that shape its notes. The game folder is never written. `Mordor.Core.MidiExpression`; checked by selfcheck
+(MusicChecks).
+
+**The next tune below - corrected 2026-11-13, from play.** Once the first dungeon tune ended, nothing more played.
+sub1A50 asks the leader's record for the level (MUSIC.BAS:79-97). The original's record holds 1 from the walk down,
+"Chars(m0040).DungeonLevel = 1" (FRMCTYM.BAS:208), and follows the party from there. The port's record follows the
+dungeon's level only at a save or a change of area, so until then it still read 0, the town. The tune after DUNGEON
+was then CITY. Once CITY had played, sub1A50 chose CITY every time: either the tag's own tune or the town's. That
+was the tag, so nothing played. In the dungeon the level sub1A50 is given is now the dungeon's own, and the town's
+comes back on the way out. Checked by selfcheck (MusicChecks).

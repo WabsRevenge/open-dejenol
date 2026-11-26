@@ -61,6 +61,9 @@ echo "== publishing (Release, osx-arm64, self-contained)"
 # the iCloud Saves mod ships with a macOS build alone (src/Mods/ShipMods.targets, for an osx runtime)
 [ -f "$PUB/mods/ICloudSaves/Mordor.Mod.ICloudSaves.dll" ] && [ -f "$PUB/mods/ICloudSaves/mod.json" ] \
     || die "the publish has no mods/ICloudSaves (dll and mod.json)"
+[ -f "$PUB/soundfont/TimGM6mb.sf2" ] && [ -f "$PUB/soundfont/GPL-2.0.txt" ] && [ -f "$PUB/soundfont/README.txt" ] \
+    || die "the publish has no SoundFont (soundfont/TimGM6mb.sf2, GPL-2.0.txt, README.txt)"
+[ -f "$PUB/fonts/Liberation-LICENSE.txt" ] || die "the publish has no fonts/Liberation-LICENSE.txt"
 cp -R "$PUB/." "$APP/Contents/MacOS/" || die "could not copy the publish into $APP"
 
 echo "== icon"

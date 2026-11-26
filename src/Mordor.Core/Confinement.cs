@@ -183,7 +183,7 @@ public sealed class Confinement
             if (_idKeyed) return;   // Id keys never go back out labelled as table indices
             Directory.CreateDirectory(savesDir);
             KeyedBy = ByRef;   // every pen this port makes is keyed by table index
-            File.WriteAllText(PathFor(savesDir), JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            SafeFile.WriteAllText(PathFor(savesDir), JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch { }
     }

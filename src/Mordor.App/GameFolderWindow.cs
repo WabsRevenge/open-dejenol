@@ -40,6 +40,8 @@ public sealed class GameFolderWindow : Window
     /// <summary>Called with a playable Mordor's folder once one has been picked (and remembered).</summary>
     public Action<string>? Accepted { get; set; }
 
+    private bool _acceptedByLocate;
+
     /// <summary>
     /// Gets a picked folder ready before it is handed over - the game's pictures and help read out
     /// of it (<see cref="Art.PrepareAsync"/>) - while this window says so, its buttons off: null
@@ -91,7 +93,7 @@ public sealed class GameFolderWindow : Window
                  + "the MDATA files.\n\n"
                  + "The shareware (\"PUBLIC Limited Version\") plays as the shareware did, with its "
                  + GameFiles.SharewareLevels + " dungeon levels; the full version has all " + GameFiles.FullLevels + ".\n\n"
-                 + "Decklin's Domain sells Mordor as MordorSetup.exe, and gives the demo away as MordorDemoSetup.exe. "
+                 + "Choose M1FULL.zip or MordorSetup.exe for the full game, or MordorDemoSetup.exe for the demo. "
                  + "Those installers do not run on Windows 10 or 11, and there is no need to: choose the installer "
                  + "and OpenDejenol unpacks the game from it. A Mordor already installed (from the original CD-ROM "
                  + "or disks, or the shareware) can be chosen by its folder instead. The choice is remembered.",
@@ -188,6 +190,7 @@ public sealed class GameFolderWindow : Window
             Problem.Text = Describe(check, chosen: true);
             return;
         }
+        _acceptedByLocate = true;
         await Accept(check, "game folder chosen");
     }
 
@@ -211,6 +214,7 @@ public sealed class GameFolderWindow : Window
 
     private async Task UnpackNow(string installer)
     {
+        _acceptedByLocate = false;
         Problem.Text = "";
         Busy("Unpacking " + Path.GetFileName(installer) + " ...");
         bool handedOver = false;
@@ -282,12 +286,12 @@ public sealed class GameFolderWindow : Window
         catch { }
         var picked = await owner.StorageProvider.OpenFilePickerAsync(new FilePickerOpenOptions
         {
-            Title = "Use the installer - choose MordorSetup.exe or MordorDemoSetup.exe",
+            Title = "Use the installer - choose M1FULL.zip or a Mordor setup",
             AllowMultiple = false,
             SuggestedStartLocation = start,
             FileTypeFilter = new[]
             {
-                new FilePickerFileType("Mordor installer (MordorSetup.exe, MordorDemoSetup.exe)") { Patterns = new[] { "*.exe" } },
+                new FilePickerFileType("Mordor installer (M1FULL.zip, MordorSetup.exe, MordorDemoSetup.exe)") { Patterns = new[] { "*.zip", "*.exe" } },
             },
         });
         return picked.FirstOrDefault()?.TryGetLocalPath();
@@ -300,7 +304,7 @@ public sealed class GameFolderWindow : Window
     /// once one is picked. <paramref name="start"/> is never called without a playable folder.
     /// </summary>
     public static Window FirstWindow(GameFolderResolution found, Func<string, Window> start, Action<Window>? becomeMain = null, IReadOnlyList<string>? downloads = null,
-                                     Func<string, Task<string?>>? prepare = null)
+                                     Func<string, Task<string?>>? prepare = null, Action<Window>? afterLocate = null)
     {
         if (found.IsPlayable)
         {
@@ -315,6 +319,7 @@ public sealed class GameFolderWindow : Window
         gate.Accepted = dir =>
         {
             var next = start(dir);
+            if (gate._acceptedByLocate) afterLocate?.Invoke(next);
             becomeMain?.Invoke(next);
             next.Show();
             gate.Close();

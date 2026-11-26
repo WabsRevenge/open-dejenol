@@ -12,7 +12,7 @@ namespace Mordor.Mod.ICloudSaves;
 /// changes nothing on Windows even when ticked on. Off by default, as every mod is.
 ///
 /// No Harmony (whose patches do not apply on arm64 macOS): it needs only the mod API, two parts of
-/// which were added for it in API version 15 - <see cref="ModEvents.Saved"/> (the saves are on disk at
+/// which were added for it in API version 16 - <see cref="ModEvents.Saved"/> (the saves are on disk at
 /// a save point) and <see cref="ModActions.MainMenuOpened"/> (the main menu at start, nothing loaded).
 ///
 /// The window is reached only through <see cref="Draw"/>, so loading the mod needs no Avalonia: the

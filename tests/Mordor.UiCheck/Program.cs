@@ -23,6 +23,7 @@ using Mordor.Core;
 //     (cmdCommand_DragDrop, FRMCHAR3.BAS:252-254)
 //
 //   Mordor.UiCheck <gamedir>        exit code 1 if anything failed
+//   add --body-recovery-only for the fatal-step/pickup regression alone
 
 string game = args.Length > 0 ? args[0] : Path.Combine("..", "game_files");
 string mdr = Path.Combine(game, "MDATA11.MDR");
@@ -40,6 +41,23 @@ string? artWas = Environment.GetEnvironmentVariable("MORDOR_ART_CACHE");
 Environment.SetEnvironmentVariable("MORDOR_ART_CACHE", artRoot);
 string? artError = Art.Prepare(game);
 if (artError != null) { Console.WriteLine($"  FAIL  the game's art could not be read: {artError}"); return 1; }
+
+if (args.Skip(1).Any(a => a is "--uncurse-only" or "--m1full-only" or "--body-recovery-only" or "--store-exit-only"))
+{
+    try
+    {
+        return args.Contains("--store-exit-only") ? StoreExitCheck.Run(game)
+            : args.Contains("--m1full-only") ? LegacyInstallerCheck.Run(game)
+            : args.Contains("--body-recovery-only") ? BodyRecoveryCheck.Run(game) : StoreUncurseCheck.Run(game);
+    }
+    finally
+    {
+        Environment.SetEnvironmentVariable("MORDOR_ART_CACHE", artWas);
+        if (new DirectoryInfo(artRoot).Parent?.FullName != Path.TrimEndingDirectorySeparator(Path.GetFullPath(Path.GetTempPath())))
+            throw new InvalidOperationException("Refusing cleanup outside the test art cache.");
+        Directory.Delete(artRoot, true);
+    }
+}
 
 int failed = 0;
 void Check(string what, object? got, object? want)
@@ -393,7 +411,7 @@ Console.WriteLine("\nthe enlarged map at large sizes, dragged by the grip, at 10
 // right button giving up); the hover's arrow on the same level only; a click going to the destination
 // and highlighting it; cartographer.json read back by a new host; the marks drawn on the map's own
 // device-pixel squares at 1x, enlarged, and at 125% ----
-Console.WriteLine("\nthe Cartographer mod on the Automap (API version 13):");
+Console.WriteLine("\nthe Cartographer mod on the Automap (API versions 13 and 14):");
 {
     string scratch = Path.Combine(Path.GetTempPath(), "mordor-uicheck-carto-" + Guid.NewGuid().ToString("N")[..8]);
     Directory.CreateDirectory(scratch);
@@ -472,8 +490,8 @@ Console.WriteLine("\nthe Cartographer mod on the Automap (API version 13):");
         NoMenu();
         Press(At(2, 3), MouseButton.Right);
         Check("mod on: a right-click on a square opens the menu, and does not re-plot by itself", (Menu()?.IsOpen, Plotted(10, 5)), ((bool?)true, false));
-        Check("the menu: the original's right-click first, then the colours and Add waypoint...",
-              Headers(), $"{AutomapWindow.RedrawItem} | - | Blue | Orange | Red | Purple | No colour | - | Add waypoint...");
+        Check("the menu: the original's right-click first, then the colours, Add waypoint... and the routes",
+              Headers(), $"{AutomapWindow.RedrawItem} | - | Blue | Orange | Red | Purple | No colour | - | Add waypoint... | - | Route to here | Route from here... | Route settings...");
         Check("each colour with its swatch, No colour greyed",
               string.Join(" ", Menu()!.Items.OfType<MenuItem>().Skip(1).Take(5).Select(m =>
                   (m.Icon is Border { Background: Avalonia.Media.ISolidColorBrush b } ? $"#{b.Color.R:X2}{b.Color.G:X2}{b.Color.B:X2}" : "none") + (m.IsEnabled ? "" : "(greyed)"))),
@@ -501,8 +519,17 @@ Console.WriteLine("\nthe Cartographer mod on the Automap (API version 13):");
         win.Page(-1); Pump();
         Check("level 1: the source framed yellow on its blue", Marks(), "Tint(2,3)#4E79A7 Tint(6,4)#F28E2B Frame(2,3)#EDC948");
         Press(At(2, 3), MouseButton.Right);
-        Check("its menu now changes or removes it", Headers().EndsWith("Change waypoint... | Remove waypoint", StringComparison.Ordinal), true);
+        Check("its menu now changes or removes it", Headers().Contains("Change waypoint... | Remove waypoint | -", StringComparison.Ordinal), true);
         Menu()?.Close(); Pump();
+
+        // ---- a route (Cartographer 1.1.0, API version 14): the status line says it, the map draws it ----
+        Press(At(9, 5), MouseButton.Right);
+        Choose("Route to here");
+        Check("Route to here: the status line (lblInfo) says what it costs", info.Text?.StartsWith("Route to 10,6,1: ", StringComparison.Ordinal), true);
+        Check("... the map draws it, its end framed bold green", Marks().Contains("Frame(9,5)#59A14F!"), true);
+        Press(At(9, 5), MouseButton.Right);
+        Choose("Clear route");
+        Check("Clear route: the original's line back, nothing of the route drawn", (info.Text, Marks().Contains("#59A14F")), ("You are at 11,6,1 facing North.", false));
 
         // ---- Escape and the right button give a pick up ----
         Press(At(4, 4), MouseButton.Right);
@@ -1014,6 +1041,69 @@ top.Close();
             }
         }
 
+        // 2026-10-30: "i can't drag my companion into the confinement". The town as the player has
+        // it: Objects & Spells on its Companions page beside the Confinement, the picture dragged
+        // (picCompanion_MouseMove, FRMCHAR3.BAS:795-799) and let go over the Identify, Realign & Sell
+        // panel's Comp. box - txtID_DragDrop puts "Source.Index + 1" there and presses Enter
+        // (FRMCITYC.BAS:788-796), which names it and offers Sell (txtID_KeyPress, 804-846)
+        {
+            var dragSource = RecordingDragSource.Bound!;   // bound for the Companions page above
+            var monsters = Get<List<Monster>>("_monsters");
+            var pet = CompanionRef.Of(monsters.First(m => m.PicId > 10));
+            pet.Hits = 5; pet.MaxHits = 5;
+            hero.Companions.Add(pet);
+            Call("RefreshCompanions");
+            var sheet = Get<MdiChild>("_sheetChild");
+            sheet.IsVisible = true;
+            sheet.PlaceAt(new Rect(10, 10, 420, 360));
+            Get<MdiChild>("_characterChild").IsVisible = false;   // the Ctrl-key checks above left it up, over this
+            town.FindControl<TabControl>("SheetTabs")!.SelectedIndex = 2;
+            Call("ShowConfinement", town, null);
+            Pump();
+            var confine = services.Cast<object>().First(s => Of<GameWindow?>(s, "Key") == GameWindow.CompanionStore);
+            Of<MdiChild>(confine, "Child").PlaceAt(new Rect(450, 10, 700, 500));
+            Pump(); Pump();
+            var compPage = Get<CompanionsPage>("_companionPage");
+            var picture = compPage.Pictures[0];
+            var boxes = Of<ContentControl>(confine, "Page").GetVisualDescendants().OfType<TextBox>().ToList();
+            // txtID: the box of the panel that has Sell on it
+            var txtID = boxes.First(t => t.Parent is Canvas c && c.Children.OfType<Button>().Any(b => (b.Content as TextBlock)?.Text == "Sell"));
+            var sell = ((Canvas)txtID.Parent!).Children.OfType<Button>().First(b => (b.Content as TextBlock)?.Text == "Sell");
+            Point Mid(Visual v) => v.TranslatePoint(new Point(v.Bounds.Width / 2, v.Bounds.Height / 2), town)!.Value;
+            DragPayload? DraggedFrom(Point from)
+            {
+                dragSource.Last = null;
+                town.MouseDown(from, MouseButton.Left); Pump();
+                town.MouseMove(from + new Point(3, 3), RawInputModifiers.LeftMouseButton); Pump();
+                town.MouseMove(from + new Point(12, 12), RawInputModifiers.LeftMouseButton); Pump();
+                town.MouseUp(from + new Point(12, 12), MouseButton.Left); Pump();
+                Apart();
+                return dragSource.Last;
+            }
+            // lblCompName carries the Tag "COMP" in the form data (MORDOR.EXE RCDATA 10) but is never
+            // dragged: its one event is Click, Name (FRMCHAR3.BAS:478-487) - a DragMode of Automatic
+            // would have taken that Click away - and nothing calls lblCompName.Drag; picCompanion is
+            // the only one with a .Drag (797)
+            Check("Town: a companion's name on Objects & Spells starts no drag (lblCompName has only Click)",
+                  DraggedFrom(compPage.Names[0].TranslatePoint(new Point(10, compPage.Names[0].Bounds.Height / 2), town)!.Value), null);
+            DraggedFrom(Mid(picture));
+            Check("Town: the companion's picture on Objects & Spells starts a drag of it (\"COMP\", slot 0)", dragSource.Last, DragPayload.Companion(0));
+            var onto = Mid(txtID);
+            var data = (dragSource.Last ?? DragPayload.Companion(0)).Wrapped();
+            town.DragDrop(onto, Avalonia.Input.Raw.RawDragEventType.DragEnter, data, DragDropEffects.Move, RawInputModifiers.None);
+            town.DragDrop(onto, Avalonia.Input.Raw.RawDragEventType.DragOver, data, DragDropEffects.Move, RawInputModifiers.None);
+            town.DragDrop(onto, Avalonia.Input.Raw.RawDragEventType.Drop, data, DragDropEffects.Move, RawInputModifiers.None);
+            Pump();
+            Check("Town: dropped there, it is named in the box and Sell is offered (FRMCITYC.BAS:788-796, 828-830)",
+                  (txtID.Text != "" && txtID.Text != "1", sell.IsEnabled).ToString(), "(True, True)");
+            typeof(CityWindow).GetField("_svc", flags)!.SetValue(town, confine);
+            Call("CloseService", null, null);
+            hero.Companions.Release(0);
+            Call("RefreshCompanions");
+            sheet.IsVisible = false;
+            Pump();
+        }
+
         Call("ShowStore", town, null);
         Pump();
         Call("ShowBank", town, null);
@@ -1054,6 +1144,40 @@ top.Close();
         Call("ShowDead");
         Pump();
         Check("Town: dead and alone, the dead screen is up and the town is not shown", (DeadUp(), cityChild.IsVisible).ToString(), "(True, False)");
+
+        // frmDungeonMain's Exit is on sub0930's screen at every depth (cmdAction 7 is q, which fn1521
+        // lets the dead take, MAINMOD2.BAS:3619-3631): in the morgue, below ground and in the rock.
+        // Without it a body the morgue cannot be paid for had no way out (issue #8). Its click asks
+        // "Exit to Main Menu?"; No leaves the screen as it was.
+        {
+            Button? DeadExit()
+            {
+                var dead = services.Cast<object>().First(s => Of<GameWindow?>(s, "Key") == GameWindow.Dungeon);
+                return (Of<ContentControl>(dead, "Page").Content as Panel)?.Children.OfType<Button>()
+                       .FirstOrDefault(b => b.Content as string == "Exit");
+            }
+            int levelWas = hero.DungeonLevel, causeWas = hero.CauseOfDeath;
+            foreach (var (where, level, cause) in new[] { ("in the morgue", 0, Rules.DeathOrdinary), ("below ground", 3, Rules.DeathOrdinary), ("in the rock", 3, Rules.DeathRock) })
+            {
+                hero.DungeonLevel = level; hero.CauseOfDeath = cause;
+                Call("ShowDead");
+                Pump();
+                Check($"Town: the dead screen {where} has the dungeon's Exit", DeadExit() != null, true);
+            }
+            hero.DungeonLevel = levelWas; hero.CauseOfDeath = causeWas;
+            Call("ShowDead");
+            Pump();
+            DeadExit()!.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+            Pump();
+            var asked = town.OwnedWindows.FirstOrDefault(w => w.Title == "EXIT");
+            Check("Town: the dead screen's Exit asks \"Exit to Main Menu?\"", asked != null, true);
+            if (asked != null)
+            {
+                asked.Close();   // No
+                Pump();
+            }
+            Check("Town: answered No, the dead screen stays up and the game goes on", (DeadUp(), town.IsVisible).ToString(), "(True, True)");
+        }
         var friend = new Character
         {
             Name = "Uicheckb", Race = RaceData.All[0].Name, CurHits = 10, MaxHits = 10,
@@ -2128,12 +2252,12 @@ Console.WriteLine("\nthe first-run window, preparing the game:");
         Environment.SetEnvironmentVariable("MORDOR_CRASHLOG", Path.Combine(scratchRoot, "crash.log"));
         Environment.SetEnvironmentVariable(GameFolder.EnvDir, Directory.CreateDirectory(Path.Combine(scratchRoot, "not-mordor")).FullName);
 
-        int started = 0; Window? mainNow = null;
+        int started = 0, located = 0; Window? mainNow = null;
         Window Start(string d) { started++; return menu = new Window { Width = 200, Height = 100, Title = "the menu" }; }
         var pending = new TaskCompletionSource<string?>();
         string? preparing = null;
         Task<string?> Prep(string d) { preparing = d; return pending.Task; }
-        var gate = (GameFolderWindow)GameFolderWindow.FirstWindow(GameFolder.Resolve(), Start, w => mainNow = w, Array.Empty<string>(), Prep);
+        var gate = (GameFolderWindow)GameFolderWindow.FirstWindow(GameFolder.Resolve(), Start, w => mainNow = w, Array.Empty<string>(), Prep, _ => located++);
         gateWin = gate;
         gate.Show(); Pump();
         void PressLocate()
@@ -2150,15 +2274,15 @@ Console.WriteLine("\nthe first-run window, preparing the game:");
         pending.SetResult("The game's pictures could not be read from " + picked + ": (the check's)");
         Pump();
         Check("not ready: it says why, the buttons back, nothing started, nothing kept",
-              (gate.Problem.Text, gate.Status.IsVisible, gate.LocateButton.IsEnabled, started, File.Exists(ini), gate.IsVisible),
-              ("The game's pictures could not be read from " + picked + ": (the check's)", false, true, 0, false, true));
+              (gate.Problem.Text, gate.Status.IsVisible, gate.LocateButton.IsEnabled, started, located, File.Exists(ini), gate.IsVisible),
+              ("The game's pictures could not be read from " + picked + ": (the check's)", false, true, 0, 0, false, true));
         pending = new TaskCompletionSource<string?>();
         PressLocate();
         Check("picked again: preparing again, the reason cleared", (gate.Status.IsVisible, gate.Problem.Text, gate.LocateButton.IsEnabled), (true, "", false));
         pending.SetResult(null);
         Pump();
-        Check("ready: the game's window shown as the main window, the first-run window gone, the folder kept",
-              (started, menu?.IsVisible == true, mainNow == menu, gate.IsVisible, GameFolder.Configured(ini)), (1, true, true, false, picked));
+        Check("ready: the game's window shown as the main window, the first-run window gone, the folder kept, and Locate handoff noted",
+              (started, located, menu?.IsVisible == true, mainNow == menu, gate.IsVisible, GameFolder.Configured(ini)), (1, 1, true, true, false, picked));
         menu?.Close(); Pump();
 
         // the start that must extract first
@@ -2354,7 +2478,7 @@ Console.WriteLine("\nthe menu's close box:");
     }
 }
 
-// ---- the menu while a mod's MainMenuOpened hook runs (API version 15): shut, its status line
+// ---- the menu while a mod's MainMenuOpened hook runs (API version 16): shut, its status line
 // saying why, until the hook is done. A hook may be busy with no box up (the iCloud Saves mod
 // restoring the saves), and a Play pressed then would load characters still being written ----
 Console.WriteLine("\nthe menu while a mod's start-up hook runs:");
@@ -2616,6 +2740,11 @@ Console.WriteLine("\nthe program's icon on the windows:");
     finally { try { plain?.Close(); helpWin?.Close(); Pump(); } catch { } }
 }
 
+failed += StoreUncurseCheck.Run(game);
+failed += StoreExitCheck.Run(game);
+failed += LegacyInstallerCheck.Run(game);
+failed += BodyRecoveryCheck.Run(game);
+
 Environment.SetEnvironmentVariable("MORDOR_ART_CACHE", artWas);
 try { Directory.Delete(artRoot, true); } catch { }
 
@@ -2639,6 +2768,9 @@ public sealed class MenuWaitMod : Mordor.Modding.IMod
 sealed class RecordingDragSource : Avalonia.Input.Platform.IPlatformDragSource
 {
     public DragPayload? Last;
+    /// <summary>The one the Companions page bound, for the town checks after it.</summary>
+    public static RecordingDragSource? Bound;
+    public RecordingDragSource() => Bound = this;
     public Task<DragDropEffects> DoDragDrop(PointerEventArgs triggerEvent, Avalonia.Input.IDataObject data, DragDropEffects allowedEffects)
     {
         Last = data.Get(DragPayload.Format) as DragPayload;

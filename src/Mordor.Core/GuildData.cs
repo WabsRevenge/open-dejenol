@@ -132,7 +132,7 @@ public static class GuildData
     /// </summary>
     public static void LoadFrom(string gameDir)
     {
-        string path = Path.Combine(gameDir, "MDATA1.MDR");
+        string path = GameFiles.DataFile(gameDir, "MDATA1.MDR");
         var guilds = MdrLoader.LoadGuilds(path);
         if (guilds.Count == 0) throw new InvalidDataException($"No guilds could be read from {path}.");
         All = guilds;

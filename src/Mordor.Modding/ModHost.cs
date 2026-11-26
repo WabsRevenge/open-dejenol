@@ -584,14 +584,14 @@ public sealed class ModHost
     }
 
     /// <summary>
-    /// Whether any running mod hooks <see cref="ModActions.CombatRound"/> (API version 16). The dungeon
+    /// Whether any running mod hooks <see cref="ModActions.CombatRound"/> (API version 15). The dungeon
     /// asks it at each tick before anything else, so with none hooked a round costs nothing more than
     /// the original's.
     /// </summary>
     public bool CombatRoundHooked => Live.Any(lm => lm.Context.Actions.CombatRound != null);
 
     /// <summary>
-    /// The main menu is up at the program's start, nothing loaded (API version 15): each live mod's
+    /// The main menu is up at the program's start, nothing loaded (API version 16): each live mod's
     /// <see cref="ModActions.MainMenuOpened"/>, as <see cref="EnteredDungeonFromTown"/> - in load
     /// order, each awaited, each with a <see cref="MainMenuContext"/> of its own closed when its hook
     /// is done. With no mod hooked the task is already complete and <paramref name="make"/> is never
@@ -605,7 +605,7 @@ public sealed class ModHost
     public bool MainMenuHooked => Live.Any(lm => lm.Context.Actions.MainMenuOpened != null);
 
     /// <summary>
-    /// The game's saves are on disk at a save point (<see cref="ModEvents.Saved"/>, API version 15):
+    /// The game's saves are on disk at a save point (<see cref="ModEvents.Saved"/>, API version 16):
     /// every live mod hears of it, each guarded. With no mod loaded, nothing.
     /// </summary>
     public void SavePointReached(SavePointKind kind)
@@ -1007,7 +1007,8 @@ public sealed class ModHost
     /// click). False with no mod: the Automap does nothing more than the original's.
     /// </summary>
     public bool AutomapHooked => Live.Any(lm => lm.Context.UI is { } ui
-        && (ui.AutomapMenu != null || ui.AutomapMarks != null || ui.AutomapHover != null || ui.AutomapClick != null));
+        && (ui.AutomapMenu != null || ui.AutomapMarks != null || ui.AutomapHover != null || ui.AutomapClick != null
+            || ui.AutomapInfo != null));
 
     /// <summary>The view one mod is handed: a pick's callback guarded for that mod, and not called once it has stopped.</summary>
     private AutomapView ViewFor(LoadedMod lm, AutomapView view) =>
@@ -1049,6 +1050,21 @@ public sealed class ModHost
             if (marks != null && !lm.Faulted) all.AddRange(marks.Where(m => m != null));
         }
         return all;
+    }
+
+    /// <summary>
+    /// The status line a running mod puts in place of the original's (<see cref="ModUI.AutomapInfo"/>): the
+    /// first non-null answer in load order, or null - the original's line. A mod that throws is disabled.
+    /// </summary>
+    public string? AutomapInfo(AutomapView view)
+    {
+        foreach (var lm in Live.ToList())
+        {
+            if (lm.Context.UI.AutomapInfo is not { } ask) continue;
+            string? line = Guard<string?>(lm, "AutomapInfo", () => ask(ViewFor(lm, view)), null);
+            if (line != null && !lm.Faulted) return line;
+        }
+        return null;
     }
 
     /// <summary>The pointer moved onto another square of the map, or off it (null): every running mod is told.</summary>

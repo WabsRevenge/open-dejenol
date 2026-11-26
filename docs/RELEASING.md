@@ -1,6 +1,6 @@
 # Releasing OpenDejenol
 
-A release is made by GitHub Actions from a tag pushed to the public repository,
+A release is packaged by GitHub Actions when you publish it in the public repository,
 [github.com/uncanardnoir/open-dejenol](https://github.com/uncanardnoir/open-dejenol). Nothing of
 the game's is in it: like the source, a release is only the engine, and the player points it at
 their own copy of Mordor.
@@ -13,6 +13,8 @@ their own copy of Mordor.
 | `OpenDejenol.Game-win-Portable.zip` | the same program to unzip anywhere and run (`OpenDejenol.exe`); it updates itself in place, like an installed copy |
 | `OpenDejenol.Game-<version>-full.nupkg`, `RELEASES`, `releases.win.json` | the update feed: what installed copies download and read |
 | `OpenDejenol.Game-<version>-delta.nupkg` | from the second release on: the change from the previous one, a much smaller download |
+| `OpenDejenol.Game-win-arm64-Setup.exe`, `OpenDejenol.Game-win-arm64-Portable.zip`, `OpenDejenol.Game-<version>-win-arm64-full.nupkg` (and `-delta`), `RELEASES-win-arm64`, `releases.win-arm64.json` | the same for ARM64 Windows (from 0.1.5): built natively for ARM64, on a Velopack channel of its own, `win-arm64`, so an ARM64 copy is only offered ARM64 updates and an x64 copy (channel `win`) only x64 ones |
+| `OpenDejenol.Game.AppImage`, `OpenDejenol.Game-<version>-linux-full.nupkg` (and `-delta`), `RELEASES-linux`, `releases.linux.json` | Linux x64 (from 0.1.6): a single AppImage to make executable and run, on a channel of its own, `linux`. Packed from Windows by vpk's `[linux]` directive; it updates itself like the Windows copies |
 
 The program is self-contained (no .NET to install) and not a single file: the bundled mods are in
 `mods\` beside it, as in a build (docs/MODDING.md). Each copy carries `LICENSE.txt` (GPL-3.0).
@@ -24,8 +26,9 @@ before it is tagged. To see what a release would hold, run it yourself (Windows,
 
     sh tools/pack-release.sh ../release-test
 
-It publishes into `../release-test/publish`, checks the publish (the program, each bundled mod's
-dll and mod.json, the licence, no file of the game's, no path of your user folder) and packs into
+It publishes into `../release-test/publish/win-x64`, `../release-test/publish/win-arm64` and `../release-test/publish/linux-x64`, checks
+each publish (the program built for that processor, the SoundFont and the fonts' licence, each bundled mod's dll and mod.json, the
+licence, no file of the game's, no path of your user folder) and packs all three into
 `../release-test/releases`, listing each file's size and SHA-256. It never runs the program or the
 installer.
 
@@ -37,22 +40,30 @@ installer.
 2. **Check.** The Release build has no warning, and `sh tools/check.sh <your Mordor folder>` ends
    in `all good`.
 3. **Commit** the change to `main` of the public repository and push it.
-4. **Tag and push the tag** - `v` and the version, exactly:
+4. **Create the release on GitHub.** Open Releases > Draft a new release. In Choose a tag,
+   enter `v` plus the project version (for example `v0.2.0`) and choose Create new tag. Target
+   `main`, which must already contain the version bump and workflow changes. Enter the title
+   and notes. For a test release, use a suffixed version such as `0.2.0-beta.1` and select
+   the pre-release checkbox. Click Publish release.
 
-       git tag -a v0.2.0 -m "OpenDejenol 0.2.0"
-       git push origin v0.2.0
+   Publishing triggers the workflow for stable and pre-releases. Saving a draft or pushing a
+   tag alone does not trigger it. The tag must match the version in the tagged .csproj exactly.
+5. **Wait for the Release workflow** on the Actions tab. It builds and tests the tagged code,
+   fetches the most recent earlier completed eligible release as a delta base, packs, and
+   attaches the downloads to the release you published. Stable builds exclude pre-release
+   bases; test builds may use them. The current release, drafts and releases missing the
+   Windows feed/full package are skipped. API/download errors fail the step rather than
+   being misreported as no previous release.
 
-   The workflow refuses a tag that is not `v` + the version in the .csproj.
-5. **The workflow** (`.github/workflows/release.yml`, the Actions tab) builds and tests the
-   solution, fetches the previous release to make a delta package against, packs, and uploads
-   everything to a GitHub release named "OpenDejenol 0.2.0" on that tag:
-   - a tag with a suffix (`v0.2.0-beta.1`) is **published at once as a pre-release**;
-   - a plain tag (`v0.2.0`) becomes a **draft**. Download its Setup.exe (or the copy attached to
-     the workflow run), try it, write the release notes, and press Publish. Nobody is offered a
-     draft.
-6. **If it fails**, read the run's log. A failure before the upload leaves nothing behind: fix,
-   move the tag (`git tag -d`, `git push origin :refs/tags/v0.2.0`, tag again) and push it again.
-   A failure after the release was made: delete that release on GitHub first.
+   The uploader uses `--merge`, so the existing release is expected. Its pre-release checkbox
+   determines the channel behavior. No second publication, cancellation, release deletion or
+   workflow rerun is part of a normal release. The page is public while the build runs; its
+   downloads become available when the upload completes. Check the installer and portable ZIP
+   are attached and try the package before announcing it.
+6. **If it fails**, read the run's log. A transient build failure can be retried with Re-run
+   failed jobs; do not delete the release/tag just to retry it. If the tag points to code with
+   the wrong version, rerunning the same commit cannot fix it: correct the version and release
+   the corrected commit. Never move a tag or reuse a version after packages were distributed.
 
 ## Updates
 
@@ -100,7 +111,7 @@ on without filling the step in cannot ship an unsigned release by mistake.
 ## What GitHub needs
 
 - Actions enabled for the repository. The workflows ask for their own permissions (`contents:
-  read` for CI, `contents: write` for the release, to make the release and upload to it) and use
+  read` for CI, `contents: write` for the release, to attach packages to it) and use
   only the built-in `GITHUB_TOKEN`: no secret is needed.
 - Nothing in the workflows needs the game: CI's `dotnet test` runs the test project, whose suites
   all skip without `MORDOR_GAMEDIR`. The full check, `tools/check.sh`, is run locally against a

@@ -127,7 +127,7 @@ public static partial class ModProbe
               System.Text.RegularExpressions.Regex.IsMatch(tw, @"Task MenuModsOpened\(\)\s*\{\s*var shut = Form\.Children\.OfType<Button>\(\)\.Where\(b => b != ExitBtn[^;]*;\s*foreach \(var b in shut\) b\.IsEnabled = false;[^}]*try \{ await ModStartup\.MainMenuOpened\(this\); \}\s*finally\s*\{[^}]*foreach \(var b in shut\) b\.IsEnabled = true;"), true);
         string city = PortSource("src/Mordor.App", "CityWindow.axaml.cs").Replace("\r\n", "\n");
         Check("the city raises Saved after its arrival save, and after its last save as it closes",
-              city.Contains("RefreshSummary(); Save();\n        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 15)\n        Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);")
+              city.Contains("RefreshSummary(); Save();\n        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 16)\n        Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);")
               && System.Text.RegularExpressions.Regex.IsMatch(city, @"else \{ SaveWindowLayout\(\); Save\(\); \}\s*(//[^\n]*\n\s*)*Mordor\.Modding\.ModHost\.Active\.SavePointReached\(Mordor\.Modding\.SavePointKind\.GameEnded\);"), true);
 
         // a context is good only while its hook runs

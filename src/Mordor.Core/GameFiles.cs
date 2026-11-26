@@ -78,6 +78,20 @@ public static class GameFiles
     public static readonly string[] Required =
         { "MORDOR.EXE", "MDATA1.MDR", "MDATA2.MDR", "MDATA3.MDR", "MDATA5.MDR", "MDATA11.MDR" };
 
+    /// <summary>Find a game data file in the game folder, or its DATA subfolder.</summary>
+    public static string DataFile(string gameDir, string fileName)
+    {
+        string path = Path.Combine(gameDir, fileName);
+        return File.Exists(path) ? path : Path.Combine(gameDir, "DATA", fileName);
+    }
+
+    /// <summary>Find a MIDI or WAV file in the game folder, or its MUSIC subfolder.</summary>
+    public static string AudioFile(string gameDir, string fileName)
+    {
+        string path = Path.Combine(gameDir, fileName);
+        return File.Exists(path) ? path : Path.Combine(gameDir, "MUSIC", fileName);
+    }
+
     /// <summary>
     /// MORDOR.EXEs that are known, by SHA-256: a name for the log and the first-run screen, never
     /// a requirement. The 1.1 release is the copy in MordorSetup.exe (Tarma InstallMate
@@ -99,7 +113,8 @@ public static class GameFiles
             return new GameFilesCheck(full, GameFilesVerdict.NotFound, "There is no such folder.");
 
         string P(string f) => Path.Combine(full, f);
-        var missing = Required.Where(f => !File.Exists(P(f))).ToList();
+        string D(string f) => DataFile(full, f);
+        var missing = Required.Where(f => !File.Exists(f == "MORDOR.EXE" ? P(f) : D(f))).ToList();
         if (missing.Count == Required.Length)
             return new GameFilesCheck(full, GameFilesVerdict.Missing, "This folder has none of Mordor's files in it (MORDOR.EXE, MDATA1.MDR ...).");
         if (missing.Count > 0)
@@ -115,7 +130,7 @@ public static class GameFiles
         string? version = null;
         foreach (string f in new[] { "MDATA1.MDR", "MDATA2.MDR", "MDATA3.MDR", "MDATA5.MDR" })
         {
-            string? v = DataVersion(P(f));
+            string? v = DataVersion(D(f));
             if (v == null)
                 return new GameFilesCheck(full, GameFilesVerdict.NotMordor, f + " here is not a Mordor data file.");
             version ??= v;
@@ -124,11 +139,11 @@ public static class GameFiles
         int levels, deepestMonster, deepestItem;
         try
         {
-            levels = MdrLoader.LoadDungeon(P("MDATA11.MDR")).Count;
-            deepestMonster = MdrLoader.LoadMonsters(P("MDATA5.MDR")).Select(m => (int)m.LevelFound).DefaultIfEmpty(0).Max();
-            deepestItem = MdrLoader.LoadItems(P("MDATA3.MDR")).Select(i => (int)i.Floor).DefaultIfEmpty(0).Max();
-            MdrLoader.LoadSpells(P("MDATA2.MDR"));
-            if (MdrLoader.LoadRaces(P("MDATA1.MDR")).Count == 0 || MdrLoader.LoadGuilds(P("MDATA1.MDR")).Count == 0)
+            levels = MdrLoader.LoadDungeon(D("MDATA11.MDR")).Count;
+            deepestMonster = MdrLoader.LoadMonsters(D("MDATA5.MDR")).Select(m => (int)m.LevelFound).DefaultIfEmpty(0).Max();
+            deepestItem = MdrLoader.LoadItems(D("MDATA3.MDR")).Select(i => (int)i.Floor).DefaultIfEmpty(0).Max();
+            MdrLoader.LoadSpells(D("MDATA2.MDR"));
+            if (MdrLoader.LoadRaces(D("MDATA1.MDR")).Count == 0 || MdrLoader.LoadGuilds(D("MDATA1.MDR")).Count == 0)
                 throw new InvalidDataException("no races or guilds");
         }
         catch (Exception ex)

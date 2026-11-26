@@ -157,7 +157,7 @@ public enum TownArrivalKind
 /// <param name="How">How it came up.</param>
 public sealed record TownArrival(Party Party, Character Selected, TownArrivalKind How);
 
-/// <summary>Which save point a <see cref="ModEvents.Saved"/> is (API version 15).</summary>
+/// <summary>Which save point a <see cref="ModEvents.Saved"/> is (API version 16).</summary>
 public enum SavePointKind
 {
     /// <summary>The party walked up the stairs into town, and the town saved them after its rest.</summary>
@@ -224,7 +224,7 @@ public sealed class ModEvents
     /// </summary>
     public event Action<CombatExperience>? ExperienceGained;
     /// <summary>
-    /// The game has just written its saves at one of its save points (API version 15,
+    /// The game has just written its saves at one of its save points (API version 16,
     /// <see cref="SavePoint"/>): the party back in town up the stairs, saved after the town's rest and
     /// after whatever <see cref="ModDecisions.TownArrival"/> asked for (so after
     /// <see cref="ArrivedInTown"/>, which is raised before that save); and the game ending - Exit to
@@ -468,7 +468,7 @@ public sealed class ModActions
     public Func<DungeonContext, Task>? LeavingByStairs { get; set; }
 
     /// <summary>
-    /// A round of an engaged fight is about to be played (API version 14): the one-second combat
+    /// A round of an engaged fight is about to be played (API version 15): the one-second combat
     /// timer has ticked (timCombat, FRMDUNM.BAS:616; the round, MULTIMOD.BAS:497) and no character
     /// has acted yet. The hook may give orders through <see cref="CombatRoundContext"/> - the same
     /// order keys and Cast a player presses between ticks - and they are what the round plays.
@@ -547,7 +547,7 @@ public sealed class CombatRoundContext
     /// <param name="cast">Cast for a member with monsters engaged: the spell becomes the order.</param>
     /// <param name="useItem">Use for a member on a pack slot whose item holds a spell: it becomes the order.</param>
     /// <param name="aim">A number key for a member: aim at the slot.</param>
-    /// <param name="byHand">Whether the player has given a member an order by hand this fight (API version 16); null for nobody.</param>
+    /// <param name="byHand">Whether the player has given a member an order by hand this fight (API version 15); null for nobody.</param>
     public CombatRoundContext(Party party, IReadOnlyList<Spell> spells, Func<short, Item?> item, object fight,
                               IReadOnlyList<MonsterGroupView> groups, Func<Character, CombatOrderView> orderOf,
                               Func<Character, int?> aimedAt, Func<Character, OrderKind, bool> order,
@@ -594,7 +594,7 @@ public sealed class CombatRoundContext
     /// <summary>The slot (0-3) the member is aiming at, or null.</summary>
     public int? AimedAt(Character c) => _aimed(c);
     /// <summary>
-    /// Whether the player has given this member an order by hand in this fight (API version 16): f, d
+    /// Whether the player has given this member an order by hand in this fight (API version 15): f, d
     /// or space, a number key's aim, Cast or Use, or a spell buffer, pressed while the member was in
     /// command. A mod giving orders by rules leaves such a member alone until the fight ends, so a
     /// key pressed is never replaced before it plays.
@@ -1212,6 +1212,14 @@ public sealed class ModUI
     /// did something. Every running mod is told; the marks are asked for again after.
     /// </summary>
     public Func<AutomapView, AutomapSquare, bool>? AutomapClick { get; set; }
+
+    /// <summary>
+    /// A line for the Automap's status line (lblInfo) in place of the original's "You are at ...", or null
+    /// for the original's (API version 14). Asked each time the marks are, straight after them; the first
+    /// running mod with a non-null answer decides. A pick's prompt (<see cref="AutomapView.PickSquare"/>)
+    /// still comes first. With no mod answering, the line is the original's.
+    /// </summary>
+    public Func<AutomapView, string?>? AutomapInfo { get; set; }
 }
 
 // ---------------------------------------------------------------------------------------- automap
@@ -1221,6 +1229,26 @@ public sealed class ModUI
 /// north, as the port keeps squares (the Automap's own readout, "You are at 5,7,1", adds one to each).
 /// </summary>
 public sealed record AutomapSquare(int Level, int X, int Y);
+
+/// <summary>
+/// Where the party stands as the Automap shows it (API version 14): the square its arrow is drawn on and
+/// the way the arrow points.
+/// </summary>
+public sealed record AutomapPosition(AutomapSquare Square, Facing Facing);
+
+/// <summary>
+/// What the Automap has written down about one square (API version 14) - what it draws, and nothing of
+/// the maze it has not been told. <paramref name="Walked"/>: the square has been stood on (drawn black).
+/// <paramref name="Flags"/>: the automap's flag word for it, the bits numbered as <see cref="Floor"/>'s
+/// (walls and doors on its east and north sides, a secret door once found, the features stepping on it
+/// records, and the ones perception has noticed). A square never walked may still carry an edge, seen
+/// from the square beside it.
+/// </summary>
+public readonly record struct AutomapRecord(bool Walked, long Flags)
+{
+    /// <summary>Whether the map has this square down as carrying a <see cref="Floor"/> bit.</summary>
+    public bool Has(int bit) => (Flags & (1L << bit)) != 0;
+}
 
 /// <summary>What an <see cref="AutomapMark"/> draws.</summary>
 public enum AutomapMarkKind
@@ -1284,6 +1312,8 @@ public sealed class AutomapView
     private readonly Action _refresh, _cancel;
     private readonly Action<string, Action<AutomapSquare?>> _pick;
     private readonly Func<bool> _picking;
+    private readonly Func<AutomapPosition?> _you;
+    private readonly Func<AutomapSquare, AutomapRecord> _record;
 
     /// <param name="shownLevel">The level the map shows now (hsbLevel.Value).</param>
     /// <param name="deepestLevel">The deepest it can be paged to (hsbLevel.Max).</param>
@@ -1293,13 +1323,30 @@ public sealed class AutomapView
     /// <param name="pick">Put up a prompt and wait for the player to click a square (see <see cref="PickSquare"/>).</param>
     /// <param name="cancelPick">Give up a pick that is waiting (its callback gets null).</param>
     /// <param name="picking">Whether a pick is waiting.</param>
+    /// <param name="you">Where the map's arrow stands, or null (see <see cref="You"/>); none given: null.</param>
+    /// <param name="record">What the map has written down about a square (see <see cref="Record"/>); none given: nothing.</param>
     public AutomapView(Func<int> shownLevel, Func<int> deepestLevel, Func<int, (int Width, int Height)> levelSize,
                        Action<int> showLevel, Action refresh, Action<string, Action<AutomapSquare?>> pick,
-                       Action cancelPick, Func<bool> picking)
+                       Action cancelPick, Func<bool> picking,
+                       Func<AutomapPosition?>? you = null, Func<AutomapSquare, AutomapRecord>? record = null)
     {
         _shown = shownLevel; _deepest = deepestLevel; _size = levelSize; _show = showLevel;
         _refresh = refresh; _pick = pick; _cancel = cancelPick; _picking = picking;
+        _you = you ?? (() => null);
+        _record = record ?? (_ => default);
     }
+
+    /// <summary>
+    /// Where the party stands, as the map's own arrow shows it (API version 14): its square and facing.
+    /// Null whenever the map draws no arrow - in town, and while the party is lost.
+    /// </summary>
+    public AutomapPosition? You => _you();
+
+    /// <summary>
+    /// What the map has written down about a square (API version 14): whether it has been walked, and
+    /// the flag word it is drawn from. Nothing (not walked, no flags) off the level or past the deepest.
+    /// </summary>
+    public AutomapRecord Record(AutomapSquare square) => _record(square);
 
     /// <summary>The level shown now.</summary>
     public int ShownLevel => _shown();
@@ -1329,7 +1376,7 @@ public sealed class AutomapView
 
     /// <summary>The same map, with a pick's callback wrapped (the host's guard for one mod).</summary>
     internal AutomapView WithPickGuard(Func<Action<AutomapSquare?>, Action<AutomapSquare?>> wrap) =>
-        new(_shown, _deepest, _size, _show, _refresh, (p, d) => _pick(p, wrap(d)), _cancel, _picking);
+        new(_shown, _deepest, _size, _show, _refresh, (p, d) => _pick(p, wrap(d)), _cancel, _picking, _you, _record);
 }
 
 // ------------------------------------------------------------------------------------------- log

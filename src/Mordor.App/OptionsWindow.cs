@@ -36,6 +36,9 @@ public sealed class OptionsWindow : Window
     private readonly TextBlock _label2, _label3;
     private readonly bool _inGame;
     private TextBlock? _lastBackup;
+    /// <summary>The port's Use built-in soundfont box: its key here, and the player when the form opened.</summary>
+    private const string SoundfontKey = "BuiltInSoundfont";
+    private readonly bool _soundfontWas;
 
     /// <summary>True when OK was used, so the caller knows to apply what changed.</summary>
     public bool Accepted { get; private set; }
@@ -123,6 +126,23 @@ public sealed class OptionsWindow : Window
         var noFx = Box(nameof(GameOptions.NoFX), "No Sound FX", _o.NoFX);
         // the form greys the slider out while its "No" box is ticked
         noMusic.IsCheckedChanged += (_, _) => _music.IsEnabled = noMusic.IsChecked != true;
+        // No Music is live too (chkCheck_Click, Case 1, FRMOPTIO.BAS:76-87): ticked, the player is
+        // closed; cleared, THEME plays
+        noMusic.IsCheckedChanged += (_, _) => Audio.NoMusicChanged(noMusic.IsChecked == true);
+        // the port's own box, on Windows alone (elsewhere the soundfont is the only player): which
+        // MIDI player plays the music. Live like the music boxes; Cancel puts it back before
+        // Form_Unload's THEME below, so that plays on the player kept; OK writes settings.ini
+        _soundfontWas = Audio.UsingSoundfont;
+        if (OperatingSystem.IsWindows())
+        {
+            var soundfont = Box(SoundfontKey, "Use built-in soundfont", _soundfontWas);
+            soundfont.IsCheckedChanged += (_, _) => Audio.SoundfontChanged(soundfont.IsChecked == true);
+            // Cancel: the player put back with the tag empty, so OptionsClosed's THEME then plays on it
+            Closed += (_, _) => { if (!Accepted) Audio.SoundfontChanged(_soundfontWas, playTheme: false); };
+        }
+        // Cancel puts both music flags back and stops the player (FRMOPTIO.BAS:138-154); then,
+        // either way, Form_Unload (FRMOPTIO.BAS:376-387)
+        Closed += (_, _) => Audio.OptionsClosed(!Accepted, _o.NoMusic, _o.SoundCanvas);
         // No Sound FX is live (chkCheck_Click, Case 2, FRMOPTIO.BAS:88-99): ticked, the slider greys
         // and mdrDeInitializeFX closes the effects down; cleared, the slider comes back, fn1A08 opens
         // them again and sub09DE plays RAISE - or, if the device will not open, the form's box and
@@ -166,6 +186,19 @@ public sealed class OptionsWindow : Window
         // the Mods page is reached from the main menu's own Mods button, not from here: the form
         // is bm3.png's, OK and Cancel alone
 
+        var musicSettings = new StackPanel
+        {
+            Spacing = 6,
+            Children =
+            {
+                Labelled("Music Vol.", _music, noMusic),
+                Labelled("FX Vol.", _fx, noFx),
+                Box(nameof(GameOptions.SoundCanvas), "Use Sound Canvas MIDI", _o.SoundCanvas),
+            },
+        };
+        // the port's own, under the original's boxes (see _soundfontWas)
+        if (_boxes.TryGetValue(SoundfontKey, out var soundfontBox)) musicSettings.Children.Add(soundfontBox);
+
         Content = new Border
         {
             Padding = new Thickness(14),
@@ -189,16 +222,7 @@ public sealed class OptionsWindow : Window
                                         ColumnDefinitions = new ColumnDefinitions("Auto,16,Auto"),
                                         Children = { left, Place(right, 2) },
                                     }),
-                                    Group("Music Settings", new StackPanel
-                                    {
-                                        Spacing = 6,
-                                        Children =
-                                        {
-                                            Labelled("Music Vol.", _music, noMusic),
-                                            Labelled("FX Vol.", _fx, noFx),
-                                            Box(nameof(GameOptions.SoundCanvas), "Use Sound Canvas MIDI", _o.SoundCanvas),
-                                        },
-                                    }),
+                                    Group("Music Settings", musicSettings),
                                 },
                             },
                             Place(new StackPanel
@@ -235,6 +259,10 @@ public sealed class OptionsWindow : Window
                 },
             },
         };
+        // Use Sound Canvas MIDI is live (Case 4, FRMOPTIO.BAS:110-114): the player stopped, the
+        // table filled again and THEME asked for
+        if (_boxes.TryGetValue(nameof(GameOptions.SoundCanvas), out var soundCanvas))
+            soundCanvas.IsCheckedChanged += (_, _) => Audio.SoundCanvasChanged(soundCanvas.IsChecked == true);
     }
 
     private static Control Place(Control c, int column)
@@ -493,7 +521,14 @@ public sealed class OptionsWindow : Window
         _o.FXVolume = _fxRaw;
         // written to the saves directory's settings.ini, never a MORDOR.INI. The smoke tests drive this
         // window, and none of them is going to rewrite the player's settings.
-        if (Environment.GetEnvironmentVariable("MORDOR_TEST") == null) _o.Save(_gameDir);
+        if (Environment.GetEnvironmentVariable("MORDOR_TEST") == null)
+        {
+            _o.Save(_gameDir);
+            // the port's own box, into the port's settings.ini (MusicPlayers)
+            if (_boxes.ContainsKey(SoundfontKey))
+                PortSettings.Write(Saves.DirFor(_gameDir), MusicPlayers.SettingKey,
+                    Ticked(SoundfontKey) ? MusicPlayers.SoundfontValue : "Windows");
+        }
         Accepted = true;
     }
 }

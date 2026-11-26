@@ -125,8 +125,9 @@ In order; the first that fails is the answer, and the player is told which:
 
 1. The folder exists.
 2. **Required files**: `MORDOR.EXE`, `MDATA1.MDR`, `MDATA2.MDR`, `MDATA3.MDR`, `MDATA5.MDR`,
-   `MDATA11.MDR` - what the port reads (sounds and music are optional, as they are now).
-   Missing: refused.
+   `MDATA11.MDR` - what the port reads (sounds and music are optional, as they are now). The MDR
+   files may be in the game folder or its `DATA` subfolder. Optional `.MID` and `.WAV` files may be
+   in the game folder or its `MUSIC` subfolder. Missing required files: refused.
 3. `MORDOR.EXE` is a Windows 3.1 program (MZ, then NE), as Mordor 1.x is. Not: refused.
 4. MDATA1, 2, 3 and 5 open with a data version string (`digit.digit...`); the number itself is not
    checked, so a 1.0 or another 1.1 pressing reads too. Not: refused.
@@ -210,19 +211,19 @@ order; the first full one wins, and with none the first shareware one.
 With no Mordor to play, the menu is never made. A small window comes up instead, headed "Mordor
 game files not found", saying that the port plays the player's own copy, that it needs Mordor's
 own files (MORDOR.EXE and the MDATA files), that the shareware plays as the shareware did with its
-three levels, that Decklin's Domain's installers (MordorSetup.exe, and the free MordorDemoSetup.exe)
+three levels, that Decklin's Domain's packages (M1FULL.zip, MordorSetup.exe, and the free MordorDemoSetup.exe)
 do not run on Windows 10 or 11 and the port unpacks them instead, and what was wrong with the
 folder found.
 
-- When MordorSetup.exe or MordorDemoSetup.exe is in the player's Downloads folder (the Downloads
+- When M1FULL.zip, MordorSetup.exe or MordorDemoSetup.exe is in the player's Downloads folder (the Downloads
   known folder, wherever it has been moved; `MORDOR_DOWNLOADS` replaces it for the checks), the
   window says so - "Found MordorSetup.exe in Downloads." - with an "Unpack it" button. It is
   offered, never unpacked unasked.
-- "Use the installer..." opens a file picker (`*.exe`, starting in Downloads) for the installer.
+- "Use the installer..." opens a file picker (`*.zip` and `*.exe`, starting in Downloads) for the package.
 - Either unpacks it (`InstallerUnpack.Unpack`, below) off the window's thread, the buttons off and
   "Unpacking MordorSetup.exe ..." shown meanwhile. A file that is not one of the installers keeps
   the window up with "This file isn't a Mordor installer OpenDejenol can read. Choose
-  MordorSetup.exe or MordorDemoSetup.exe, as downloaded from Decklin's Domain."; what was wrong
+  M1FULL.zip, MordorSetup.exe or MordorDemoSetup.exe, as downloaded from Decklin's Domain."; what was wrong
   with the file goes to the crash log.
 - "Locate Mordor..." opens a folder picker, for a Mordor installed some other way; the folder
   picked is checked again (its `game_files` too, if the folder above was picked by mistake).
@@ -295,7 +296,29 @@ outright. Checked with read-only scratch folders in `selfcheck` (the game files 
 
 ## The installers (`InstallerUnpack`)
 
-Mordor is sold today by Decklin's Domain as `MordorSetup.exe` (6,041,600 bytes; "Installer for
+### Legacy ZIP package
+
+`M1FULL.zip` is also supported directly (verified 2026-11-09 on the user's purchased copy,
+6,576,066 bytes). It contains an installer bundle under `M1FULL/`; `MORDOR.WIP` and `WAVES.WIP`
+inside it are ordinary ZIP archives. The former holds the game/data/graphics/music files, the
+latter its audio. Their flat files are combined in the usual staging directory and validated
+with `GameFiles.Check` before replacing the full edition. The installer helpers and optional
+screensaver are skipped. Nothing in the package is executed.
+
+The wrapper folder is optional and names are case-insensitive. One `MORDOR.WIP` is required;
+the matching `WAVES.WIP` is optional. ZIP paths, duplicate destinations, entry counts,
+cumulative expanded size, actual entry lengths and CRCs are checked. Unsafe paths, malformed
+archives and conflicting files fail before installation. Both the picker and Downloads offer
+use the same reader. Failed unpacking preserves an existing installed edition.
+
+Synthetic checks cover successful import and malformed archives; `MORDOR_LEGACY_INSTALLER`
+optionally names an owned ZIP for real-package checks, including exact core-file comparisons.
+The headless first-run checks exercise choosing the ZIP and accepting its Downloads offer.
+No original package or game files are included in the source repository.
+
+### Self-contained setup executables
+
+The other supported full-game package is `MordorSetup.exe` (6,041,600 bytes; "Installer for
 Mordor v1.1 The Depths of Dejenol"), and the demo is `MordorDemoSetup.exe` (2,761,728 bytes, from
 <https://www.decklinsdomain.info/DsD/mordor1/MordorDemoSetup.exe>). Both are Tarma InstallMate 9
 setups of 2016, and both refuse to run on Windows 10 and 11 ("Windows 10 (x64) ... not supported";
@@ -436,10 +459,11 @@ titles, text, line layout, tab stops and 103 jumps, except:
   reproduce every stop of MORDOR.HLP 1.1, but they are fitted to it, and another release's help
   may come out a point off here and there.
 
-**What must be there.** MORDOR.EXE (already required) and MG11.DLL: the original itself stops
-without MG11.DLL ("Error! Cannot locate graphics file ... Halting Program", MODULE12.BAS:71-75),
-and so does the port - the first-run window comes back with the reason, as it does for an
-MG11.DLL that holds none of the pictures. Anything else missing or unreadable becomes a blank
+**What must be there.** MORDOR.EXE (already required) and MG11.DLL, which may be in the game
+folder or its `DATA` subfolder: the original itself stops without MG11.DLL ("Error! Cannot locate
+graphics file ... Halting Program", MODULE12.BAS:71-75), and so does the port - the first-run window
+comes back with the reason, as it does for an MG11.DLL that holds none of the pictures. Anything
+else missing or unreadable becomes a blank
 picture of the right size with a note in the crash log, and the game goes on; no MORDOR.HLP means
 the help window says the help is unavailable.
 
@@ -456,9 +480,11 @@ one with neither `cityw1.png` nor `CITYW1.BMP` gets the program's own city pictu
 ## Importing the original's saves
 
 A player who has played the original can bring the game across: **Options, File Backups, "Import
-Original Saves..."** (from the main menu only, as Backup and Restore are). It reads the original's
-`DATA` folder - or the game's folder with `DATA` inside it, as `BasePath + "DATA\"` (gc1C74) - and
-writes the port's JSON into the saves folder in use.
+Original Saves..."** (from the main menu only, as Backup and Restore are). After choosing a game folder
+with **Locate Mordor**, the port offers this import when that folder contains `MDATA4.MDR` and the
+saves folder has no characters. It reads the original's `DATA` folder - or the game's folder with
+`DATA` inside it, as `BasePath + "DATA\"` (gc1C74) - and writes the port's JSON into the saves folder
+in use.
 
 Code: `src/Mordor.Core/Import/VbLayout.cs` (the record types and each file's `Len`),
 `src/Mordor.Core/Import/OriginalSaves.cs` (reading, field by field into the port's model),

@@ -8,7 +8,7 @@ namespace Mordor.Mod.AutoCombat;
 /// ordered rules (<see cref="Rule"/>, <see cref="RuleEngine"/>) - the orders a player gives between
 /// the one-second ticks by hand, and nothing a player could not give: Fight, Defend, None, a combat
 /// spell of their own or an item's made the standing order, and the group aimed at. Through
-/// <see cref="ModActions.CombatRound"/> (API version 14), so every order goes through the game's own
+/// <see cref="ModActions.CombatRound"/> (API version 15), so every order goes through the game's own
 /// keys and Cast, with its checks, refusals and lines.
 ///
 /// What it is held to, as the Kaizen mod is: it reveals nothing the player was not shown (the rules
@@ -84,7 +84,7 @@ public sealed class AutoCombatMod : IMod, IModLifecycle
     /// <summary>
     /// One round: decide for every member, then give each decision through the game. A member the
     /// player gave an order by hand this fight is left out (<see cref="CombatRoundContext.ByHand"/>,
-    /// API version 16), so the key pressed plays; as is the one in command, when asked.
+    /// API version 15), so the key pressed plays; as is the one in command, when asked.
     /// </summary>
     public void Round(CombatRoundContext round, IReadOnlyList<Rule> rules, bool leaveInCommand)
     {

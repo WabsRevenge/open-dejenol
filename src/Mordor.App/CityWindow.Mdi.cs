@@ -528,6 +528,24 @@ public partial class CityWindow
     /// form's client, which holds every control. A redraw in place (the Guild's lblCall "UPDATE",
     /// the Bank's) builds the same size again, so the window still fits it.
     /// </summary>
+    /// <summary>
+    /// The service window's page set, or cleared with null. The keyboard is taken off the old page
+    /// first, while the page is still whole. A page taken out with the focus inside it makes Avalonia
+    /// move the focus half way through taking it out; the Store's buy list, a DataGrid, answers a lost
+    /// focus by unloading the row it kept for the keyboard (its current row, scrolled out of view)
+    /// from the very list Avalonia is walking, which threw ArgumentOutOfRangeException out of
+    /// CloseService (a player's crash.log, November 2026: a row clicked, its alignment picked, the list
+    /// scrolled, EXIT). A port necessity: it is the same focus change, made a moment sooner.
+    /// </summary>
+    private void SetServicePage(object? content)
+    {
+        if (ServicePage.Content is Avalonia.Input.InputElement { IsKeyboardFocusWithin: true })
+            FocusManager?.ClearFocus();
+        ServicePage.Content = content;
+        // a crash in town says which window was up, not the dungeon's last key from long before
+        CrashLog.Context = content == null ? "in town" : $"in town, {_svc.Key?.ToString() ?? "a service"} open";
+    }
+
     private void ShowForm(FormPage page)
     {
         bool was = _serviceForm == page.Client;
@@ -538,7 +556,7 @@ public partial class CityWindow
         ServiceScroll.HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
         ServiceScroll.VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Disabled;
         _serviceChild.BodyMargin = new Avalonia.Thickness(0);
-        ServicePage.Content = page.Page;
+        SetServicePage(page.Page);
         if (!was && ServicePanel.IsVisible) PlaceService();
     }
 
@@ -763,7 +781,7 @@ public partial class CityWindow
     private int SavedArea(Character c) => c.AreaOr(k =>
     {
         if (k.DungeonLevel <= 0) return -1;
-        try { _areaDungeon ??= MdrLoader.LoadDungeon(System.IO.Path.Combine(_gameDir, "MDATA11.MDR")); }
+        try { _areaDungeon ??= MdrLoader.LoadDungeon(GameFiles.DataFile(_gameDir, "MDATA11.MDR")); }
         catch { return -1; }
         return k.DungeonLevel <= _areaDungeon.Count ? _areaDungeon[k.DungeonLevel - 1].AreaIdAt(k.X, k.Y) : -1;
     });
@@ -791,6 +809,7 @@ public partial class CityWindow
         }
         PackList.ItemsSource = rows;
         PackList.SelectedIndex = Math.Clamp(sel, 0, Character.PackSize - 1);
+        RefreshParty();   // a mod column may read the pack (the QoL quest mark)
     }
 
     /// <summary>

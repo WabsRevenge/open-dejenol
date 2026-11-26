@@ -25,6 +25,7 @@ public partial class TitleWindow : Window
     /// <summary>The player's Mordor folder, set at start from <see cref="GameFolder"/> before this window is made.</summary>
     public static string GameDir { get; set; } = "";
     private string SavesDir => Saves.DirFor(GameDir);
+    internal bool OfferLegacyImport { get; set; }
 
     /// <summary>Sub Main runs once a run, and with it the limited build's "Public Version" box.</summary>
     private static bool _publicBoxShown;
@@ -38,6 +39,13 @@ public partial class TitleWindow : Window
     public TitleWindow()
     {
         InitializeComponent();
+        KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
+        // away from Windows, the form's Windows faces drawn in their Liberation twins (PortFonts)
+        if (PortFonts.StandIn)
+        {
+            FontFamily = PortFonts.Family("Microsoft Sans Serif, MS Sans Serif, Arial");
+            MordorTitle.FontFamily = PortFonts.Family("Times New Roman");
+        }
         // frmMain's caption, which MDIForm_Load sets before the menu is shown (FRMMAIN.BAS:148-152;
         // Sub Main shows frmMain, MAINMOD2.BAS:6456): "Mordor 1.1", gc0192 + " " + gc0186, and
         // "Mordor 1.1 (Limited Version)" in the limited build - the shareware's frame reads that at
@@ -55,7 +63,7 @@ public partial class TitleWindow : Window
         }
         catch (Exception ex)
         {
-            loadFailed = "Error reading " + System.IO.Path.Combine(GameDir, "MDATA1.MDR") + "!\r\n"
+            loadFailed = "Error reading " + GameFiles.DataFile(GameDir, "MDATA1.MDR") + "!\r\n"
                        + "Is BasePath in MORDOR.INI correct?";
             CrashLog.Write("loading MDATA1", ex);
         }
@@ -64,8 +72,9 @@ public partial class TitleWindow : Window
 
         Audio.Init(GameDir);
         Audio.Apply(GameOptions.Load(GameDir));
-        Audio.Music("INTRO");
-        Activated += (_, _) => Audio.Music("INTRO");
+        // frmMenu's Form_Load: THEME, track 7 (FRMMENU.BAS:132). It plays once; when it ends the
+        // music timer asks for THEME again, which is already the tag, so the menu falls quiet
+        Audio.Music(MusicTrack.Theme);
         FramePauseWatch.Watch(this);   // minimised, the game pauses (FRMMAIN.BAS:202-233)
         ShowMenuState();
 
@@ -79,6 +88,19 @@ public partial class TitleWindow : Window
         // Form_Load (FRMMENU.BAS:142): the focus starts on cmdCommand(0)
         Opened += async (_, _) =>
         {
+            // a saves folder a newer OpenDejenol wrote: refused before anything reads or writes it, as
+            // this game would drop what it does not know of the next time it saved (SaveFormat). A port
+            // necessity, so its own box. Otherwise the folder is marked as this game's layout.
+            if (SaveFormat.TooNew(SavesDir, out string newer))
+            {
+                await OriginalBox.Tell(this, "Saves",
+                    $"These saves were last played with a newer OpenDejenol ({(newer == "" ? "a later version" : newer)}) "
+                    + $"than this one ({Updates.Version}).\n\nUpdate OpenDejenol to keep playing them. Nothing has been changed.");
+                if (Avalonia.Application.Current?.ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime quit)
+                    quit.Shutdown(0);
+                return;
+            }
+            SaveFormat.Stamp(SavesDir, Updates.Version);
             // Sub Main's sub03E3 (MAINMOD2.BAS:6437), before the data is read and so before any box
             // of the menu's: the limited build's "Limitation Notice" (MsgBox 48), and then
             // Limited=True, so that it is not shown again (MODULE1.BAS:932-940; LimitedVersion). The
@@ -109,6 +131,24 @@ public partial class TitleWindow : Window
             // the program may have shut down under the box, closing the menu: nothing more is shown
             if (!OriginalBox.CanOwn(this)) return;
             await Welcome();
+            // a character save that would not read: put back from its last good copy, or not, and
+            // either way said - the lists below would otherwise just leave it out (SaveRecovery)
+            if (!OriginalBox.CanOwn(this)) return;
+            var saved = SavedCharacters();
+            await ShowSaveNotices();
+            if (!OriginalBox.CanOwn(this)) return;
+            if (OfferLegacyImport)
+            {
+                OfferLegacyImport = false;
+                if (Mordor.Core.Import.OriginalSaves.FindDataDir(GameDir) != null && saved.Count == 0
+                    && await OriginalBox.YesNoDefaultNo(this, "Import Original Saves",
+                        "This Mordor folder contains the original character data file (MDATA4.MDR), and you have no saved characters here.\n\nWould you like to import your legacy characters now?"))
+                {
+                    if (!OriginalBox.CanOwn(this)) return;
+                    await ImportWindow.Run(this, GameDir, SavesDir, false);
+                    if (!OriginalBox.CanOwn(this)) return;
+                }
+            }
             // Form_Load's last line, after the welcome: "If m00A8 = True Then cmdCommand(mc002A).Caption =
             // "Ordering/&About"" (FRMMENU.BAS:162), m00A8 a Static the full build never sets. The
             // shareware's About button reads "Ordering/&About" (observed in the original shareware
@@ -118,7 +158,7 @@ public partial class TitleWindow : Window
             // a character marked "Preload Character" goes straight in, password and all
             if (_preloadTried) { MenuReady(); return; }
             _preloadTried = true;
-            // the port's own (docs/MODDING.md, MainMenuOpened, API version 15): a mod may act here,
+            // the port's own (docs/MODDING.md, MainMenuOpened, API version 16): a mod may act here,
             // with nothing loaded yet - the iCloud Saves mod offers a newer world from iCloud before
             // a preloaded character reads the old one. With no mod hooked nothing is asked.
             if (Mordor.Modding.ModHost.Active.MainMenuHooked)
@@ -205,6 +245,19 @@ public partial class TitleWindow : Window
         // a box closed by the program shutting down, not by its OK, leaves the flag unwritten, as
         // the original ending there would
         if (OriginalBox.CanOwn(this)) PortSettings.Write(SavesDir, "NotFirstTime", "True");
+    }
+
+    /// <summary>
+    /// What SaveRecovery has to tell: a character save that would not read, put back from its last
+    /// good copy or not. A port necessity - the original has no save file to lose - so its own box.
+    /// </summary>
+    private async System.Threading.Tasks.Task ShowSaveNotices()
+    {
+        foreach (string notice in SaveRecovery.TakeNotices())
+        {
+            if (!OriginalBox.CanOwn(this)) return;
+            await OriginalBox.Tell(this, "Save File", notice);
+        }
     }
 
     private bool IsSaveLoaded => _loaded != null && _loaded.Name.Trim() != "";
@@ -300,7 +353,7 @@ public partial class TitleWindow : Window
     {
         if (_items == null)
         {
-            try { _items = MdrLoader.LoadItems(System.IO.Path.Combine(GameDir, "MDATA3.MDR")).GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First()); }
+            try { _items = MdrLoader.LoadItems(GameFiles.DataFile(GameDir, "MDATA3.MDR")).GroupBy(i => i.Id).ToDictionary(g => g.Key, g => g.First()); }
             catch { _items = new(); }
         }
         return _items.TryGetValue(id, out var it) ? it : null;
@@ -317,7 +370,7 @@ public partial class TitleWindow : Window
     private int AreaOf(Character c) => c.AreaOr(k =>
     {
         if (k.DungeonLevel <= 0) return -1;
-        try { _dungeon ??= MdrLoader.LoadDungeon(System.IO.Path.Combine(GameDir, "MDATA11.MDR")); }
+        try { _dungeon ??= MdrLoader.LoadDungeon(GameFiles.DataFile(GameDir, "MDATA11.MDR")); }
         catch { return -1; }
         if (k.DungeonLevel > _dungeon.Count) return -1;
         return _dungeon[k.DungeonLevel - 1].AreaIdAt(k.X, k.Y);
@@ -468,7 +521,7 @@ public partial class TitleWindow : Window
         var win = new OptionsWindow(GameOptions.Load(GameDir), GameDir);
         await OriginalBox.ShowOver(win, this);
         // the fonts too: the Hall of Records and the next game's windows are drawn in them (UiFonts)
-        if (win.Accepted) { Audio.Apply(GameOptions.Load(GameDir)); UiFonts.Use(GameOptions.Load(GameDir)); Audio.Music("INTRO"); }
+        if (win.Accepted) { Audio.Apply(GameOptions.Load(GameDir)); UiFonts.Use(GameOptions.Load(GameDir)); }
         ShowMenuState();
     }
 
@@ -508,6 +561,7 @@ public partial class TitleWindow : Window
     {
         string me = IsSaveLoaded ? _loaded!.Name.TrimEnd() : "";
         var saved = SavedCharacters().Where(p => p.ch.Name.TrimEnd() != me).ToList();
+        await ShowSaveNotices();
         int i = exchange
             ? await NamePicker.Ask(this, "Exchange Items", "Exchange Items with who?",
                                    saved.Select(p => p.ch.Name.TrimEnd()).ToList(), Interact.NobodyFor("LOADCHAR"))
@@ -550,6 +604,7 @@ public partial class TitleWindow : Window
     private async void OnCharacterList(object? s, Avalonia.Interactivity.RoutedEventArgs e)
     {
         var saved = SavedCharacters().Select(p => p.ch).ToList();
+        await ShowSaveNotices();
         var rows = saved.Select(c =>
         {
             string row = c.Name.TrimEnd() + " (Level " + c.Guild.Level + " " + c.Guild.Guild + ")";
@@ -609,7 +664,8 @@ public partial class TitleWindow : Window
         await ModStartup.WarnIfModsMissing(this, ch);
         Hide();
         var city = new CityWindow(ch, GameDir);
-        city.Closed += (_, _) => { Show(); Audio.Music("INTRO"); };
+        // the game loop over, frmMenu is loaded again and its Form_Load asks for THEME (FRMMENU.BAS:132)
+        city.Closed += (_, _) => { Show(); Audio.Music(MusicTrack.Theme); };
         city.Show();
         await System.Threading.Tasks.Task.CompletedTask;
     }

@@ -29,7 +29,7 @@ public sealed class HallWindow
         // and the records' captions keep the room they have with the defaults, where this is one each way
         var grow = UiFonts.FormGrowth(DesignFonts.Hall.Pass);
         List<Monster> monsters;
-        try { monsters = MdrLoader.LoadMonsters(System.IO.Path.Combine(gameDir, "MDATA5.MDR")); }
+        try { monsters = MdrLoader.LoadMonsters(GameFiles.DataFile(gameDir, "MDATA5.MDR")); }
         catch { monsters = new(); }
 
         // gv05EE$, MODULE1.BAS:485-490

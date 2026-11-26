@@ -36,15 +36,22 @@ public static class ImportWindow
     private static readonly IBrush Heading = Brush.Parse("#8fb0ff");
     private static readonly IBrush Warn = Brush.Parse("#e0b040");
 
-    public static async Task Run(Window owner, string gameDir, string savesDir)
+    public static async Task Run(Window owner, string gameDir, string savesDir, bool browse = true)
     {
-        var picked = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+        string path = gameDir;
+
+        if (browse)
         {
-            Title = "Import - choose the original Mordor's DATA folder (or the folder with MORDOR.EXE)",
-            AllowMultiple = false,
-        });
-        string? path = picked.FirstOrDefault()?.TryGetLocalPath();
-        if (string.IsNullOrEmpty(path)) return;
+            var picked = await owner.StorageProvider.OpenFolderPickerAsync(new FolderPickerOpenOptions
+            {
+                Title = "Import - choose the original Mordor's DATA folder (or the folder with MORDOR.EXE)",
+                AllowMultiple = false,
+            });
+            string? _path = picked.FirstOrDefault()?.TryGetLocalPath();
+            if (string.IsNullOrEmpty(_path)) return;
+            path = _path;
+        }
+
         string? data = OriginalSaves.FindDataDir(path);
         if (data == null)
         {
@@ -61,8 +68,8 @@ public static class ImportWindow
         SaveImport.ImportPlan plan;
         try
         {
-            var items = MdrLoader.LoadItems(Path.Combine(gameDir, "MDATA3.MDR"));
-            var monsters = MdrLoader.LoadMonsters(Path.Combine(gameDir, "MDATA5.MDR"));
+            var items = MdrLoader.LoadItems(GameFiles.DataFile(gameDir, "MDATA3.MDR"));
+            var monsters = MdrLoader.LoadMonsters(GameFiles.DataFile(gameDir, "MDATA5.MDR"));
             src = OriginalSaves.Read(data, items, monsters);
             plan = SaveImport.Plan(src, savesDir);
         }

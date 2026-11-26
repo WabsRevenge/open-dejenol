@@ -1603,7 +1603,7 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
         Mods = Saves.ModTag?.Invoke();
         // a per-user saves folder (Saves.DirFor) is only named until something is first written there
         if (Path.GetDirectoryName(path) is { Length: > 0 } dir) Directory.CreateDirectory(dir);
-        File.WriteAllText(path, JsonSerializer.Serialize(this, JsonOpts));
+        SafeFile.WriteAllText(path, JsonSerializer.Serialize(this, JsonOpts));
     }
 
     /// <summary>
@@ -1656,6 +1656,17 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
     public static List<Character> LoadAllFrom(string savesDir) =>
         Roster.Saved(savesDir).Select(p => p.Ch).ToList();
 
+    /// <summary>
+    /// A name as the file it is saved under: the name less the characters Windows will not have in a
+    /// file name - the same set on every system, so a saves folder moves between Windows, Linux and a
+    /// browser unchanged. It had been the running system's own set, which on Linux leaves "?" and ":"
+    /// in, so "Who?" was Who?.json there and Who.json on Windows. On Windows this is the very set
+    /// <see cref="Path.GetInvalidFileNameChars"/> gives, so no Windows save changes name.
+    /// </summary>
     public static string SafeFileName(string s) =>
-        string.Concat(s.Where(c => !Path.GetInvalidFileNameChars().Contains(c)));
+        string.Concat(s.Where(c => !NotInFileNames.Contains(c)));
+
+    /// <summary>Windows' forbidden file-name characters: the control characters and " &lt; &gt; | : * ? \ /.</summary>
+    public static readonly IReadOnlySet<char> NotInFileNames =
+        new HashSet<char>(Enumerable.Range(0, 32).Select(i => (char)i).Concat("\"<>|:*?\\/"));
 }

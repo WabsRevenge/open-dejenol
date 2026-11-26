@@ -521,9 +521,7 @@ public static class Librarian
             try
             {
                 Directory.CreateDirectory(savesDir);
-                string temp = p + ".tmp";
-                File.WriteAllText(temp, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
-                File.Move(temp, p, overwrite: true);
+                SafeFile.WriteAllText(p, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
             }
             catch (Exception ex) { Note?.Invoke($"{p} could not be written ({ex.Message})"); }
         }

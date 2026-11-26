@@ -25,6 +25,13 @@ public sealed record HealChoice(Character Caster, Spell Spell, Character Target,
 /// Each cast goes through the game. One that is refused, or spends nothing, takes that caster and
 /// spell out of the loop; it stops after <see cref="MaxCasts"/> in any case, or as soon as monsters
 /// are present.
+///
+/// When no spell can be cast and somebody is still hurt, the guild crests holding a heal (the
+/// Healer's Restoration, the Paladin's Minor Heal) are used on the same target, through the game's
+/// Use (<see cref="Crest"/>). The city fills every guild item back up as the party comes in
+/// (<c>ItemUse.RechargeGuildItems</c>, sub15F7), so those charges cost nothing, and every hit healed
+/// here is one the town's rest does not age anybody for. A crest in the Hands slot is left alone:
+/// the city does not refill that one.
 /// </summary>
 public static class HealOut
 {
@@ -81,19 +88,53 @@ public static class HealOut
         return null;
     }
 
+    /// <summary>
+    /// The next crest to use, or null: the first living member, in party order, with a guild item
+    /// (<c>ItemUse.IsGuildIssued</c>) in pack slots 2 to 40 - the ones the city refills, not the
+    /// Hands - known at <c>IdLevel.All</c> (below that the game shows nothing of what it casts), with
+    /// a charge left and holding a heal; the first such slot in pack order.
+    /// </summary>
+    public static (Character Who, InventorySlot Slot)? Crest(IReadOnlyList<Character> members, IReadOnlyList<Spell> spells,
+                                                            Func<short, Item?> item, Func<InventorySlot, bool> excluded)
+    {
+        foreach (var c in members)
+        {
+            if (c.IsDead) continue;
+            for (int i = 1; i < Character.PackSize; i++)
+            {
+                if (c.Pack[i] is not InventorySlot slot || slot.ItemId <= 0 || slot.Charges <= 0
+                    || slot.Known != IdLevel.All || excluded(slot)) continue;
+                if (item(slot.ItemId) is not Item it || !ItemUse.IsGuildIssued(it)) continue;
+                if (ItemUse.SpellOf(it, spells) is Spell s && IsHeal(s)) return (c, slot);
+            }
+        }
+        return null;
+    }
+
     public static async Task Run(DungeonContext d)
     {
         var excluded = new HashSet<(Character, Spell)>();
+        var spent = new HashSet<InventorySlot>(ReferenceEqualityComparer.Instance);
         for (int n = 0; n < MaxCasts; n++)
         {
             if (d.MonstersPresent || !d.IsOpen) return;
             var h = Choose(d.Members, d.KnownSpells, d.Item, (c, s) => excluded.Contains((c, s)));
-            if (h == null) return;
-            int before = h.Caster.CurSpellPoints;
-            bool went = await d.Cast(h.Caster, h.Spell, h.Target);
-            // "Anti-Magic area!" swallows every cast here: stop at the first, as a player would
+            if (h != null)
+            {
+                int before = h.Caster.CurSpellPoints;
+                bool went = await d.Cast(h.Caster, h.Spell, h.Target);
+                // "Anti-Magic area!" swallows every cast here: stop at the first, as a player would
+                if (d.LastRefusal == RefusalKind.AntiMagic) return;
+                if (!went || h.Caster.CurSpellPoints >= before) excluded.Add((h.Caster, h.Spell));
+                continue;
+            }
+            // no spell left to cast: the crests, whose charges the city gives back
+            if (Target(d.Members) is not Character target) return;
+            if (Crest(d.Members, d.Spells, d.Item, s => spent.Contains(s)) is not { } crest) return;
+            int charges = crest.Slot.Charges;
+            bool used = await d.UseItem(crest.Who, crest.Slot, target);
             if (d.LastRefusal == RefusalKind.AntiMagic) return;
-            if (!went || h.Caster.CurSpellPoints >= before) excluded.Add((h.Caster, h.Spell));
+            if (!used || crest.Slot.Charges >= charges) spent.Add(crest.Slot);
         }
     }
 }

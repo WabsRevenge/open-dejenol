@@ -289,7 +289,7 @@ public partial class HelpWindow : Window
 
     // The help was written for WinHelp's Arial 10pt, which is 13 pixels at 96 dpi; its tab stops
     // are measured against that text, so that is what decides where a tab lands.
-    private static readonly Typeface Arial = new("Arial");
+    private static readonly Typeface Arial = new(PortFonts.Family("Arial"));
     private static double ArialPx(string s) => s.Length == 0 ? 0 :
         new FormattedText(s, CultureInfo.InvariantCulture, FlowDirection.LeftToRight, Arial, 13, null).WidthIncludingTrailingWhitespace;
 

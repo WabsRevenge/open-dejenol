@@ -19,7 +19,7 @@
 
         <!-- lblMordor: 2715,345 3525x795, Times New Roman 24 bold, navy on the button face, centred -->
         <Border Canvas.Left="181" Canvas.Top="23" Width="235" Height="53" Background="#F0F0F0">
-            <TextBlock Text="MORDOR" FontFamily="Times New Roman" FontSize="32" FontWeight="Bold"
+            <TextBlock x:Name="MordorTitle" Text="MORDOR" FontFamily="Times New Roman" FontSize="32" FontWeight="Bold"
                        Foreground="#000080" HorizontalAlignment="Center"/>
         </Border>
         <!-- Label1: 3525,825 2535x240, MS Sans Serif 9.75 italic, maroon, right-aligned. The

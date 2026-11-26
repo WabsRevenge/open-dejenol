@@ -39,7 +39,7 @@ public static class SaveImport
             if (ic.Character == null) continue;
             string file = Character.SafeFileName(ic.Name) + ".json";
             if (!files.Add(file)) continue;   // a second record with the same file name: the first wins (noted when read)
-            bool exists = File.Exists(Path.Combine(savesDir, file)) || existing.Contains(ic.Name.TrimEnd());
+            bool exists = Saves.NameTaken(savesDir, ic.Name) || existing.Contains(ic.Name.TrimEnd());
             chars.Add(new CharacterChoice(ic, exists, file));
         }
         var world = new List<WorldChoice>();
@@ -126,7 +126,7 @@ public static class SaveImport
         {
             if (!writtenNames.Contains(p.Leader)) continue;
             string file = "party-" + Character.SafeFileName(p.Leader) + ".json";
-            File.WriteAllText(Path.Combine(savesDir, file),
+            SafeFile.WriteAllText(Path.Combine(savesDir, file),
                 JsonSerializer.Serialize(new { Leader = p.Leader, Members = p.Members }, new JsonSerializerOptions { WriteIndented = true }));
             written.Add(file);
         }
