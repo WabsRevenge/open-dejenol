@@ -360,6 +360,7 @@ internal static class ModWindows
                 Padding = new Thickness(6, 0),
                 VerticalContentAlignment = VerticalAlignment.Center,
                 Background = ThemeSelection.ToolbarButtonFace,
+                Foreground = ThemeSelection.FormInk,
                 Margin = new Thickness(4, 0, 0, 0),
             }, DesignFonts.Main, "lblGold");
             b.Click += (_, _) =>

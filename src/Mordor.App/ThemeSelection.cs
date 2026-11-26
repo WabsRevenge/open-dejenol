@@ -2,6 +2,7 @@ using System;
 using System.Collections.Specialized;
 using System.IO;
 using System.Runtime.InteropServices;
+using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -14,6 +15,19 @@ namespace Mordor.App;
 
 internal static class ThemeSelection
 {
+    private const uint MfByPosition = 0x00000400;
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetMenuItemCount(IntPtr hMenu);
+
+    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+    private static extern int GetMenuStringW(
+        IntPtr hMenu,
+        uint uIDItem,
+        StringBuilder lpString,
+        int cchMax,
+        uint flags);
+
     private enum Choice
     {
         Windows,
@@ -33,6 +47,11 @@ internal static class ThemeSelection
 
     private static Choice _choice = Choice.Windows;
     private static IClassicDesktopStyleApplicationLifetime? _desktop;
+    internal static event Action? ThemeChanged;
+    internal static bool IsLight => _choice == Choice.Light
+        || (_choice == Choice.Windows && Application.Current?.ActualThemeVariant != ThemeVariant.Dark);
+    internal static SolidColorBrush AboutTitleInk { get; } = new(Color.Parse("#800000"));
+    internal static SolidColorBrush AboutVersionInk { get; } = new(Color.Parse("#000080"));
     internal static SolidColorBrush WindowSurface { get; } = new(Color.Parse("#101018"));
     internal static SolidColorBrush ContentSurface { get; } = new(Color.Parse("#0a0a10"));
     internal static SolidColorBrush RaisedSurface { get; } = new(Color.Parse("#16161f"));
@@ -110,6 +129,23 @@ internal static class ThemeSelection
     internal static void ApplyItemCommandTheme(Canvas canvas, params Button[] buttons) =>
         ApplyCommandButtonTheme(canvas, buttons);
 
+    private static bool HasMenuItem(IntPtr menu, string text)
+    {
+        int count = GetMenuItemCount(menu);
+
+        for (uint i = 0; i < count; i++)
+        {
+            var sb = new StringBuilder(256);
+
+            GetMenuStringW(menu, i, sb, sb.Capacity, MfByPosition);
+
+            if (string.Equals(sb.ToString(), text, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
+    }
+
     public static void Attach(Window window)
     {
         ApplyWindowSurface(window);
@@ -146,12 +182,16 @@ internal static class ThemeSelection
             IntPtr hwnd = window.TryGetPlatformHandle()?.Handle ?? IntPtr.Zero;
             IntPtr systemMenu = hwnd == IntPtr.Zero ? IntPtr.Zero : GetSystemMenu(hwnd, false);
             themeMenu = CreatePopupMenu();
-            if (systemMenu == IntPtr.Zero || themeMenu == IntPtr.Zero
+
+            
+            if (!HasMenuItem(systemMenu, "Theme Selection")  &&
+                (systemMenu == IntPtr.Zero || themeMenu == IntPtr.Zero
                 || !AppendMenuW(themeMenu, 0, new IntPtr(unchecked((int)ScWindowsTheme)), "Windows (system)")
                 || !AppendMenuW(themeMenu, 0, new IntPtr(unchecked((int)ScLightTheme)), "Light")
                 || !AppendMenuW(themeMenu, 0, new IntPtr(unchecked((int)ScDarkTheme)), "Dark")
                 || !AppendMenuW(systemMenu, MfSeparator, IntPtr.Zero, null)
                 || !AppendMenuW(systemMenu, MfPopup, themeMenu, "Theme Selection"))
+                )
             {
                 CrashLog.Note("could not add theme selection to the Windows system menu (" + Marshal.GetLastWin32Error() + ")");
                 return;
@@ -198,8 +238,9 @@ internal static class ThemeSelection
     {
         if (_desktop is null || Application.Current is not { } app) return;
 
-        bool light = _choice == Choice.Light
-            || (_choice == Choice.Windows && app.ActualThemeVariant != ThemeVariant.Dark);
+        bool light = IsLight;
+        AboutTitleInk.Color = Color.Parse(light ? "#800000" : "#FFFFFF");
+        AboutVersionInk.Color = Color.Parse(light ? "#000080" : "#FFFFFF");
         WindowSurface.Color = Color.Parse(light ? "#C0C0C0" : "#101018");
         ContentSurface.Color = Color.Parse(light ? "#E6E6E6" : "#0a0a10");
         RaisedSurface.Color = Color.Parse(light ? "#FFFFFF" : "#16161f");
@@ -222,19 +263,20 @@ internal static class ThemeSelection
         ToolbarGoldInk.Color = Color.Parse(light ? "#705000" : "#e8e0c0");
         ToolbarResistanceInk.Color = Color.Parse(light ? "#000080" : "#8fb0ff");
         ToolbarResistanceValueInk.Color = Color.Parse(light ? "#202020" : "#dcdcdc");
-        TrapReadoutInk.Color = Color.Parse(light ? "#000000" : "#8aa8e8");
+        TrapReadoutInk.Color = Color.Parse(light ? "#000000" : "#FED070");
         TrapSafeCaptionInk.Color = Color.Parse(light ? "#008000" : "#8aa8e8");
         TrapSprungCaptionInk.Color = Color.Parse(light ? "#ff0000" : "#8aa8e8");
-        MonsterListInk.Color = Color.Parse(light ? "#800000" : "#d8d8e0");
+        MonsterListInk.Color = Color.Parse(light ? "#800000" : "#EFE68C");
         StoreMutedInk.Color = Color.Parse(light ? "#666666" : "#808080");
         PartyPlainInk.Color = Color.Parse(light ? "#202020" : "#f5f5f5");
-        PartySelectedInk.Color = Color.Parse(light ? "#006400" : "#90ee90");
+        PartySelectedInk.Color = Color.Parse(light ? "#008000" : "#90ee90");
         PartyFixedInk.Color = Color.Parse(light ? "#000080" : "#6495ed");
         PartyWellInk.Color = Color.Parse(light ? "#000080" : "#6495ed");
         PartyAilingInk.Color = Color.Parse(light ? "#800000" : "#cd5c5c");
         PartyHeaderInk.Color = Color.Parse(light ? "#666666" : "#888888");
         foreach (Window window in _desktop.Windows)
             window.Background = WindowSurface;
+        ThemeChanged?.Invoke();
     }
 
     private static void UpdateCheck(IntPtr menu)

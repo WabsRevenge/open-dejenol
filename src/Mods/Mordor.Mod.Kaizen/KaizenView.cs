@@ -5,6 +5,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Mordor.Core;
 using Mordor.Modding;
@@ -33,8 +34,6 @@ namespace Mordor.Mod.Kaizen;
 /// </summary>
 internal static class KaizenView
 {
-    private static readonly IBrush Heading = Brush.Parse("#8fb0ff");
-    private static readonly IBrush Faint = Brush.Parse("#9a9aae");
     private static readonly IBrush Warn = Brush.Parse("#e0a050");
 
     private static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
@@ -53,6 +52,16 @@ internal static class KaizenView
 
     public static Control Build(ModGame game, BuffLists lists, ModSettings settings, Action<string, Exception> report)
     {
+        var heading = new SolidColorBrush(Color.Parse("#8fb0ff"));
+        var faint = new SolidColorBrush(Color.Parse("#9a9aae"));
+        void ApplyTextTheme()
+        {
+            bool light = Application.Current?.ActualThemeVariant != ThemeVariant.Dark;
+            heading.Color = Color.Parse(light ? "#000080" : "#8fb0ff");
+            faint.Color = Color.Parse(light ? "#202020" : "#9a9aae");
+        }
+        ApplyTextTheme();
+
         void Safe(string what, Action act)
         {
             try { act(); }
@@ -64,9 +73,9 @@ internal static class KaizenView
             catch (Exception ex) { try { report("Kaizen window: " + what, ex); } catch { } }
         }
 
-        var title = new TextBlock { Foreground = Heading, FontWeight = FontWeight.Bold };
-        var note = new TextBlock { Foreground = Faint, TextWrapping = TextWrapping.Wrap };
-        var help = new TextBlock { Foreground = Faint, TextWrapping = TextWrapping.Wrap };
+        var title = new TextBlock { Foreground = heading, FontWeight = FontWeight.Bold };
+        var note = new TextBlock { Foreground = faint, TextWrapping = TextWrapping.Wrap };
+        var help = new TextBlock { Foreground = faint, TextWrapping = TextWrapping.Wrap };
         var off = new TextBlock
         {
             Foreground = Warn, TextWrapping = TextWrapping.Wrap, IsVisible = false,
@@ -121,8 +130,8 @@ internal static class KaizenView
         // the gap marked with a line, or none (-1)
         void Mark(int gap)
         {
-            for (int i = 0; i < rowViews.Count; i++) rowViews[i].BorderBrush = i == gap ? Heading : Brushes.Transparent;
-            endGap.BorderBrush = gap == rowViews.Count && gap >= 0 ? Heading : Brushes.Transparent;
+            for (int i = 0; i < rowViews.Count; i++) rowViews[i].BorderBrush = i == gap ? heading : Brushes.Transparent;
+            endGap.BorderBrush = gap == rowViews.Count && gap >= 0 ? heading : Brushes.Transparent;
         }
 
         void Draw()
@@ -146,7 +155,7 @@ internal static class KaizenView
             help.IsVisible = true;
             rows = lists.For(shown.Name).ToList();
             if (rows.Count == 0)
-                rowsPanel.Children.Add(new TextBlock { Text = "No rows yet.", Foreground = Faint, Margin = new Thickness(2, 4) });
+                rowsPanel.Children.Add(new TextBlock { Text = "No rows yet.", Foreground = faint, Margin = new Thickness(2, 4) });
             for (int r = 0; r < rows.Count; r++)
             {
                 var v = RowView(r);
@@ -357,8 +366,15 @@ internal static class KaizenView
 
         Action changed = () => Dispatcher.UIThread.Post(() => Safe("redrawing", () => Look(false)));
         Action<string> settingChanged = _ => changed();
+        EventHandler themeChanged = (_, _) => ApplyTextTheme();
         root.AttachedToVisualTree += (_, _) => Safe("opening", () =>
         {
+            if (Application.Current is { } app)
+            {
+                app.ActualThemeVariantChanged -= themeChanged;
+                app.ActualThemeVariantChanged += themeChanged;
+                ApplyTextTheme();
+            }
             game.Changed -= changed;
             game.Changed += changed;
             // "Buff on entering the dungeon" ticked or cleared on the Mods page: the note follows
@@ -366,7 +382,12 @@ internal static class KaizenView
             settings.Changed += settingChanged;
             Look(true);
         });
-        root.DetachedFromVisualTree += (_, _) => { game.Changed -= changed; settings.Changed -= settingChanged; };
+        root.DetachedFromVisualTree += (_, _) =>
+        {
+            game.Changed -= changed;
+            settings.Changed -= settingChanged;
+            if (Application.Current is { } app) app.ActualThemeVariantChanged -= themeChanged;
+        };
         return root;
     }
 }
