@@ -42,12 +42,23 @@ internal static class ThemeSelection
     internal static SolidColorBrush FormBevel { get; } = new(Color.Parse("#555566"));
     internal static SolidColorBrush FormDisplayField { get; } = new(Color.Parse("#33333a"));
     internal static SolidColorBrush FormListSurface { get; } = new(Color.Parse("#0a0a10"));
+    internal static SolidColorBrush ButtonFace { get; } = new(Color.Parse("#3b3b40"));
+    internal static SolidColorBrush ToolbarButtonFace { get; } = new(Color.Parse("#2a2a38"));
+    internal static SolidColorBrush HelpHeaderSurface { get; } = new(Color.Parse("#1c2740"));
+    internal static SolidColorBrush HelpPaneSurface { get; } = new(Color.Parse("#101018"));
+    internal static SolidColorBrush HelpListSurface { get; } = new(Color.Parse("#0e0e14"));
+    internal static SolidColorBrush HelpHeadingInk { get; } = new(Color.Parse("#e8e0c0"));
+    internal static SolidColorBrush HelpTextInk { get; } = new(Color.Parse("#d0d0dc"));
     internal static SolidColorBrush FormBlue { get; } = new(Color.Parse("#6495ed"));
     internal static SolidColorBrush FormMaroon { get; } = new(Color.Parse("#cd5c5c"));
     internal static SolidColorBrush FormNavy { get; } = new(Color.Parse("#8aa8e8"));
     internal static SolidColorBrush ToolbarGoldInk { get; } = new(Color.Parse("#e8e0c0"));
     internal static SolidColorBrush ToolbarResistanceInk { get; } = new(Color.Parse("#8fb0ff"));
     internal static SolidColorBrush ToolbarResistanceValueInk { get; } = new(Color.Parse("#dcdcdc"));
+    internal static SolidColorBrush TrapReadoutInk { get; } = new(Color.Parse("#8aa8e8"));
+    internal static SolidColorBrush TrapSafeCaptionInk { get; } = new(Color.Parse("#8aa8e8"));
+    internal static SolidColorBrush TrapSprungCaptionInk { get; } = new(Color.Parse("#8aa8e8"));
+    internal static SolidColorBrush MonsterListInk { get; } = new(Color.Parse("#d8d8e0"));
     internal static SolidColorBrush StoreMutedInk { get; } = new(Color.Parse("#808080"));
     internal static SolidColorBrush PartyPlainInk { get; } = new(Color.Parse("#f5f5f5"));
     internal static SolidColorBrush PartySelectedInk { get; } = new(Color.Parse("#90ee90"));
@@ -86,15 +97,18 @@ internal static class ThemeSelection
                 label.Foreground = PartyHeaderInk;
     }
 
-    internal static void ApplyItemCommandTheme(Canvas canvas, params Button[] buttons)
+    internal static void ApplyCommandButtonTheme(Canvas canvas, params Button[] buttons)
     {
-        canvas.Resources["ButtonBackground"] = FormFace;
+        canvas.Resources["ButtonBackground"] = ButtonFace;
         canvas.Resources["ButtonBackgroundPointerOver"] = RaisedSurface;
         canvas.Resources["ButtonBackgroundPressed"] = FormBevel;
-        canvas.Resources["ButtonBackgroundDisabled"] = FormFace;
+        canvas.Resources["ButtonBackgroundDisabled"] = ButtonFace;
         foreach (Button button in buttons)
             button.Foreground = FormInk;
     }
+
+    internal static void ApplyItemCommandTheme(Canvas canvas, params Button[] buttons) =>
+        ApplyCommandButtonTheme(canvas, buttons);
 
     public static void Attach(Window window)
     {
@@ -186,7 +200,7 @@ internal static class ThemeSelection
 
         bool light = _choice == Choice.Light
             || (_choice == Choice.Windows && app.ActualThemeVariant != ThemeVariant.Dark);
-        WindowSurface.Color = Color.Parse(light ? "#F0F0F0" : "#101018");
+        WindowSurface.Color = Color.Parse(light ? "#C0C0C0" : "#101018");
         ContentSurface.Color = Color.Parse(light ? "#E6E6E6" : "#0a0a10");
         RaisedSurface.Color = Color.Parse(light ? "#FFFFFF" : "#16161f");
         DialogText.Color = Color.Parse(light ? "#202020" : "#d8d8df");
@@ -194,13 +208,24 @@ internal static class ThemeSelection
         FormInk.Color = Color.Parse(light ? "#000000" : "#d8d8e0");
         FormBevel.Color = Color.Parse(light ? "#808080" : "#555566");
         FormDisplayField.Color = Color.Parse(light ? "#FFFFFF" : "#33333a");
-        FormListSurface.Color = Color.Parse(light ? "#FFFFFF" : "#0a0a10");
+        FormListSurface.Color = Color.Parse(light ? "#FFFFE0" : "#0a0a10");
+        ButtonFace.Color = Color.Parse(light ? "#F0F0F0" : "#3b3b40");
+        ToolbarButtonFace.Color = Color.Parse(light ? "#F0F0F0" : "#2a2a38");
+        HelpHeaderSurface.Color = Color.Parse(light ? "#C0C0C0" : "#1c2740");
+        HelpPaneSurface.Color = Color.Parse(light ? "#C0C0C0" : "#101018");
+        HelpListSurface.Color = Color.Parse(light ? "#C0C0C0" : "#0e0e14");
+        HelpHeadingInk.Color = Color.Parse(light ? "#000080" : "#e8e0c0");
+        HelpTextInk.Color = Color.Parse(light ? "#202020" : "#d0d0dc");
         FormBlue.Color = Color.Parse(light ? "#0000FF" : "#6495ed");
         FormMaroon.Color = Color.Parse(light ? "#800000" : "#cd5c5c");
         FormNavy.Color = Color.Parse(light ? "#000080" : "#8aa8e8");
         ToolbarGoldInk.Color = Color.Parse(light ? "#705000" : "#e8e0c0");
         ToolbarResistanceInk.Color = Color.Parse(light ? "#000080" : "#8fb0ff");
         ToolbarResistanceValueInk.Color = Color.Parse(light ? "#202020" : "#dcdcdc");
+        TrapReadoutInk.Color = Color.Parse(light ? "#000000" : "#8aa8e8");
+        TrapSafeCaptionInk.Color = Color.Parse(light ? "#008000" : "#8aa8e8");
+        TrapSprungCaptionInk.Color = Color.Parse(light ? "#ff0000" : "#8aa8e8");
+        MonsterListInk.Color = Color.Parse(light ? "#800000" : "#d8d8e0");
         StoreMutedInk.Color = Color.Parse(light ? "#666666" : "#808080");
         PartyPlainInk.Color = Color.Parse(light ? "#202020" : "#f5f5f5");
         PartySelectedInk.Color = Color.Parse(light ? "#006400" : "#90ee90");

@@ -14,7 +14,7 @@ namespace Mordor.App;
 
 public partial class CityWindow : Window
 {
-    private Bitmap? _tileBitmap;
+    private ListBox _partyRows = null!;
 
     public CityWindow()
     {
@@ -24,7 +24,6 @@ public partial class CityWindow : Window
 
     public bool SetTiledBackground(Bitmap bmp)
     {
-
         Backdrop.Background = new ImageBrush(bmp)
         {
             TileMode = TileMode.Tile,
@@ -33,16 +32,9 @@ public partial class CityWindow : Window
                 0, 0, bmp.Size.Width, bmp.Size.Height, RelativeUnit.Absolute)
         };
 
-        _tileBitmap?.Dispose();   // free the previous one when swapping
-        _tileBitmap = bmp;
         return true;
     }
 
-    protected override void OnClosed(EventArgs e)
-    {
-        base.OnClosed(e);
-        _tileBitmap?.Dispose();
-    }
 
     // The parameterless constructor is for the XAML designer; the runtime constructor below sets these.
     private readonly Party _party = null!;
@@ -107,14 +99,15 @@ public partial class CityWindow : Window
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
         ThemeSelection.Attach(this);
+        _partyRows = CreatePartyRows(PartyRowsHost);
         ThemeSelection.ApplyPartyHeader(PartyHeader);
+        ThemeSelection.ApplyCommandButtonTheme(PartyBox, PartySwitchBtn, PartyOptionsBtn, PartyLeaveBtn);
         ThemeSelection.ApplyItemCommandTheme((Canvas)PackEquipBtn.Parent!, PackEquipBtn, PackUseBtn, PackDropBtn, PackInfoBtn);
-        PackList.Background = ThemeSelection.ContentSurface;
+        PackList.Background = ThemeSelection.WindowSurface;
         SpellList.Background = ThemeSelection.ContentSurface;
         MessageLog.Background = ThemeSelection.ContentSurface;
         MessageLog.BorderBrush = FormPage.Bevel;
-        var backdrop = Art.Bitmap("main_background.png");
-        SetTiledBackground(backdrop);
+        SetTiledBackground(Art.Bitmap("main_background.png"));
         Host.Background = Brushes.Transparent;
         KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)
@@ -740,7 +733,7 @@ public partial class CityWindow : Window
     private void RefreshParty()
     {
         Mordor.Modding.ModHost.Active.GameChanged();   // a mod's own window looks again (ctx.Game)
-        PartyRows.Children.Clear();
+        _partyRows.Items.Clear();
         var modColumns = ModSlots.PartyHeader(PartyHeader, 5);   // the mods' party columns, if any (docs/MODDING.md)
         for (int i = 0; i < _party.Size; i++)
         {
@@ -827,7 +820,7 @@ public partial class CityWindow : Window
             // there is no combat test: lblName_DragDrop runs lblName_Click Index (FRMGROUP.BAS:220)
             // and nothing else, so the commands go to the member it was let go over
             Dragging.Target(row, DragKind.Companion, _ => SwitchIfOther(slot));
-            PartyRows.Children.Add(row);
+            _partyRows.Items.Add(row);
         }
     }
 

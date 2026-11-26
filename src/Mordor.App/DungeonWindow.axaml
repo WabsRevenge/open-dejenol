@@ -46,6 +46,7 @@
              F11 toggles it, and the Options window can turn it off for good. -->
         <app:Toolbar DockPanel.Dock="Top" x:Name="Tools"/>
 
+        <Border x:Name="Backdrop">
         <Panel>
         <app:MdiHost x:Name="Host"/>
 
@@ -103,9 +104,11 @@
                         </Style>
                     </Canvas.Styles>
 
-                    <!-- lblRoom: 45,30 1575x225 - where you are and which way you face -->
-                    <TextBlock x:Name="PosText" Canvas.Left="3" Canvas.Top="2" Width="105" Height="15"
-                               Foreground="#e8e0c0" FontWeight="Bold" TextAlignment="Center"/>
+                    <!-- lblRoom: click the position readout to open the current area's Look list. -->
+                    <Button x:Name="PosButton" Classes="frame" Canvas.Left="3" Canvas.Top="2" Width="105" Height="15"
+                            Padding="0" Click="OnShowAreaLook">
+                        <TextBlock x:Name="PosText" Foreground="#e8e0c0" FontWeight="Bold" TextAlignment="Center"/>
+                    </Button>
 
                     <!-- shpMazeBox, three pixels bigger than picMaze2 and one pixel up and left of it
                          (FRMDUNM.BAS:262-265) -->
@@ -236,7 +239,8 @@
                     <TextBlock Grid.Column="3" Text="Status" FontWeight="Bold" Foreground="#888" HorizontalAlignment="Right" Margin="0,0,10,0"/>
                     <TextBlock Grid.Column="4" Text="Option" FontWeight="Bold" Foreground="#888" HorizontalAlignment="Right"/>
                 </Grid>
-                <StackPanel x:Name="PartyRows" Canvas.Left="5" Canvas.Top="18"/>
+                <!-- FormPage.List creates the themed rows within this form-positioned host. -->
+                <Canvas x:Name="PartyRowsHost" Canvas.Left="5" Canvas.Top="18" Width="281" Height="56"/>
                 <!-- cmdCommand(0..2) (FRMGROUP.BAS:32-46) -->
                 <app:ElasticCanvas.Styles>
                     <Style Selector="Button">
@@ -248,9 +252,9 @@
                         <Setter Property="VerticalContentAlignment" Value="Center"/>
                     </Style>
                 </app:ElasticCanvas.Styles>
-                <Button Canvas.Left="3" Canvas.Top="76" Focusable="False" Content="Switch To" Click="OnSwitchTo"/>
-                <Button Canvas.Left="69" Canvas.Top="76" Focusable="False" Content="Options" Click="OnPartyOptions"/>
-                <Button Canvas.Right="4" Canvas.Top="76" Focusable="False" Content="Leave" Click="OnPartyLeave"/>
+                <Button x:Name="PartySwitchBtn" Canvas.Left="3" Canvas.Top="76" Focusable="False" Content="Switch To" Click="OnSwitchTo"/>
+                <Button x:Name="PartyOptionsBtn" Canvas.Left="69" Canvas.Top="76" Focusable="False" Content="Options" Click="OnPartyOptions"/>
+                <Button x:Name="PartyLeaveBtn" Canvas.Right="4" Canvas.Top="76" Focusable="False" Content="Leave" Click="OnPartyLeave"/>
             </app:ElasticCanvas>
 
             <!-- ==================================================== the Messages child -->
@@ -448,5 +452,6 @@
             </Border>
         </Panel>
         </Panel>
+        </Border>
     </DockPanel>
 </Window>

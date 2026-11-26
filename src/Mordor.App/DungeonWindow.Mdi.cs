@@ -367,6 +367,9 @@ public partial class DungeonWindow
     /// </summary>
     private void RefreshAreaLook() => _charPanel.ShowLook(WalkHere().Here);
 
+    private void OnShowAreaLook(object? sender, Avalonia.Interactivity.RoutedEventArgs e) =>
+        SetInfoTab(CharTab.Look);
+
     private (System.Collections.Generic.List<LookAround.Entry> Here, int Living, int Dead) WalkHere()
     {
         System.Collections.Generic.List<Character> saved;

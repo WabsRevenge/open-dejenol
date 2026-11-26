@@ -67,6 +67,15 @@ public partial class CityWindow
     /// </summary>
     internal static double PartyGrowthX => UiFonts.FormGrowth(DesignFonts.Party.Pass).X;
 
+    internal static ListBox CreatePartyRows(Canvas host)
+    {
+        _ = new FormPage(4365, 1485, new FormRect(0, 0, 4365, 1485), DesignFonts.Party.Pass);
+        int height = (int)Math.Ceiling(PartyRowHeight * 4 * FormPage.Twips);
+        var rows = FormPage.List(host, new FormRect(0, 0, 4215, height), rowHeight: PartyRowHeight);
+        rows.Foreground = ThemeSelection.FormInk;
+        return rows;
+    }
+
     /// <summary>frmParty's columns under the header, from the header's own left: the edges of the table in CityWindow.axaml.</summary>
     internal static readonly double[] PartyColumns = { 72, 49, 42, 53, 64 };
 

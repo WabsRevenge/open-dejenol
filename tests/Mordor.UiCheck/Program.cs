@@ -1629,7 +1629,7 @@ Console.WriteLine("\nthe mods' windows, children of the game's frame:");
               (true, true, true, true));
 
         // the text: Party Information's row font, through the Options fonts
-        var partyRows = town.FindControl<StackPanel>("PartyRows")!;
+        var partyRows = town.FindControl<Canvas>("PartyRowsHost")!.GetVisualDescendants().OfType<ListBox>().Single();
         string FontOf(Visual v) => $"{v.GetValue(Avalonia.Controls.Documents.TextElement.FontFamilyProperty)} {v.GetValue(Avalonia.Controls.Documents.TextElement.FontSizeProperty)}";
         Control? Tagged(Control under, string tag) => under.GetVisualDescendants().OfType<Control>().FirstOrDefault(c => Equals(c.Tag, tag));
         var dpsName = dps.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => Equals(t.Tag, "Name"));
@@ -1878,7 +1878,7 @@ Console.WriteLine("\na character loaded dead below ground:");
         // the hostile group's room: sub0A91's sub0BDE -1 (MONSMOD.BAS:726) on Form_Load gives the dead one
         // their Combat Setting, Fight (CHARCREA.BAS:243), shown in the Party window's Option column
         // (observed in the original 2026-10-26: "Fight" for a dead character loaded where they fell)
-        var rows = Ctl<StackPanel>("PartyRows");
+        var rows = Ctl<ListBox>("_partyRows");
         Check("... with a hostile group in the room, the Party window's Option is the Combat Setting, Fight",
               rows.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).Where(t => t is "None" or "Fight" or "Defend").FirstOrDefault(), "Fight");
     }

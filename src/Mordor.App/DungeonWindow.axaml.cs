@@ -14,6 +14,7 @@ namespace Mordor.App;
 
 public partial class DungeonWindow : Window
 {
+    private ListBox _partyRows = null!;
     private readonly Party _party;
 
     /// <summary>
@@ -77,6 +78,18 @@ public partial class DungeonWindow : Window
     private CombatEngine? _combat;
     private readonly string _gameDir;
 
+    public bool SetTiledBackground(Bitmap bmp)
+    {
+        Backdrop.Background = new ImageBrush(bmp)
+        {
+            TileMode = TileMode.Tile,
+            Stretch = Stretch.Fill,
+            DestinationRect = new RelativeRect(
+                0, 0, bmp.Size.Width, bmp.Size.Height, RelativeUnit.Absolute)
+        };
+        return true;
+    }
+
     /// <summary>mc01B0: the original's combat timer interval, in milliseconds.</summary>
     private const int CombatTickMs = 1000;
 
@@ -103,6 +116,8 @@ public partial class DungeonWindow : Window
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
         ThemeSelection.ApplyWindowSurface(this);
+        _partyRows = CityWindow.CreatePartyRows(PartyRowsHost);
+        SetTiledBackground(Art.Bitmap("main_background.png"));
         PosText.Foreground = ThemeSelection.FormInk;
         CombatPanel.Background = FormPage.Face;
         CombatPanel.BorderBrush = FormPage.Bevel;
@@ -112,13 +127,15 @@ public partial class DungeonWindow : Window
         MsgText.Foreground = ThemeSelection.FormInk;
         ChestPanel.Background = FormPage.Face;
         ChestPanel.BorderBrush = FormPage.Bevel;
-        ChestText.Foreground = ThemeSelection.FormNavy;
+        ChestText.Foreground = ThemeSelection.TrapReadoutInk;
         ChestGauge.Foreground = ThemeSelection.FormBlue;
         ThemeSelection.ApplyPartyHeader(PartyHeader);
         ThemeSelection.ApplyItemCommandTheme((Canvas)SheetEquipBtn.Parent!, SheetEquipBtn, SheetUseBtn, SheetDropBtn, SheetInfoBtn);
-        Host.Background = ThemeSelection.ContentSurface;
+        ThemeSelection.ApplyCommandButtonTheme(DungeonCanvas, PosButton, MapBtn, PickupBtn, DropBodyBtn, FightBtn, SpellBtn, TakeBtn, OpenBtn, ExitBtn);
+        ThemeSelection.ApplyCommandButtonTheme(PartyBox, PartySwitchBtn, PartyOptionsBtn, PartyLeaveBtn);
+        Host.Background = Brushes.Transparent;
         DungeonCanvas.Background = FormPage.Face;
-        PackList.Background = ThemeSelection.ContentSurface;
+        PackList.Background = ThemeSelection.WindowSurface;
         SheetSpellBox.Background = ThemeSelection.ContentSurface;
         MessageLog.Background = ThemeSelection.ContentSurface;
         MessageLog.BorderBrush = FormPage.Bevel;
@@ -1838,7 +1855,7 @@ public partial class DungeonWindow : Window
     /// </summary>
     private void RefreshPartyRows()
     {
-        PartyRows.Children.Clear();
+        _partyRows.Items.Clear();
         var modColumns = ModSlots.PartyHeader(PartyHeader, 5);   // the mods' party columns, if any (docs/MODDING.md)
         for (int i = 0; i < _party.Size; i++)
         {
@@ -1890,7 +1907,7 @@ public partial class DungeonWindow : Window
                 e.Handled = true;
             };
             WirePartyRow(row, which);
-            PartyRows.Children.Add(row);
+            _partyRows.Items.Add(row);
         }
     }
 
@@ -5743,6 +5760,7 @@ public partial class DungeonWindow : Window
             }
         }
 
+        ChestText.Foreground = ThemeSelection.TrapReadoutInk;
         if (Rules.MagicallyLocked(_combat.ChestLocked))
         {
             ChestText.Text = Rules.LockedCaption;
@@ -6135,6 +6153,7 @@ public partial class DungeonWindow : Window
         if (fight.ChestTrap == 0)
         {
             _trapCaption = "Not Trapped";
+            ChestText.Foreground = ThemeSelection.TrapSafeCaptionInk;
             return lines;
         }
 
@@ -6143,6 +6162,7 @@ public partial class DungeonWindow : Window
         if (_rng.Next(100) + 1 <= thieving)
         {
             _trapCaption = "Trap Disarmed";
+            ChestText.Foreground = ThemeSelection.TrapSafeCaptionInk;
             // MONSMOD.BAS:3508-3509 pays for the disarm, and only for a disarm - an untrapped chest
             // earns nothing because the award sits inside the ChestTrap > 0 branch. The guild level
             // that discounts it is Chars(0)'s, not the opener's; see Rules.ChestExp.
@@ -6156,6 +6176,7 @@ public partial class DungeonWindow : Window
         }
 
         _trapCaption = what;
+        ChestText.Foreground = ThemeSelection.TrapSprungCaptionInk;
         var result = ChestTraps.Spring(
             // MONSMOD.BAS:3514, 3521, 3528 and 3534 each loop the whole party for the gas, the
             // spores, the explosion and the fire - only the opener's own bad luck is personal
@@ -6193,6 +6214,7 @@ public partial class DungeonWindow : Window
         // that far: it is set for the lone opener only, so it cannot fire late on a later step.
         _forceSettle = alone;
         ChestText.Text = _trapCaption;
+        ChestText.Foreground = ThemeSelection.TrapSprungCaptionInk;
         _trapReadoutTold = _trapCaption;
         Mordor.Modding.ModHost.Active.CaptionShown(Mordor.Modding.CaptionKind.Trap, _trapCaption, null);
         ChestGauge.Text = "";
@@ -6578,7 +6600,7 @@ public partial class DungeonWindow : Window
         var t = new TextBlock
         {
             Text = text,
-            Foreground = ThemeSelection.FormInk,
+            Foreground = ThemeSelection.MonsterListInk,
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
         };
         t.PointerPressed += (_, e) => { TargetGroup(group - 1); Focus(); e.Handled = true; };
@@ -6593,13 +6615,13 @@ public partial class DungeonWindow : Window
             {
                 Width = 12, Child = new Border
                 {
-                    Width = 2, Height = 9, Background = ThemeSelection.FormInk,
+                    Width = 2, Height = 9, Background = ThemeSelection.MonsterListInk,
                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
                 },
             });
         else
-            row.Children.Add(new TextBlock { Text = glyph, Width = 12, Foreground = ThemeSelection.FormInk, FontWeight = FontWeight.Bold,
+            row.Children.Add(new TextBlock { Text = glyph, Width = 12, Foreground = ThemeSelection.MonsterListInk, FontWeight = FontWeight.Bold,
                                              TextAlignment = TextAlignment.Center });
         row.Children.Add(t);
         return row;

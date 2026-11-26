@@ -295,7 +295,7 @@ internal sealed class FormPage
     /// default 11-pixel face, where VB's are the line's 13): the theme's roomy item padding is
     /// taken off, and a larger Options font makes taller rows rather than clipped ones.
     /// </summary>
-    public static ListBox List(Canvas into, FormRect r, bool bold = false)
+    public static ListBox List(Canvas into, FormRect r, bool bold = false, double? rowHeight = null)
     {
         var l = UiFonts.Set(new ListBox
         {
@@ -304,7 +304,7 @@ internal sealed class FormPage
             Background = ThemeSelection.FormListSurface,
             BorderBrush = Bevel, BorderThickness = new Thickness(1),
         }, Pass, Sans(bold));
-        TightRows(l, UiFonts.RowHeight(Pass, 0, Sans(bold)));
+        TightRows(l, rowHeight ?? UiFonts.RowHeight(Pass, 0, Sans(bold)));
         return Place(into, l, r);
     }
 
