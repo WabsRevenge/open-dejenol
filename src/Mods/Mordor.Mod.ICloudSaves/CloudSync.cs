@@ -148,8 +148,10 @@ public sealed class CloudSync
     public const string StateFileName = "icloudsaves.json";
     /// <summary>The folder of snapshots inside the mod's iCloud Drive folder.</summary>
     public const string SnapshotsFolder = "Snapshots";
-    /// <summary>How many of its own snapshots a Mac keeps; older ones of its own are deleted after an upload.</summary>
+    /// <summary>How many of its own recent snapshots a Mac always keeps.</summary>
     public const int KeepPerDevice = 10;
+    /// <summary>Beyond <see cref="KeepPerDevice"/>, how many prior UTC days keep one snapshot per day.</summary>
+    public const int KeepDailyDays = 7;
     /// <summary>How long <see cref="SyncState.Seen"/> grows before the names of snapshots no longer there are dropped.</summary>
     public const int SeenTrimAt = 500;
     /// <summary>The suffix iCloud Drive does not sync: a snapshot is written under it, then renamed.</summary>
@@ -180,22 +182,19 @@ public sealed class CloudSync
     // ------------------------------------------------------------------ what is synced
 
     /// <summary>
-    /// Whether a file at the top of the saves folder is part of the world. Everything is, but:
-    /// settings.ini (this Mac's settings, docs/MOBILE_AND_CLOUD.md - including which mods are on and
-    /// this mod's own toggles), mods.log (this run's log, never synced per M3), this mod's own record
-    /// <see cref="StateFileName"/>, crash.log, hidden files (.DS_Store), and the half-written files
-    /// the game and the mods write before a rename (<c>*.tmp</c>) or this mod's own (<c>*.nosync</c>).
-    /// Folders inside the saves folder are not looked at.
+    /// Whether a file at the top of the saves folder is part of the world. Only the game's and mods'
+    /// JSON save files (<c>*.json</c>, excluding this mod's own record <see cref="StateFileName"/>)
+    /// and the guild log (<see cref="Mordor.Core.GuildLog.FileName"/>) are synced: this Mac's
+    /// settings.ini, mods.log, crash.log, hidden files (.DS_Store), half-written files
+    /// (<c>*.tmp</c>, <c>*.nosync</c>), recovery/aside files (<c>*.bad-*</c>, <c>*.good</c>,
+    /// <c>MDATA9B.MDR</c>) and any stray files are ignored. Folders inside the saves folder are not
+    /// looked at.
     /// </summary>
     public static bool IsSynced(string name) =>
         !string.IsNullOrEmpty(name)
         && !name.StartsWith('.')
-        && !Is(name, Mordor.Core.PortSettings.FileName)
-        && !Is(name, "mods.log")
-        && !Is(name, StateFileName)
-        && !Is(name, Mordor.Core.PortFiles.CrashLogName)
-        && !name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase)
-        && !name.EndsWith(NoSync, StringComparison.OrdinalIgnoreCase);
+        && ((name.EndsWith(".json", StringComparison.OrdinalIgnoreCase) && !Is(name, StateFileName))
+            || Is(name, Mordor.Core.GuildLog.FileName));
 
     private static bool Is(string a, string b) => string.Equals(a, b, StringComparison.OrdinalIgnoreCase);
 
@@ -463,6 +462,11 @@ public sealed class CloudSync
                 Snapshot.Write(fs, manifest, local.Files.ToDictionary(f => f.Name, f => f.Data, StringComparer.OrdinalIgnoreCase));
                 fs.Flush(flushToDisk: true);
             }
+            long writtenBytes = new FileInfo(temp).Length;
+            if (writtenBytes > Snapshot.MaxArchiveBytes)
+                return new SyncResult(false,
+                    $"Not uploaded: the snapshot is {writtenBytes / (1024.0 * 1024.0):0.0} MB, over the {Snapshot.MaxArchiveBytes / (1024 * 1024)} MB limit. "
+                    + "Check the saves folder for oversized files.");
             // read back and proven before it is given its real name
             var back = Snapshot.Verify(temp);
             if (back.Manifest.WorldHash != local.WorldHash) throw new SnapshotInvalidException("the snapshot read back is not the world written");
@@ -478,7 +482,7 @@ public sealed class CloudSync
         s.UploadsHeld = false;
         s.Seen = s.Seen.Union((acknowledgeAll ? st.Cloud.Select(e => e.FileName) : Readable(st.Cloud)).Append(name), StringComparer.OrdinalIgnoreCase).ToList();
         s.Own = s.Own.Append(name).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
-        var pruned = PruneOwn(name, s.Own);
+        var pruned = PruneOwn(name, s.Own, now);
         // the names pruned stay in Seen: were a deletion not to take (iCloud bringing a placeholder
         // back), the snapshot must not turn into news. The trim drops them once they are gone.
         s.Own.RemoveAll(n => pruned.Contains(n, StringComparer.OrdinalIgnoreCase));
@@ -487,23 +491,42 @@ public sealed class CloudSync
     }
 
     /// <summary>
-    /// This Mac's own snapshots beyond the newest <see cref="KeepPerDevice"/> are deleted - only those
-    /// this Mac recorded uploading (<see cref="SyncState.Own"/>; the manifest's device name is not
-    /// trusted), never the one just written and never another Mac's. One iCloud has evicted to a
-    /// placeholder counts and goes too (its placeholder deleted, which deletes it from iCloud Drive):
-    /// it is this Mac's by the record, not by anything read from it. An unreadable one is left. Returns
-    /// the names deleted. A failure to delete is no failure of the upload.
+    /// Prunes this Mac's own older snapshots after an upload: keeps the newest
+    /// <see cref="KeepPerDevice"/> snapshots plus the newest snapshot for each prior UTC calendar day
+    /// within the last <see cref="KeepDailyDays"/> days (not already represented in the newest
+    /// <see cref="KeepPerDevice"/>). Only snapshots this Mac recorded uploading (<see cref="SyncState.Own"/>;
+    /// the manifest's device name is not trusted) are considered, never the one just written and never
+    /// another Mac's. One iCloud has evicted to a placeholder counts and goes too (its placeholder
+    /// deleted, which deletes it from iCloud Drive): it is this Mac's by the record, not by anything
+    /// read from it. An unreadable one is left. Returns the names deleted. A failure to delete is no
+    /// failure of the upload.
     /// </summary>
-    private List<string> PruneOwn(string justWritten, List<string> ownNames)
+    private List<string> PruneOwn(string justWritten, List<string> ownNames, DateTime now)
     {
         var gone = new List<string>();
         try
         {
             var mine = new HashSet<string>(ownNames, StringComparer.OrdinalIgnoreCase);
             var own = ListCloud().Where(e => e.State != EntryState.Unreadable && mine.Contains(e.FileName)).ToList();
-            foreach (var e in own.Skip(KeepPerDevice))
+            var keptDays = new HashSet<DateTime>();
+            DateTime dailyCutoff = now.Date.AddDays(-KeepDailyDays);
+            int recent = 0;
+            foreach (var e in own)
             {
-                if (string.Equals(e.FileName, justWritten, StringComparison.OrdinalIgnoreCase)) continue;
+                if (string.Equals(e.FileName, justWritten, StringComparison.OrdinalIgnoreCase))
+                {
+                    keptDays.Add(e.CreatedUtc.Date);
+                    recent++;
+                    continue;
+                }
+                if (recent < KeepPerDevice)
+                {
+                    keptDays.Add(e.CreatedUtc.Date);
+                    recent++;
+                    continue;
+                }
+                if (e.CreatedUtc.Date >= dailyCutoff && keptDays.Add(e.CreatedUtc.Date))
+                    continue;
                 // both forms deleted - iCloud may download or evict it between the listing and here -
                 // and recorded as gone only if neither is left, so a name is never dropped from the
                 // record for a snapshot still there (it would come back as news)

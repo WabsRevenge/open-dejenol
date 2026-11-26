@@ -77,6 +77,16 @@ public sealed class AutoCombatMod : IMod, IModLifecycle
             if (!s.Get(FightByRules)) return;
             Round(round, Read(s), s.Get(LeaveInCommand));
         };
+        // Characters cannot be renamed in Mordor, so rules are keyed by name (as Kaizen and DPS Meter
+        // do); when a character is deleted, drop rules targeting that name.
+        ctx.Events.CharacterDeleted += name =>
+        {
+            string n = name.Trim();
+            if (n == "") return;
+            var all = Read(s);
+            if (all.RemoveAll(r => string.Equals(r.Who.Trim(), n, StringComparison.OrdinalIgnoreCase)) > 0)
+                Write(s, all);
+        };
         ctx.UI.AddWindow(WindowTitle, () => Draw.View(ctx.Game, s, Report));
         ctx.Log.Info("ready");
     }

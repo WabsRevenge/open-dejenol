@@ -184,7 +184,7 @@ macOS only). It keeps the saves folder where it is and copies whole-world snapsh
 `~/Library/Mobile Documents/com~apple~CloudDocs/OpenDejenol/` - the iCloud Drive folder, plain files, synced by
 macOS - because CloudKit and an app's iCloud container need entitlements and a provisioning profile that an ad hoc
 signed app cannot have. Of the design above it follows: whole worlds, nothing merged; every upload versioned (each Mac
-keeps its own last ten); upload on returning to town and on quit, download (offered) at start; offline play with the
+keeps its own newest ten plus one a day for seven days); upload on returning to town and on quit, download (offered) at start; offline play with the
 same conflict rule; conflicts never decided silently, both copies kept (the other in iCloud as an earlier version, or
 in a `saves-backup-*` folder). Not built: the lease ("This world is open on HOME-PC since 21:04"); a conflict is
 caught at the next save point or start instead, and only then. Nor "every few minutes of play": the game's own save

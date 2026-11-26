@@ -179,10 +179,10 @@ public static partial class ModProbe
     {
         Console.WriteLine("iCloud Saves: what is synced:");
         bool Synced(string n) => (bool)IcStatic("CloudSync", "IsSynced", n)!;
-        Check("the world's files are synced; this Mac's settings.ini, mods.log, the mod's record, crash.log, hidden and half-written files are not",
-              string.Join(",", new[] { "dungeon.json", "Anna.json", "party-Anna.json", "MDATA9.MDR", "settings.ini", "mods.log", "icloudsaves.json", "crash.log", ".DS_Store", "dungeon.json.tmp", "x.partial.nosync" }
+        Check("the world's files are synced; this Mac's settings.ini, mods.log, the mod's record, crash.log, hidden, half-written and stray files are not",
+              string.Join(",", new[] { "dungeon.json", "Anna.json", "party-Anna.json", "MDATA9.MDR", "settings.ini", "mods.log", "icloudsaves.json", "crash.log", ".DS_Store", "dungeon.json.tmp", "x.partial.nosync", "dpsmeter.json.bad-20261030-120000", "Anna.json.good", "MDATA9B.MDR", "stray.zip" }
                   .Select(n => $"{n}={(Synced(n) ? 1 : 0)}")),
-              "dungeon.json=1,Anna.json=1,party-Anna.json=1,MDATA9.MDR=1,settings.ini=0,mods.log=0,icloudsaves.json=0,crash.log=0,.DS_Store=0,dungeon.json.tmp=0,x.partial.nosync=0");
+              "dungeon.json=1,Anna.json=1,party-Anna.json=1,MDATA9.MDR=1,settings.ini=0,mods.log=0,icloudsaves.json=0,crash.log=0,.DS_Store=0,dungeon.json.tmp=0,x.partial.nosync=0,dpsmeter.json.bad-20261030-120000=0,Anna.json.good=0,MDATA9B.MDR=0,stray.zip=0");
         Check("a snapshot's file name: UTC time and the Mac's name, tidied", IcStatic("Snapshot", "FileName", new DateTime(2026, 10, 30, 3, 4, 5, DateTimeKind.Utc), "Dave's Mac_mini", 1),
               "20261030T030405Z_Dave-s-Mac-mini.odsave");
 
@@ -481,6 +481,40 @@ public static partial class ModProbe
         d.Write("dungeon.json", "{\"rooms\":100}");
         d.Sync.UploadNow();
         Check("one of D's own evicted to a placeholder: pruned as its oldest, ten left", $"{File.Exists(evicted)} {SnapshotsIn(cloud).Count(n => n.Contains("_Mac-D"))}", "False 10");
+
+        Console.WriteLine("iCloud Saves: time-based retention keeps the last ten plus one a day for seven days:");
+        string dailyCloud = Path.Combine(root, "cloud-daily");
+        var eMac = new FakeMac(root, "Mac-E", dailyCloud, t0);
+        // 2 uploads on each of 9 earlier days (days 0..8), then 11 uploads on day 9
+        for (int day = 0; day < 9; day++)
+            for (int k = 0; k < 2; k++)
+            {
+                eMac.Now = t0.AddDays(day).AddHours(k + 1);
+                eMac.Write("dungeon.json", $"{{\"day\":{day},\"k\":{k}}}");
+                eMac.Sync.UploadNow();
+            }
+        for (int k = 0; k < 11; k++)
+        {
+            eMac.Now = t0.AddDays(9).AddMinutes(k);
+            eMac.Write("dungeon.json", $"{{\"day\":9,\"k\":{k}}}");
+            eMac.Sync.UploadNow();
+        }
+        var keptE = SnapshotsIn(dailyCloud);
+        // Day 9: newest 10 kept (k=1..10; k=0 pruned). Days 2..8 (7 prior days): newest 1 each (k=1) kept; k=0 pruned. Days 0..1 (>7 days old): all pruned.
+        Check("last 10 on day 9 plus 1 per day for days 2..8 = 17 kept; days 0..1 pruned",
+              $"{keptE.Length} {keptE.Any(n => n.StartsWith("20261030"))} {keptE.Any(n => n.StartsWith("20261031"))} {keptE.Count(n => n.StartsWith("20261101"))} {keptE.Count(n => n.StartsWith("20261107"))} {keptE.Count(n => n.StartsWith("20261108"))}",
+              "17 False False 1 1 10");
+
+        Console.WriteLine("iCloud Saves: oversized snapshot gets a clear message:");
+        string bigCloud = Path.Combine(root, "cloud-big");
+        var bigMac = new FakeMac(root, "Mac-Big", bigCloud, t0);
+        byte[] junk = new byte[17 * 1024 * 1024];
+        new Random(42).NextBytes(junk);
+        File.WriteAllBytes(Path.Combine(bigMac.Saves, "huge.json"), junk);
+        dynamic bigRes = bigMac.Sync.UploadNow();
+        Check("oversized archive refused with clear message and no snapshot written",
+              $"{(bool)bigRes.Done} {((string)bigRes.Message).Contains("16 MB limit")} {SnapshotsIn(bigCloud).Length}",
+              "False True 0");
 
         Console.WriteLine("iCloud Saves: the seen list, grown long, loses only names no longer in iCloud Drive:");
         dynamic longList = d.Sync.LoadState();

@@ -447,7 +447,9 @@ It gives each member's fight order every round of an engaged fight, through `Mod
 nothing else: no fight is started by it (it is asked only at the tick of an engaged fight, never while monsters
 only wait, never for the free round a step gives them), nothing is cast or used there and then (an order is what
 the round then plays, as by hand), and every order goes through the game's own keys and Cast, so its checks,
-refusals and lines are the game's.
+refusals and lines are the game's. Because characters cannot be renamed in Mordor, per-character rules are keyed by
+character name (as Kaizen and DPS Meter do), and deleting a character (`CharacterDeleted`) drops rules targeting that
+name.
 
 **What the game has, and how the rules asked for map onto it.** The original's combat is a one-second real-time
 round in which each member carries out a standing order - None, Fight, Defend, or a spell recast each round
@@ -542,16 +544,18 @@ has no `mods/ICloudSaves`, and `tools/pack-release.sh` refuses one. Placed by ha
   paid Apple Developer account, and the app is signed ad hoc. When `com~apple~CloudDocs` is missing (iCloud Drive
   turned off) the mod says so - at start and in its window - and makes nothing. `MORDOR_ICLOUD` names another folder
   to stand for iCloud Drive (the checks use a temporary one).
-- **What**: the whole saves folder as one world, never file by file (M3: nothing is merged). Every synced file at
-  its top - the characters, party files, dungeon.json, automap.json, the shared tables and the other mods' files
-  (kaizen.json, cartographer.json, dpsmeter.json) - but not this Mac's settings.ini (its settings, which mods are
-  on), mods.log, crash.log, hidden files, `*.tmp`, or the mod's own record `icloudsaves.json` (`CloudSync.IsSynced`).
+- **What**: the whole saves folder as one world, never file by file (M3: nothing is merged). Only the game's and mods'
+  JSON save files (`*.json` - characters, party files, dungeon.json, automap.json, the shared tables, saves-format.json,
+  and kaizen.json, cartographer.json, dpsmeter.json - excluding the mod's own record `icloudsaves.json`) and the guild
+  log (`MDATA9.MDR`) are synced (`CloudSync.IsSynced`). This Mac's settings.ini, mods.log, crash.log, hidden files,
+  `*.tmp`, `*.nosync`, aside/recovery files (`*.bad-*`, `*.good`, `MDATA9B.MDR`) and stray files are ignored.
 - **A snapshot** is one zip file, `yyyyMMddTHHmmssZ_<Mac>.odsave`: `manifest.json` (format 1, time in UTC, the Mac's
   name, each file's name, size and SHA-256, and a hash of the whole world) and the files under `world/`. It is
-  written under a hidden `.nosync` name (iCloud Drive does not sync those), read back and proven, then renamed into
-  place, so no Mac sees half of one. The manifest also records the world it grew from (the uploading Mac's world at
-  its last sync). Every upload is a new file; a Mac keeps its own last ten - the ones it recorded uploading, never
-  going by a manifest's device name, one iCloud has evicted to a placeholder included - and never deletes another's.
+  written under a hidden `.nosync` name (iCloud Drive does not sync those), checked against the 16 MB limit (returning a
+  clear message if oversized), read back and proven, then renamed into place, so no Mac sees half of one. The manifest
+  also records the world it grew from (the uploading Mac's world at its last sync). Every upload is a new file; a Mac
+  keeps its own newest ten plus one per day for the past seven UTC days - the ones it recorded uploading, never going
+  by a manifest's device name, one iCloud has evicted to a placeholder included - and never deletes another's.
   Its list of snapshots accounted for, past 500 names, loses only those no longer in iCloud Drive (none while iCloud
   Drive cannot be read), so an old snapshot never turns into news again. A snapshot file over 16 MB, with over 1,000
   entries, with a field missing, or dated more than a day ahead of this Mac's clock is unreadable and never used.

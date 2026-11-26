@@ -294,6 +294,13 @@ public static partial class ModProbe
         bh.CombatRound(() => { asked++; return f.Make(party, spells, lookup, fight, groups); });
         var boom = bh.Loaded.Single(l => l.Id == "RoundBoom");
         Check("a mod throwing in its round hook is disabled; the next round asks it nothing", $"{boom.Faulted} {asked}", "True 1");
+
+        // ---- CharacterDeleted removes rules targeting the deleted character, keeping Anyone and others ----
+        Rules(R(who: "Brak", act: "Fight"), R(who: "Cas", act: "Defend"), R(who: "", act: "Fight"));
+        host.CharacterDeleted("Brak");
+        var remaining = st.GetRows("Rules");
+        Check("CharacterDeleted drops Brak's rules and keeps Cas's and Anyone's",
+              $"{remaining.Count} {string.Join(",", remaining.Select(r => r[0]))}", "2 Cas,");
     }
 }
 
