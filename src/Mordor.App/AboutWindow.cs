@@ -113,7 +113,7 @@ public sealed class AboutWindow
         // The label is 180 twips high for an 8.25 point line, so the bottom of the text is cut off,
         // as it is in the original. gc0196 is the full MORDOR.EXE's "7/20/95", and the shareware
         // one's "7/6/95" in the limited build (LimitedVersion.LastEdited).
-        form.Children.Add(VbForm.Label("Version 1.1 (Last Edited " + LimitedVersion.LastEdited + ")", 11, VbForm.Navy).At(660, 375, 3195, 180));
+        form.Children.Add(VbForm.Label("Version 1.1 (Last Edited " + LimitedVersion.LastEdited + ")", 11, VbForm.Navy, bold: true).At(660, 375, 3195, 240));
 
         var info = new Canvas();
         info.Children.Add(VbForm.Label("Mordor is © Copyright 1995, MakeItSo Software", 11, Brushes.Black,
