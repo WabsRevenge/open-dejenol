@@ -427,14 +427,15 @@ from there (`{app:Art name.png}` in a form); nothing falls back to a copy inside
 |---|---|---|
 | maze_corridor, maze_overlays, maze_backdrop, maze_dark, maze_water, maze_quicksand | MG11.DLL resources MORDOR/MAZE, DOOR, BLNK, FOG, WATR, QSND | NE resource table, the .BMP inside |
 | automap-pics, combat-misc, asmodeus, monsters | MG11.DLL MORDOR/PICS, MISC, ASMO, MONS | MONS is RLE8-compressed |
-| menu_background, credits_david, town_exit | MORDOR.EXE: the picture in VB3 form frmMenu, frmCredits, frmCityMain (first) | a form is an RCDATA resource followed by its names table; its pictures are whole .BMP files |
+| menu_background, main_background, credits_david, town_exit | MORDOR.EXE: the picture in VB3 form frmMenu, frmMain, frmCredits, frmCityMain (first) | a form is an RCDATA resource followed by its names table; its pictures are whole .BMP files |
 | tool_page ... tool_help (9) | MORDOR.EXE: frmMain's nine 20x20 pictures, in form order | page, join, automap, control panel, drop body, pick up, give, experience, help |
 | about_icon | MORDOR.EXE RT_ICON 32x32 | the AND mask is the transparency |
 | town_store, morgue, guild, dungeon, confinement, seer, bank | 103x75 crops of the City window's screenshot: `cityw1.png` (the 1.1 install), else the identical `CITYW1.BMP` inside MORDOR.HLP | else frmCityMain's own 120x87 pictures, scaled nearest-neighbour |
 | help.json | MORDOR.HLP | `WinHelpFile` + `HelpBundle` |
 
-Every picture is pixel for pixel the one the port used to carry (selfcheck holds their hashes,
-and compares the files of 498ef89 when git can show them). The WinHelp reader handles the 3.1
+The pictures previously carried by the port are checked pixel for pixel (selfcheck holds their
+hashes and compares the files of 498ef89 when git can show them); `main_background` is extracted at
+its native size and tiled behind the city frame. The WinHelp reader handles the 3.1
 file system, B+ trees, `|SYSTEM`, `|TOPIC` (LZ77 and phrase compression, display and table
 records, jumps), `|CONTEXT` and `|TTLBTREE`. `|SYSTEM`'s CONTENTS record (type 3, a topic offset)
 names the topic WinHelp opens the file at for HELP_CONTENTS, which is what the original's Help
@@ -442,8 +443,8 @@ asked for (FRMMAIN.BAS:75-76); help.json marks that topic (`"Contents":true`) an
 opens there when no topic is asked for, the first topic in a file without the record. It is
 Welcome in both releases measured: offset 0, the first topic, in the full game's MORDOR.HLP, and
 0x26896D, the last of its 73 topics, in the shareware's (whose first is AutoMap). The art cache's
-key carries the extractor's version (`GameArt.Version`, 2 since the mark), so a cache made before
-it is made again. The help used to be bundled from the CHM that the 2015
+key carries the extractor's version (`GameArt.Version`, now 4 after adding the frmMain background),
+so a cache made before it is made again. The help used to be bundled from the CHM that the 2015
 edition's help tool generated beside MORDOR.HLP; made from the .HLP it has the same 73 topics,
 titles, text, line layout, tab stops and 103 jumps, except:
 

@@ -32,9 +32,9 @@ namespace Mordor.App;
 /// </summary>
 public static class ImportWindow
 {
-    private static readonly IBrush Text = Brushes.Gainsboro;
-    private static readonly IBrush Heading = Brush.Parse("#8fb0ff");
-    private static readonly IBrush Warn = Brush.Parse("#e0b040");
+    private static readonly IBrush Text = Palette.Text;
+    private static readonly IBrush Heading = FixedColour.ImportHeading;
+    private static readonly IBrush Warn = FixedColour.ImportWarning;
 
     public static async Task Run(Window owner, string gameDir, string savesDir, bool browse = true)
     {
@@ -135,7 +135,7 @@ public static class ImportWindow
             SizeToContent = SizeToContent.Height,
             MaxHeight = 720,
             CanResize = false,
-            Background = Brush.Parse("#101018"),
+            Background = Palette.Window,
             FontFamily = font,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };

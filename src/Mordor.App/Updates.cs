@@ -103,11 +103,11 @@ internal static class Updates
             "Update now", "Later");
         if (!update || !OriginalBox.CanOwn(owner)) return;
 
-        var line = new TextBlock { Text = $"Downloading version {version}...", Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap };
+        var line = new TextBlock { Text = $"Downloading version {version}...", Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap };
         var box = new Window
         {
             Title = "OpenDejenol", Width = 420, SizeToContent = SizeToContent.Height, CanResize = false,
-            Background = Brush.Parse("#101018"), WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = Palette.Window, WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ShowInTaskbar = false, Content = new Border { Padding = new Thickness(14), Child = line },
         };
         UiFonts.MessageBox(box);

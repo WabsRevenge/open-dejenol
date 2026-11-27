@@ -78,18 +78,30 @@ public static class Mdata1
 
     public static bool Loaded { get; private set; }
 
+    /// <summary>The version string and the four name tables of one MDATA1, as read; nothing is kept.</summary>
+    public sealed record Tables(string Version, IReadOnlyList<NamedIndex> ItemTypes, IReadOnlyList<NamedIndex> ItemDescriptions,
+                                IReadOnlyList<NamedIndex> MonsterClasses, IReadOnlyList<NamedIndex> MonsterGroups);
+
+    /// <summary>Read the four name tables of the MDATA1 at this path, without loading them. Throws on a file that does not read.</summary>
+    public static Tables ReadTables(string path)
+    {
+        using var r = new RecordReader(path, RecordLength);
+        var l = Read(r);
+        return new Tables(l.Version, ReadTable(r, l.ItemTypes), ReadTable(r, l.ItemDescriptions),
+                          ReadTable(r, l.MonsterClasses), ReadTable(r, l.MonsterGroups));
+    }
+
     public static void LoadFrom(string gameDir)
     {
         string path = GameFiles.DataFile(gameDir, "MDATA1.MDR");
         if (!File.Exists(path)) return;
         try
         {
-            using var r = new RecordReader(path, RecordLength);
-            var l = Read(r);
-            ItemTypes = ReadTable(r, l.ItemTypes);
-            ItemDescriptions = ReadTable(r, l.ItemDescriptions);
-            MonsterClasses = ReadTable(r, l.MonsterClasses);
-            MonsterGroups = ReadTable(r, l.MonsterGroups);
+            var t = ReadTables(path);
+            ItemTypes = t.ItemTypes;
+            ItemDescriptions = t.ItemDescriptions;
+            MonsterClasses = t.MonsterClasses;
+            MonsterGroups = t.MonsterGroups;
             Loaded = ItemTypes.Count > 0;
         }
         catch { /* leave the tables empty; callers fall back to the item's own name */ }

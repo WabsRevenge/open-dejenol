@@ -50,7 +50,7 @@ public static class OriginalBox
         {
             Title = title,
             Width = 460, SizeToContent = SizeToContent.Height,
-            Background = Brush.Parse("#101018"),
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
         UiFonts.MessageBox(win);
@@ -72,7 +72,7 @@ public static class OriginalBox
                 Spacing = 12,
                 Children =
                 {
-                    new TextBlock { Text = text, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = text, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap },
                     buttons,
                 },
             },
@@ -256,7 +256,7 @@ public static class OriginalBox
         {
             Title = title,
             Width = 420, SizeToContent = SizeToContent.Height,
-            Background = Brush.Parse("#101018"),
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
         // Windows' message font, as MsgBox's text is, whatever the Options fonts and the owner's face
@@ -285,7 +285,7 @@ public static class OriginalBox
                 Spacing = 12,
                 Children =
                 {
-                    new TextBlock { Text = text, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = text, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap },
                     buttons,
                 },
             },

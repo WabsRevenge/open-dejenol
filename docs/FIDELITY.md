@@ -5995,7 +5995,7 @@ rest still follows.
 - Port necessity: the frame's scroll range holds still while a window's resize grip is held, as it already did for a
   title-bar drag, so shrinking the window that sets the range cannot move the others under the pointer.
 
-**The port's own: the menu waits for the mods - 2026-10-30.** With a mod hooking `MainMenuOpened` (API version 16;
+**The port's own: the menu waits for the mods - 2026-10-30.** With a mod hooking `MainMenuOpened` (API version 17;
 docs/MODDING.md), the main menu's buttons but Exit are off while its hook runs, and the status line under them
 (the port's own, where a failed delete's message goes) reads "Waiting for the mods...". With no mod hooked the menu
 is the original's.

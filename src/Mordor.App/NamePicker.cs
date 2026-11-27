@@ -58,13 +58,13 @@ public static class NamePicker
         };
         var combo = new Border
         {
-            HorizontalAlignment = HorizontalAlignment.Stretch, BorderThickness = new Avalonia.Thickness(1), BorderBrush = Brushes.Gray,
+            HorizontalAlignment = HorizontalAlignment.Stretch, BorderThickness = new Avalonia.Thickness(1), BorderBrush = FixedColour.PickerLine,
             Child = new DockPanel { Children = { drop, box } },
         };
         var popup = new Popup
         {
             PlacementTarget = combo, Placement = PlacementMode.Bottom, IsLightDismissEnabled = true,
-            Child = new Border { Background = Brush.Parse("#101018"), BorderBrush = Brushes.Gray, BorderThickness = new Avalonia.Thickness(1), Child = list },
+            Child = new Border { Background = Palette.Window, BorderBrush = FixedColour.PickerLine, BorderThickness = new Avalonia.Thickness(1), Child = list },
         };
         drop.IsCheckedChanged += (_, _) =>
         {
@@ -107,7 +107,7 @@ public static class NamePicker
         var win = UiFonts.Set(new Window
         {
             Title = title, Width = 420, SizeToContent = SizeToContent.Height,
-            Background = Brush.Parse("#101018"),
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -117,7 +117,7 @@ public static class NamePicker
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = label, Foreground = Brushes.LightGray },
+                        new TextBlock { Text = label, Foreground = Palette.Text },
                         combo,
                         popup,
                         new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ok, cancel } },

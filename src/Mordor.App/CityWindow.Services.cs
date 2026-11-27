@@ -123,7 +123,7 @@ public partial class CityWindow
     private Svc NewServiceWindow()
     {
         var s = new Svc();
-        s.Title = new TextBlock { FontWeight = FontWeight.Bold, Foreground = new SolidColorBrush(Color.Parse("#e8e0c0")), IsVisible = false };
+        s.Title = new TextBlock { FontWeight = FontWeight.Bold, Foreground = FormPage.Ink, IsVisible = false };
         // the port's own heading strip's EXIT: Alt+X while this window is the active one (ServiceAccessKey)
         s.Exit = FormPage.Access(new Button { Focusable = false, Content = new TextBlock { Text = "EXIT" }, Padding = new Avalonia.Thickness(12, 2) }, 'X');
         s.Exit.Click += (_, _) => { _svc = s; CloseService(null, null!); };
@@ -132,7 +132,7 @@ public partial class CityWindow
         Grid.SetColumn(s.Exit, 1);
         headerGrid.Children.Add(s.Title);
         headerGrid.Children.Add(s.Exit);
-        s.Header = new Border { Background = new SolidColorBrush(Color.Parse("#1c2740")), Padding = new Avalonia.Thickness(8, 5), Child = headerGrid };
+        s.Header = new Border { Background = Palette.Window, Padding = new Avalonia.Thickness(8, 5), Child = headerGrid };
         DockPanel.SetDock(s.Header, Dock.Top);
         s.Page = new ContentControl();
         s.Scroll = new ScrollViewer { Content = s.Page };
@@ -143,9 +143,9 @@ public partial class CityWindow
         s.Panel = new Border
         {
             IsVisible = false,
-            BorderBrush = new SolidColorBrush(Color.Parse("#666")),
+            BorderBrush = FormPage.Bevel,
             BorderThickness = new Avalonia.Thickness(2),
-            Background = new SolidColorBrush(Color.Parse("#141420")),
+            Background = FormPage.Face,
             Child = dock,
         };
         s.Child = _frame.AdoptUnsaved("", s.Panel, ServiceSize.Width, ServiceSize.Height);

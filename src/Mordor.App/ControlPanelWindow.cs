@@ -67,7 +67,7 @@ public sealed class ControlPanelWindow : Window
         Title = "Control Panel";
         Width = 520;
         SizeToContent = SizeToContent.Height;
-        Background = Brush.Parse("#101018");
+        Background = Palette.Window;
         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
@@ -80,7 +80,7 @@ public sealed class ControlPanelWindow : Window
         _list = new ListBox
         {
             Height = 132,
-            Background = Brush.Parse("#0a0a10"),
+            Background = Palette.Well,
             FontSize = 12,
             ItemsSource = new[] { All }.Concat(_windows.Select(w => w.Child.Title)).ToList(),
             SelectedIndex = 0,
@@ -184,7 +184,7 @@ public sealed class ControlPanelWindow : Window
     }
 
     private static CheckBox Check(string text, bool value) =>
-        new() { Content = text, IsChecked = value, Foreground = Brushes.Gainsboro, Margin = new Thickness(0, 2) };
+        new() { Content = text, IsChecked = value, Foreground = Palette.Text, Margin = new Thickness(0, 2) };
 
     private static Button Bar(string text, Action click)
     {
@@ -200,7 +200,7 @@ public sealed class ControlPanelWindow : Window
 
     private static Border Group(string caption, Control body) => new()
     {
-        BorderBrush = Brush.Parse("#3a3a4e"),
+        BorderBrush = FixedColour.BoxLine,
         BorderThickness = new Thickness(1),
         Padding = new Thickness(10, 8),
         Child = new StackPanel
@@ -208,7 +208,7 @@ public sealed class ControlPanelWindow : Window
             Spacing = 6,
             Children =
             {
-                new TextBlock { Text = caption, Foreground = Brush.Parse("#8fb0ff"), FontWeight = FontWeight.Bold },
+                new TextBlock { Text = caption, Foreground = FixedColour.BoxHeading, FontWeight = FontWeight.Bold },
                 body,
             },
         },
@@ -323,7 +323,7 @@ public sealed class ControlPanelWindow : Window
             Title = "Adjust Windows to Display",
             Width = 420,
             SizeToContent = SizeToContent.Height,
-            Background = Brush.Parse("#101018"),
+            Background = Palette.Window,
             FontFamily = FontFamily,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
@@ -337,7 +337,7 @@ public sealed class ControlPanelWindow : Window
                         new TextBlock
                         {
                             Text = "Are you using Large Fonts?",
-                            Foreground = Brushes.Gainsboro,
+                            Foreground = Palette.Text,
                             TextWrapping = TextWrapping.Wrap,
                         },
                         new StackPanel

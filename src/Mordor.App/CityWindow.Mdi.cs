@@ -67,6 +67,27 @@ public partial class CityWindow
     /// </summary>
     internal static double PartyGrowthX => UiFonts.FormGrowth(DesignFonts.Party.Pass).X;
 
+    /// <summary>
+    /// The pale box the party's rows sit in, as the original's Party Information draws it: the
+    /// theme's list ground and bevel, four rows tall. A plain frame round the rows, not a list
+    /// control: the selected member is the game's (its green name), and a list's own selection,
+    /// focus and arrow keys would fight it. The frame is as wide as the rows, mod columns and all.
+    /// </summary>
+    internal static void FramePartyRows(Border frame, Button below)
+    {
+        frame.Background = Palette.List;
+        frame.BorderBrush = Palette.Shadow;
+        // down to two pixels above the buttons, as the original's box runs (it had been four rows
+        // tall, which left a wide gap): the buttons' top, their margin in, less the box's own top
+        // kept so when a larger Options font moves the buttons down (FitPartyDrawing), and stretched
+        // with them when the window is taller (ElasticCanvas.BottomAt)
+        void Fit() => ElasticCanvas.SetBottomAt(frame, Canvas.GetTop(below) + below.Margin.Top - 2);
+        Fit();
+        below.PropertyChanged += (_, e) => { if (e.Property == Canvas.TopProperty || e.Property == Avalonia.Layout.Layoutable.MarginProperty) Fit(); };
+        frame.PropertyChanged += (_, e) => { if (e.Property == Canvas.TopProperty) Fit(); };
+        ClassicLook.Field(frame);   // set in, in the Light theme
+    }
+
     /// <summary>frmParty's columns under the header, from the header's own left: the edges of the table in CityWindow.axaml.</summary>
     internal static readonly double[] PartyColumns = { 72, 49, 42, 53, 64 };
 
@@ -953,7 +974,7 @@ public partial class CityWindow
 
     private void Log(string line)
     {
-        var look = new MessageLook(MessageKind.None, Mordor.Modding.ModHost.Active.MessageLineColour(line, MessageKind.None));
+        var look = MessageView.LookFor(line, MessageKind.None);
         if (!MessageList.Add(_messages, _messageLooks, line, look, Mordor.Modding.ModHost.Active.MessagesKept(MessageList.Kept))) return;
         ShowMessages();
         Audio.Ding();       // sub085B plays MESSAGE.WAV for every line it adds

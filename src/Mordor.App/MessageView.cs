@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using Avalonia.Controls;
@@ -28,11 +29,27 @@ internal static class MessageView
         public override string ToString() => Text;
     }
 
+    /// <summary>
+    /// A line's look as it is added: a mod's colour role for it (ModUI.MessageLineInk) if one gives
+    /// one, else a mod's own colour (MessageLineColour), else the window's own.
+    /// </summary>
+    public static MessageLook LookFor(string line, MessageKind kind)
+    {
+        var host = Mordor.Modding.ModHost.Active;
+        string? ink = host.MessageLineInk(line, kind);
+        return new MessageLook(kind, ink == null ? host.MessageLineColour(line, kind) : null, ink);
+    }
+
     private static readonly FuncDataTemplate<Row> RowTemplate = new((r, _) =>
     {
         var text = new TextBlock { Text = r?.Text ?? "" };
-        if (r?.Look.Colour is { } c)
-            text.Foreground = new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B));
+        // a role's brush is the palette's own, which a change of theme recolours (Palette); a mod's
+        // own colour is drawn as it is. Either at a style's priority, not the row's own: a chosen
+        // row's white on navy (ClassicLook) is then drawn over it, where it had kept its colour
+        IBrush? ink = r?.Look.Ink is string key ? Palette.ByKey(key)
+                    : r?.Look.Colour is { } c ? new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B))
+                    : null;
+        if (ink != null) text.SetValue(TextBlock.ForegroundProperty, ink, Avalonia.Data.BindingPriority.Style);
         return text;
     });
 

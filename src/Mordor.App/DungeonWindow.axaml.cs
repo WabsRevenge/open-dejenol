@@ -77,6 +77,18 @@ public partial class DungeonWindow : Window
     private CombatEngine? _combat;
     private readonly string _gameDir;
 
+    public bool SetTiledBackground(Bitmap bmp)
+    {
+        Backdrop.Background = new ImageBrush(bmp)
+        {
+            TileMode = TileMode.Tile,
+            Stretch = Stretch.Fill,
+            DestinationRect = new RelativeRect(
+                0, 0, bmp.Size.Width, bmp.Size.Height, RelativeUnit.Absolute)
+        };
+        return true;
+    }
+
     /// <summary>mc01B0: the original's combat timer interval, in milliseconds.</summary>
     private const int CombatTickMs = 1000;
 
@@ -102,6 +114,46 @@ public partial class DungeonWindow : Window
         // the Options window's fonts, read before any control is built (UiFonts)
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
+        ThemeSelection.ApplyWindowSurface(this);
+        CityWindow.FramePartyRows(PartyRowsFrame, PartySwitchBtn);
+        // the Light theme's relief (ClassicLook), as game_files/dmainw1.png has it: the view, the
+        // position, the monster box and the chest box set in, and the lists set in deeper
+        ClassicLook.Sunken(ViewFrame); ClassicLook.Sunken(PosFrame); ClassicLook.Sunken(CombatPanel); ClassicLook.Sunken(ChestPanel);
+        ClassicLook.Field(MonsterList); ClassicLook.Field(MessageLog); ClassicLook.Field(PackList); ClassicLook.Field(SheetSpellBox);
+        SetTiledBackground(Art.Bitmap("main_background.png"));
+        PosText.Foreground = Palette.Text;
+        CombatPanel.Background = FormPage.Face;
+        CombatPanel.BorderBrush = FormPage.Bevel;
+        MonsterList.Background = Palette.List;
+        // picMonGroups is shown only while a group is alive (fn0EEF() > False, MONSMOD.BAS:4324-4330): the
+        // rows hold the living groups alone, so with none the box goes, as it does when the last falls
+        // with a chest still shut. It had stayed, an empty yellow box.
+        MonsterList.PropertyChanged += (_, e) =>
+        {
+            if (e.Property == ItemsControl.ItemsSourceProperty)
+                MonsterList.IsVisible = e.NewValue is System.Collections.IEnumerable rows && rows.Cast<object>().Any();
+        };
+        MonsterList.IsVisible = false;
+        CombatHit.Foreground = Palette.Navy;
+        CombatMonsterHit.Foreground = Palette.Maroon;
+        MsgText.Foreground = Palette.Text;
+        // picTrap: the lists' pale yellow, as the original draws the chest's box (it was the form's grey)
+        ChestPanel.Background = Palette.List;
+        ChestPanel.BorderBrush = FormPage.Bevel;
+        ChestText.Foreground = Palette.Text;
+        ChestGauge.Foreground = Palette.Blue;
+        ThemeSelection.ApplyPartyHeader(PartyHeader);
+        ThemeSelection.ApplyItemCommandTheme((Canvas)SheetEquipBtn.Parent!, SheetEquipBtn, SheetUseBtn, SheetDropBtn, SheetInfoBtn);
+        ThemeSelection.ApplyCommandButtonTheme(DungeonCanvas, MapBtn, PickupBtn, DropBodyBtn, FightBtn, SpellBtn, TakeBtn, OpenBtn, ExitBtn);
+        ThemeSelection.ApplyCommandButtonTheme(PartyBox, PartySwitchBtn, PartyOptionsBtn, PartyLeaveBtn);
+        Host.Background = Brushes.Transparent;
+        DungeonCanvas.Background = FormPage.Face;
+        PackList.Background = Palette.Window;
+        // as the town's copy (CityWindow): the lists' pale yellow, as the original's are
+        SheetSpellBox.Background = Palette.List;
+        SheetSpellText.Background = Palette.List;
+        MessageLog.Background = Palette.Well;
+        MessageLog.BorderBrush = FormPage.Bevel;
         KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
         // the frame's caption, " (Limited Version)" after it in the shareware build (FRMMAIN.BAS:148-152)
         Title = LimitedVersion.FrameCaption;
@@ -2604,7 +2656,7 @@ public partial class DungeonWindow : Window
         {
             Title = title,
             Width = 560, SizeToContent = SizeToContent.Height,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -2614,7 +2666,7 @@ public partial class DungeonWindow : Window
                     Spacing = 14,
                     Children =
                     {
-                        new TextBlock { Text = body, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = body, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap },
                         ok,
                     },
                 },
@@ -2755,7 +2807,7 @@ public partial class DungeonWindow : Window
         {
             Title = title,
             Width = 380, Height = 210,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -2765,7 +2817,7 @@ public partial class DungeonWindow : Window
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = prompt, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap },
                         box,
                         new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8, Children = { ok, cancel } },
                     },
@@ -3054,7 +3106,7 @@ public partial class DungeonWindow : Window
         {
             Title = title,
             Width = 460, SizeToContent = SizeToContent.Height,
-            Background = Avalonia.Media.Brush.Parse("#101018"),
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -3064,7 +3116,7 @@ public partial class DungeonWindow : Window
                     Spacing = 12,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = Brushes.LightGray, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = prompt, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap },
                         new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8, Children = { yesBtn, noBtn } },
                     },
                 },
@@ -4986,7 +5038,7 @@ public partial class DungeonWindow : Window
     private void Log(string line, MessageKind kind)
     {
         // MessageList carries mc04F2 and sub085B's trim, and adds a repeated line as sub085B does
-        var look = new MessageLook(kind, Mordor.Modding.ModHost.Active.MessageLineColour(line, kind));
+        var look = MessageView.LookFor(line, kind);
         if (!MessageList.Add(_messages, _messageLooks, line, look, Mordor.Modding.ModHost.Active.MessagesKept(MessageList.Kept))) return;
         ShowMessages();
         Audio.Ding();       // sub085B plays MESSAGE.WAV for every line it adds
@@ -5732,6 +5784,7 @@ public partial class DungeonWindow : Window
             }
         }
 
+        ChestText.Foreground = Palette.Text;
         if (Rules.MagicallyLocked(_combat.ChestLocked))
         {
             ChestText.Text = Rules.LockedCaption;
@@ -6124,6 +6177,7 @@ public partial class DungeonWindow : Window
         if (fight.ChestTrap == 0)
         {
             _trapCaption = "Not Trapped";
+            ChestText.Foreground = Palette.Green;
             return lines;
         }
 
@@ -6132,6 +6186,7 @@ public partial class DungeonWindow : Window
         if (_rng.Next(100) + 1 <= thieving)
         {
             _trapCaption = "Trap Disarmed";
+            ChestText.Foreground = Palette.Green;
             // MONSMOD.BAS:3508-3509 pays for the disarm, and only for a disarm - an untrapped chest
             // earns nothing because the award sits inside the ChestTrap > 0 branch. The guild level
             // that discounts it is Chars(0)'s, not the opener's; see Rules.ChestExp.
@@ -6145,6 +6200,7 @@ public partial class DungeonWindow : Window
         }
 
         _trapCaption = what;
+        ChestText.Foreground = Palette.Maroon;
         var result = ChestTraps.Spring(
             // MONSMOD.BAS:3514, 3521, 3528 and 3534 each loop the whole party for the gas, the
             // spores, the explosion and the fire - only the opener's own bad luck is personal
@@ -6182,6 +6238,7 @@ public partial class DungeonWindow : Window
         // that far: it is set for the lone opener only, so it cannot fire late on a later step.
         _forceSettle = alone;
         ChestText.Text = _trapCaption;
+        ChestText.Foreground = Palette.Maroon;
         _trapReadoutTold = _trapCaption;
         Mordor.Modding.ModHost.Active.CaptionShown(Mordor.Modding.CaptionKind.Trap, _trapCaption, null);
         ChestGauge.Text = "";
@@ -6567,7 +6624,7 @@ public partial class DungeonWindow : Window
         var t = new TextBlock
         {
             Text = text,
-            Foreground = Brushes.Khaki,
+            Foreground = Palette.Name,
             Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
         };
         t.PointerPressed += (_, e) => { TargetGroup(group - 1); Focus(); e.Handled = true; };
@@ -6582,13 +6639,13 @@ public partial class DungeonWindow : Window
             {
                 Width = 12, Child = new Border
                 {
-                    Width = 2, Height = 9, Background = Brushes.Khaki,
+                    Width = 2, Height = 9, Background = Palette.Name,
                     HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Center,
                     VerticalAlignment = Avalonia.Layout.VerticalAlignment.Center,
                 },
             });
         else
-            row.Children.Add(new TextBlock { Text = glyph, Width = 12, Foreground = Brushes.Khaki, FontWeight = FontWeight.Bold,
+            row.Children.Add(new TextBlock { Text = glyph, Width = 12, Foreground = Palette.Name, FontWeight = FontWeight.Bold,
                                              TextAlignment = TextAlignment.Center });
         row.Children.Add(t);
         return row;

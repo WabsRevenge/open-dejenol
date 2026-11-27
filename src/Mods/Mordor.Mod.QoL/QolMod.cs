@@ -171,16 +171,17 @@ public sealed class QolMod : IMod, IModLifecycle
         members.FirstOrDefault(m => !m.IsDead && m.DungeonLevel == 0);
 
     /// <summary>
-    /// The colour of a Messages line of each kind with Color-coded combat messages on, or null for
-    /// the window's own: the old Combat Log's (1.0.0 to 1.8.0) - the party's side light green, the
-    /// foes' indian red, chests orange, joining plum.
+    /// The colour of a Messages line of each kind with Color-coded combat messages on, by role, or null
+    /// for the window's own: the old Combat Log's (1.0.0 to 1.8.0) - the party's side green, the foes'
+    /// red, chests a warning's orange, joining plum - each in the theme's own value of that role
+    /// (ThemeKeys), so it reads on the Light grey as on the Dark (an orange of its own did not).
     /// </summary>
-    public static (byte R, byte G, byte B)? CombatColour(MessageKind kind) => kind switch
+    public static string? CombatInk(MessageKind kind) => kind switch
     {
-        MessageKind.Party => (144, 238, 144),
-        MessageKind.Foes => (205, 92, 92),
-        MessageKind.Chest => (255, 165, 0),
-        MessageKind.Join => (221, 160, 221),
+        MessageKind.Party => ThemeKeys.Green,
+        MessageKind.Foes => ThemeKeys.Maroon,
+        MessageKind.Chest => ThemeKeys.Warning,
+        MessageKind.Join => ThemeKeys.Magic,
         _ => null,
     };
 
@@ -216,7 +217,7 @@ public sealed class QolMod : IMod, IModLifecycle
             () => s.Get(XpToNextColumn), width: NextWidth));
 
         // h. the Messages window's combat lines coloured by the kind the game gave them (the text untouched)
-        ctx.UI.MessageLineColour = l => s.Get(ColorCodedCombatMessages) ? CombatColour(l.Kind) : null;
+        ctx.UI.MessageLineInk = l => s.Get(ColorCodedCombatMessages) ? CombatInk(l.Kind) : null;
 
         // i. Town gold (the choice, read as each question comes). Walking back into town: the Bank's
         // Party Deposit for everybody (Everyone's own bank) or its Party Pool into the leader's

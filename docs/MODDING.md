@@ -29,8 +29,9 @@ and the first mod.
 | `PartyGoldTo` and `CombatEngine.GoldTo` removed (the dungeon's gold is always monGetGold's even share, with any mod); `TownIncomeToBank` replaced by `TownIncomeBank` (the member whose account a sale's gold goes into, or null for the seller's hand; `TownIncome.Party`); `TownArrivalAction.PartyPool` with `TownArrivalAnswer.PoolTo` (the Bank's Party Pool into one member's account, `Party.PoolOnHandToBank`); `ShortfallAnswer.From` (who covers a shortfall, in order) and a shortfall now covered from the givers' bank accounts only; `ModChoiceSpec.OptionDescriptions` (a tooltip per option) - API version 12 | built (2026-10-25, for the Quality of Life mod's Town gold) |
 | The Automap hooks (see "The Automap" under **UI** below): `ModUI.AutomapMenu` (items for the right-click menu, whose first item is the original's re-plot), `AutomapMarks` (tints, frames and arrows drawn on the map's own squares), `AutomapHover`, `AutomapClick`; `AutomapView` (`ShownLevel`, `DeepestLevel`, `LevelSize`, `ShowLevel`, `Refresh`, `PickSquare`, `CancelPick`, `Picking`), `AutomapSquare`, `AutomapMark`, `AutomapMenuItem`; `ModHost.AutomapHooked`; `AutomapLayout.SquareAt` - API version 13 | built (2026-10-26, for the Cartographer mod) |
 | What the Automap shows, for a mod's own reckoning: `AutomapView.You` (the square and facing its arrow is drawn with, `AutomapPosition`; null in town and while lost, when it draws none) and `AutomapView.Record(square)` (`AutomapRecord`: whether the square has been walked, and the flag word the map draws it from - never the maze); `ModUI.AutomapInfo` (a line in place of the status line's "You are at ...", asked straight after the marks) - API version 14 | built (2026-11-16, for the Cartographer mod's routes) |
-| The Action `CombatRound` (each tick of an engaged fight, before any character acts: synchronous, not awaited) with a `CombatRoundContext` - a token for the fight (not the engine), the monster list as shown (`MonsterGroupView`: slot, fn0E23's name for the one in command, the count only where the list shows one, the name for one; no hit points), each member's order (`CombatOrderView`, with `OpeningChest`) and aim, `ByHand(c)` (whether the player has given the member an order by hand in this fight - f, d or space, a number key, Cast or Use, or a spell buffer, with them in command - so a mod giving orders by rules leaves them alone until it ends), and the commands a player gives between ticks for a named member: `Order` (f, d, space), `Cast` (a spell made the order, as a spell buffer fires it), `UseItem` (an item at All made the order), `Aim` (a number key 1-4); `ModHost.CombatRound` and `ModHost.CombatRoundHooked` - API version 15. With no mod hooked, a tick makes no list and no context and the round is the original's | built (2026-10-30, for the Auto-combat mod) |
-| The event `Saved` (`SavePoint`, `SavePointKind`: the game's saves are on disk at a save point - the party back in town up the stairs, after the arrival's save; the game ending, Exit to Main Menu or the program closing, after the city's last save; `ModHost.SavePointReached`) and the action `MainMenuOpened` (`MainMenuContext`: the main menu at the program's start, nothing loaded, after its own start-up boxes and before a preloaded character goes in, with the menu shut while hooks run; the saves folder, `Ask` - the game's box over the menu with the mod's buttons, `OriginalBox.Choose` - and `Quit`; `ModHost.MainMenuOpened`, `ModHost.MainMenuHooked`) - API version 16. With no mod listening or hooked, the city and the menu do exactly what they did | built (2026-10-30, for the iCloud Saves mod) |
+| Colours by role: the game's colours are a short list of roles (`ThemeKeys`: the window's, a list's and a field's grounds, a bevel's lines, the text's ink, the form's navy, blue, maroon and green, a warning's, a name's, a selection's), each with one value in the Light theme - the original's Windows 3.1 palette - and one in the Dark, published as application resources under those names. A mod's window takes its colours from them (`Application.Current.FindResource(ThemeKeys.Text)`), and follows a change of theme with nothing of its own; a colour of a mod's own is drawn as it is in either theme. `ModUI.MessageLineInk` colours a Messages line by role (the Quality of Life mod's color-coded lines: the party green, the foes maroon, a chest a warning's, a join magic), and is asked before `MessageLineColour` - API version 15 | built (2026-11-27, with the Light and Dark themes) |
+| The Action `CombatRound` (each tick of an engaged fight, before any character acts: synchronous, not awaited) with a `CombatRoundContext` - a token for the fight (not the engine), the monster list as shown (`MonsterGroupView`: slot, fn0E23's name for the one in command, the count only where the list shows one, the name for one; no hit points), each member's order (`CombatOrderView`, with `OpeningChest`) and aim, `ByHand(c)` (whether the player has given the member an order by hand in this fight - f, d or space, a number key, Cast or Use, or a spell buffer, with them in command - so a mod giving orders by rules leaves them alone until it ends), and the commands a player gives between ticks for a named member: `Order` (f, d, space), `Cast` (a spell made the order, as a spell buffer fires it), `UseItem` (an item at All made the order), `Aim` (a number key 1-4); `ModHost.CombatRound` and `ModHost.CombatRoundHooked` - API version 16. With no mod hooked, a tick makes no list and no context and the round is the original's | built (2026-10-30, for the Auto-combat mod) |
+| The event `Saved` (`SavePoint`, `SavePointKind`: the game's saves are on disk at a save point - the party back in town up the stairs, after the arrival's save; the game ending, Exit to Main Menu or the program closing, after the city's last save; `ModHost.SavePointReached`) and the action `MainMenuOpened` (`MainMenuContext`: the main menu at the program's start, nothing loaded, after its own start-up boxes and before a preloaded character goes in, with the menu shut while hooks run; the saves folder, `Ask` - the game's box over the menu with the mod's buttons, `OriginalBox.Choose` - and `Quit`; `ModHost.MainMenuOpened`, `ModHost.MainMenuHooked`) - API version 17. With no mod listening or hooked, the city and the menu do exactly what they did | built (2026-10-30, for the iCloud Saves mod) |
 | Events `BlowLanded`, `HitsChanged`, `FightStarted/Ended`; restyling; data and asset mods | not yet |
 
 The Store's alignment choice is back to the original's lock by default; the unlocked choice is in the Quality of Life
@@ -442,8 +443,8 @@ read at every round: **Fight by the rules** (`FightByRules`, also a checkbox at 
 the rules can be stopped mid-fight with one click) and **Leave the one in command to me** (`LeaveInCommand`: the
 character in command is never given an order by the rules). A member the player gives an order by hand - f, d or
 space, a number key, Cast, Use or a spell buffer, with them in command - is left alone until the fight ends
-(`CombatRoundContext.ByHand`, API version 15), so the key pressed plays rather than being replaced at the next tick.
-It gives each member's fight order every round of an engaged fight, through `ModActions.CombatRound` (API version 15), and does
+(`CombatRoundContext.ByHand`, API version 16), so the key pressed plays rather than being replaced at the next tick.
+It gives each member's fight order every round of an engaged fight, through `ModActions.CombatRound` (API version 16), and does
 nothing else: no fight is started by it (it is asked only at the tick of an engaged fight, never while monsters
 only wait, never for the free round a step gives them), nothing is cast or used there and then (an order is what
 the round then plays, as by hand), and every order goes through the game's own keys and Cast, so its checks,
@@ -537,7 +538,7 @@ copies of the saved world kept in the player's iCloud Drive, so a game can be ca
 build ships it (`src/Mods/ShipMods.targets`: a publish for an osx runtime, or a build on a Mac); the Windows release
 has no `mods/ICloudSaves`, and `tools/pack-release.sh` refuses one. Placed by hand on another system it loads, writes
 "macOS only" to mods.log and hooks nothing. It needs no Harmony; it uses `Saved` and
-`MainMenuOpened` (API version 16), added for it.
+`MainMenuOpened` (API version 17), added for it.
 
 - **Where**: `~/Library/Mobile Documents/com~apple~CloudDocs/OpenDejenol/Snapshots/`, with plain file I/O - macOS
   syncs the folder. Not CloudKit or an iCloud container: both need an entitlement and a provisioning profile from a
@@ -745,7 +746,7 @@ public sealed class Entry : Mordor.Modding.IMod
   it - nought for an award to a character already pinned, and never below nought (a total past a lowered pin is
   pulled back to it, which is not counted as a loss). Raised right after the award, after any DamageDealt for the
   same blow; observe only - with no mod listening nothing more happens, and listening changes nothing.
-  `Saved(SavePoint)` (API version 16): the game's saves are on disk at a save point - `Kind` `ArrivedInTown` (the
+  `Saved(SavePoint)` (API version 17): the game's saves are on disk at a save point - `Kind` `ArrivedInTown` (the
   stairs up into town, raised after the town's save of the arrival, so after `ArrivedInTown`, which comes before it)
   or `GameEnded` (Exit to Main Menu or the program closing, raised after the city's last save - and after the
   dungeon's, when the session ends below). For a mod that copies the saves (the iCloud Saves mod). Observe only, and
@@ -917,7 +918,7 @@ public sealed class Entry : Mordor.Modding.IMod
   One moment at a time: while a moment's hooks are awaited the stairs taken again do nothing, and the host runs no
   hooks of a second call made meanwhile (`ModHost.ActionRunning`). On the Mods page, Enter in a list cell keeps the
   edit and does not press Close.
-  `MainMenuOpened` (API version 16), a `Func<MainMenuContext, Task>`: the main menu is up at the program's start with
+  `MainMenuOpened` (API version 17), a `Func<MainMenuContext, Task>`: the main menu is up at the program's start with
   nothing loaded and no game in play - once a run, after the menu's own start-up boxes (the limitation notice, the
   welcome) and before a character marked Preload Character goes in. The menu reads its characters only when asked, so
   a mod may change the saves folder here. `MainMenuContext`: `SavesDirectory`; `Ask(title, text, buttons...)`, the
@@ -933,12 +934,12 @@ public sealed class Entry : Mordor.Modding.IMod
   by hand passes neither, and runs as before. `CheckCast` takes `asCommander` (the "you" wording for any caster)
   and `SpellThrown.Apply`/`Line` an optional `commander` (null: `party.Selected`); a cast by hand is the one in
   command casting, so both give what they always gave.
-- **The fight's round** (API version 15): `ModActions.CombatRound`, an `Action<CombatRoundContext>`, called at
+- **The fight's round** (API version 16): `ModActions.CombatRound`, an `Action<CombatRoundContext>`, called at
   each tick of an engaged fight (timCombat, FRMDUNM.BAS:616; the round, MULTIMOD.BAS:497) before any character
   acts - not awaited, not for monsters only waiting, not for the free round a step gives them. The live mods'
   hooks run in load order, each with a context of its own, closed as its hook returns. With none hooked
   (`ModHost.CombatRound`) no context is made, nothing is read and the round is the original's. A hook that
-  throws disables its mod. The dungeon asks `ModHost.CombatRoundHooked` first (API version 15), so with none hooked a
+  throws disables its mod. The dungeon asks `ModHost.CombatRoundHooked` first (API version 16), so with none hooked a
   tick makes no list and no context. An order given by hand while monsters only wait counts too: it is carried
   into the fight they become. `CombatRoundContext`: `Party`/`Members`, `Spells`, `Item`, `Fight` (a token, the same
   object every round of one fight - not the engine, which holds the monsters' hits; that is the API's convention, not

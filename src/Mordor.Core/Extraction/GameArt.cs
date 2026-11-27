@@ -24,8 +24,8 @@ public sealed record GameArtResult(string? Dir, string? Error, IReadOnlyList<str
 /// pictures and the monster portraits. The original will not start without MG11.DLL ("Cannot
 /// locate graphics file", MODULE12.BAS:71-75), and neither does this.</item>
 /// <item>MORDOR.EXE: the pictures Visual Basic keeps in its forms - frmMenu's background,
-/// frmCredits' portrait, frmCityMain's Exit sign and its seven building pictures, frmMain's nine
-/// toolbar buttons - and the program's icon (About).</item>
+/// frmMain's background and nine toolbar buttons, frmCredits' portrait, frmCityMain's Exit sign and
+/// its seven building pictures - and the program's icon (About).</item>
 /// <item>The city's building buttons as the port draws them, 103x75: cut from the screenshot of the
 /// City window the 1.1 install carries (cityw1.png, or CITYW1.BMP inside MORDOR.HLP); a copy with
 /// neither gets the program's own 120x87 pictures scaled down.</item>
@@ -39,9 +39,9 @@ public static class GameArt
     /// <summary>
     /// Bumped whenever what is extracted changes, so an old cache is not reused. 2: help.json marks
     /// the help file's Contents topic (<see cref="HelpBundle.Topic.Contents"/>). 3: the manifest keeps
-    /// the help file's title (<see cref="HelpTitle"/>).
+    /// the help file's title (<see cref="HelpTitle"/>). 4: extract frmMain's background.
     /// </summary>
-    public const int Version = 3;
+    public const int Version = 4;
 
     public const string HelpFile = "help.json";
     public const string ManifestFile = "extracted.json";
@@ -102,6 +102,7 @@ public static class GameArt
         var l = new List<Picture>();
         foreach (var m in Mg11) l.Add(new Picture(m.Name, m.Width, m.Height, $"MG11.DLL, resource MORDOR/{m.Resource}"));
         l.Add(new Picture("menu_background.png", 600, 400, "MORDOR.EXE, frmMenu's picture"));
+        l.Add(new Picture("main_background.png", 0, 0, "MORDOR.EXE, frmMain's picture"));
         l.Add(new Picture("credits_david.png", 150, 150, "MORDOR.EXE, frmCredits' picture"));
         l.Add(new Picture("town_exit.png", 120, 42, "MORDOR.EXE, frmCityMain's first picture (the Exit sign)"));
         foreach (var (t, i) in Toolbar.Select((t, i) => (t, i)))
@@ -146,6 +147,7 @@ public static class GameArt
     {
         using var sha = SHA256.Create();
         var all = new StringBuilder($"mordor-art v{Version}\n");
+        if (GameFiles.IsFixture(gameDir)) all.Append("the test fixture: placeholders\n");
         foreach (var s in Sources)
         {
             string? p = Find(gameDir, s.Name);
@@ -164,7 +166,8 @@ public static class GameArt
     {
         try
         {
-            foreach (var s in Sources.Where(s => s.Required))
+            bool fixture = GameFiles.IsFixture(gameDir);
+            foreach (var s in Sources.Where(s => s.Required && !fixture))
                 if (Find(gameDir, s.Name) == null)
                     return new GameArtResult(null, $"{s.Name} is missing from {gameDir}: {s.Why} are in it, and the game cannot start without it.", Array.Empty<string>());
             string root = cacheRoot ?? CacheRoot;
@@ -177,7 +180,7 @@ public static class GameArt
             string temp = dir + ".part-" + Guid.NewGuid().ToString("N")[..8];
             Directory.CreateDirectory(temp);
             List<string> notes;
-            try { notes = Extract(gameDir, temp); }
+            try { notes = fixture ? Placeholders(gameDir, temp) : Extract(gameDir, temp); }
             catch { TryDelete(temp); throw; }
             if (Directory.Exists(dir)) TryDelete(dir);    // an earlier, unfinished one
             try { Directory.Move(temp, dir); }
@@ -199,7 +202,7 @@ public static class GameArt
     {
         try
         {
-            if (Sources.Any(s => s.Required && Find(gameDir, s.Name) == null)) return false;
+            if (!GameFiles.IsFixture(gameDir) && Sources.Any(s => s.Required && Find(gameDir, s.Name) == null)) return false;
             return Complete(Path.Combine(cacheRoot ?? CacheRoot, Key(gameDir)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
@@ -270,13 +273,13 @@ public static class GameArt
             try
             {
                 img = make();
-                if (img.Width != pic.Width || img.Height != pic.Height)
+                if (pic.Width > 0 && (img.Width != pic.Width || img.Height != pic.Height))
                     throw new InvalidDataException($"it is {img.Width}x{img.Height}, not {pic.Width}x{pic.Height}");
             }
             catch (Exception ex) when (ex is InvalidDataException or ArgumentException or IndexOutOfRangeException or FileNotFoundException)
             {
                 notes.Add($"{name}: blank - {pic.From} did not read ({ex.Message})");
-                img = new RgbaImage(pic.Width, pic.Height);
+                img = new RgbaImage(Math.Max(pic.Width, 1), Math.Max(pic.Height, 1));
             }
             made[name] = img;
         }
@@ -295,6 +298,7 @@ public static class GameArt
 
         // MORDOR.EXE
         var exe = NeModule.Read(Need("MORDOR.EXE"));
+
         RgbaImage FormPicture(string form, int index, int w = 0, int h = 0)
         {
             var pics = exe.FormPictures(form);
@@ -305,6 +309,8 @@ public static class GameArt
         Put("menu_background.png", () => FormPicture("frmMenu", 0));
         Put("credits_david.png", () => FormPicture("frmCredits", 0));
         Put("town_exit.png", () => FormPicture("frmCityMain", 0));
+        Put("main_background.png", () => FormPicture("frmMain", 0));
+
         for (int i = 0; i < Toolbar.Length; i++)
         {
             int k = i;
@@ -372,6 +378,64 @@ public static class GameArt
             pictures = Pictures.Select(p => new { name = p.Name, from = p.From }),
             help = File.Exists(Path.Combine(outDir, HelpFile)),
             helpTitle = File.Exists(Path.Combine(outDir, HelpFile)) ? hlp?.Title : null,
+            notes,
+        };
+        File.WriteAllText(Path.Combine(outDir, ManifestFile), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
+        return notes;
+    }
+
+    /// <summary>
+    /// The test fixture's art (<see cref="GameFiles.FixtureMarker"/>): for every picture the port
+    /// loads, a placeholder of the picture's own size - a muted colour of its name's, framed, with
+    /// diagonal stripes so it reads as a stand-in - and monsters.png as a grid of 60x60 cells, a
+    /// portrait apiece; and a small help of invented topics, among them those the game opens by
+    /// name. Nothing of the game's is in it: the fixture is for the checks and the CI's pictures of
+    /// the windows, where none of Mordor's files may be.
+    /// </summary>
+    private static List<string> Placeholders(string gameDir, string outDir)
+    {
+        var notes = new List<string> { "the test fixture: every picture a placeholder, the help invented" };
+        foreach (var p in Pictures)
+        {
+            // frmMain's background is tiled, and has no fixed size: a tile
+            int w = p.Width > 0 ? p.Width : 64, h = p.Height > 0 ? p.Height : 64;
+            uint hash = 2166136261;
+            foreach (char ch in p.Name) hash = (hash ^ ch) * 16777619;
+            byte r = (byte)(96 + hash % 96), g = (byte)(96 + (hash >> 8) % 96), b = (byte)(96 + (hash >> 16) % 96);
+            uint ground = 0xFF000000u | ((uint)r << 16) | ((uint)g << 8) | b;
+            uint stripe = 0xFF000000u | ((uint)(r - 40) << 16) | ((uint)(g - 40) << 8) | (uint)(b - 40);
+            const uint Line = 0xFF202020;
+            int cell = p.Name == "monsters.png" ? 60 : 0;
+            var img = new RgbaImage(w, h);
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int cx = cell > 0 ? x % cell : x, cy = cell > 0 ? y % cell : y;
+                    int cw = cell > 0 ? cell : w, ch = cell > 0 ? cell : h;
+                    bool edge = cx == 0 || cy == 0 || cx == cw - 1 || cy == ch - 1;
+                    img[x, y] = edge ? Line : (cx + cy) % 8 < 2 ? stripe : ground;
+                }
+            File.WriteAllBytes(Path.Combine(outDir, p.Name), Png.Encode(img));
+        }
+
+        // the help: its contents, and every topic the game opens by its title
+        var topics = new List<HelpBundle.Topic>
+        {
+            new("OpenDejenol test fixture", "This is the OpenDejenol test fixture: a small invented game, with placeholder pictures and this help in place of Mordor's.", null, null, true),
+            new("Tutorial", "The fixture's tutorial: there is nothing to learn here but that the help opens.", null),
+            new("Races: Statistics", "The fixture's races are invented for the checks.", null),
+            new("Guilds: Statistics", "The fixture's guilds are invented for the checks.", null),
+        };
+        File.WriteAllText(Path.Combine(outDir, HelpFile), HelpBundle.Serialize(topics));
+
+        var manifest = new
+        {
+            version = Version,
+            game = Path.GetFullPath(gameDir),
+            made = DateTime.UtcNow.ToString("u"),
+            pictures = Pictures.Select(p => new { name = p.Name, from = "a placeholder (the test fixture)" }),
+            help = true,
+            helpTitle = "OpenDejenol test fixture",
             notes,
         };
         File.WriteAllText(Path.Combine(outDir, ManifestFile), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));

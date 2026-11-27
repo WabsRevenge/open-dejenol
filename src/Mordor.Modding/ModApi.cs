@@ -157,7 +157,7 @@ public enum TownArrivalKind
 /// <param name="How">How it came up.</param>
 public sealed record TownArrival(Party Party, Character Selected, TownArrivalKind How);
 
-/// <summary>Which save point a <see cref="ModEvents.Saved"/> is (API version 16).</summary>
+/// <summary>Which save point a <see cref="ModEvents.Saved"/> is (API version 17).</summary>
 public enum SavePointKind
 {
     /// <summary>The party walked up the stairs into town, and the town saved them after its rest.</summary>
@@ -224,7 +224,7 @@ public sealed class ModEvents
     /// </summary>
     public event Action<CombatExperience>? ExperienceGained;
     /// <summary>
-    /// The game has just written its saves at one of its save points (API version 16,
+    /// The game has just written its saves at one of its save points (API version 17,
     /// <see cref="SavePoint"/>): the party back in town up the stairs, saved after the town's rest and
     /// after whatever <see cref="ModDecisions.TownArrival"/> asked for (so after
     /// <see cref="ArrivedInTown"/>, which is raised before that save); and the game ending - Exit to
@@ -468,7 +468,7 @@ public sealed class ModActions
     public Func<DungeonContext, Task>? LeavingByStairs { get; set; }
 
     /// <summary>
-    /// A round of an engaged fight is about to be played (API version 15): the one-second combat
+    /// A round of an engaged fight is about to be played (API version 16): the one-second combat
     /// timer has ticked (timCombat, FRMDUNM.BAS:616; the round, MULTIMOD.BAS:497) and no character
     /// has acted yet. The hook may give orders through <see cref="CombatRoundContext"/> - the same
     /// order keys and Cast a player presses between ticks - and they are what the round plays.
@@ -480,7 +480,7 @@ public sealed class ModActions
 
     /// <summary>
     /// The main menu is up at the program's start, with nothing loaded and no game in play (API
-    /// version 15): raised once a run, after the menu's own start-up boxes (the limitation notice,
+    /// version 17): raised once a run, after the menu's own start-up boxes (the limitation notice,
     /// the welcome) and before a character marked Preload Character goes straight in. Nothing of
     /// the saves is held open then - the menu reads its list of characters only when asked - so a
     /// mod may change the saves folder here (the iCloud Saves mod restores a newer world), asking
@@ -547,7 +547,7 @@ public sealed class CombatRoundContext
     /// <param name="cast">Cast for a member with monsters engaged: the spell becomes the order.</param>
     /// <param name="useItem">Use for a member on a pack slot whose item holds a spell: it becomes the order.</param>
     /// <param name="aim">A number key for a member: aim at the slot.</param>
-    /// <param name="byHand">Whether the player has given a member an order by hand this fight (API version 15); null for nobody.</param>
+    /// <param name="byHand">Whether the player has given a member an order by hand this fight (API version 16); null for nobody.</param>
     public CombatRoundContext(Party party, IReadOnlyList<Spell> spells, Func<short, Item?> item, object fight,
                               IReadOnlyList<MonsterGroupView> groups, Func<Character, CombatOrderView> orderOf,
                               Func<Character, int?> aimedAt, Func<Character, OrderKind, bool> order,
@@ -594,7 +594,7 @@ public sealed class CombatRoundContext
     /// <summary>The slot (0-3) the member is aiming at, or null.</summary>
     public int? AimedAt(Character c) => _aimed(c);
     /// <summary>
-    /// Whether the player has given this member an order by hand in this fight (API version 15): f, d
+    /// Whether the player has given this member an order by hand in this fight (API version 16): f, d
     /// or space, a number key's aim, Cast or Use, or a spell buffer, pressed while the member was in
     /// command. A mod giving orders by rules leaves such a member alone until the fight ends, so a
     /// key pressed is never replaced before it plays.
@@ -629,7 +629,7 @@ public sealed class CombatRoundContext
 
 /// <summary>
 /// The main menu at start-up, as <see cref="ModActions.MainMenuOpened"/> hands it to a mod (API
-/// version 15): the saves folder, the game's own message box over the menu, and a way to end the
+/// version 17): the saves folder, the game's own message box over the menu, and a way to end the
 /// program. Valid only while the hook runs: afterwards <see cref="Ask"/> answers -1 at once and
 /// <see cref="Quit"/> does nothing.
 /// </summary>
@@ -1111,6 +1111,14 @@ public sealed class ModUI
     /// decides. Asked once per line as it is added; the text is never changed. API version 9.
     /// </summary>
     public Func<MessageLineInfo, (byte R, byte G, byte B)?>? MessageLineColour { get; set; }
+
+    /// <summary>
+    /// A line of the Messages window's colour by role (a <see cref="ThemeKeys"/> name, ThemeKeys.Maroon for a
+    /// foe's blow), or null: the theme then colours the line, Light and Dark each with its own value.
+    /// Asked before <see cref="MessageLineColour"/>, and preferred to it: a colour of a mod's own is
+    /// drawn as it is in either theme. The first mod with a non-null answer decides. API version 15.
+    /// </summary>
+    public Func<MessageLineInfo, string?>? MessageLineInk { get; set; }
 
     private readonly List<BankCommand> _bank = new();
 

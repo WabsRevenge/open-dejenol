@@ -62,7 +62,7 @@ public sealed class HallWindow
             int top = stat.Top;
             foreach (var (k, text) in rows)
             {
-                c.Children.Add(UiFonts.Set(VbForm.Label(HallRecords.Heading(k), 11, Brushes.Black, bold: true), DesignFonts.Hall, "lblRecordStat(0)")
+                c.Children.Add(UiFonts.Set(VbForm.Label(HallRecords.Heading(k), 11, FixedColour.Black, bold: true), DesignFonts.Hall, "lblRecordStat(0)")
                                      .At(stat with { Top = top }, grow));
                 top += stat.Height;
                 var line = UiFonts.Set(VbForm.Label(hall.Describe(k, text), 11, VbForm.Navy, align: TextAlignment.Right), DesignFonts.Hall, "lblRecordChar(0)")

@@ -35,9 +35,9 @@ public static class DirectoryDialog
         string current = start;
         string? answer = null;
 
-        var lblDirectory = new TextBlock { Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap };
+        var lblDirectory = new TextBlock { Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap };
         var lblInfo = new TextBlock { FontWeight = FontWeight.Bold };
-        var dirs = new ListBox { Height = 180, Background = Brush.Parse("#0e0e14") };
+        var dirs = new ListBox { Height = 180, Background = Palette.List };
         var ok = new Button { Content = "OK", IsDefault = true, Width = 90, HorizontalContentAlignment = HorizontalAlignment.Center };
         var cancel = new Button { Content = "Cancel", IsCancel = true, Width = 90, HorizontalContentAlignment = HorizontalAlignment.Center };
 
@@ -45,7 +45,7 @@ public static class DirectoryDialog
         {
             Title = "Select " + tag + " Directory",
             Width = 420, SizeToContent = SizeToContent.Height, CanResize = false,
-            Background = Brush.Parse("#101018"),
+            Background = Palette.Window,
             FontFamily = owner.FontFamily,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
@@ -59,7 +59,7 @@ public static class DirectoryDialog
             lblDirectory.Text = current.ToUpperInvariant();
             // sub34AE
             bool found = Backups.Found(current);
-            lblInfo.Foreground = found ? Brush.Parse("#6f8fff") : Brush.Parse("#e04040");
+            lblInfo.Foreground = found ? FixedColour.Found : FixedColour.NotFound;
             lblInfo.Text = found ? "BACKUP FILES FOUND IN THIS DIRECTORY" : "BACKUP FILES NOT FOUND IN THIS DIRECTORY";
 
             var chain = new System.Collections.Generic.List<string>();

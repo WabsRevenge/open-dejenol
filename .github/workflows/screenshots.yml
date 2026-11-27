@@ -1,0 +1,72 @@
+# Pictures of the game's windows on Windows and Linux, every push and pull request.
+#
+# There is no copy of Mordor here, and none may be put here (ci.yml), so the windows are drawn from the
+# port's own test fixture: a small invented game whose data files the port writes (FixtureGame), with
+# placeholder pictures and help in place of Mordor's (GameArt). The UI checks' readability pass opens
+# every window it knows - the main menu, Options, Help, About, the town with each character tab and
+# service, the dungeon, the menu's boxes - in the Light and the Dark theme, fails the job on text too
+# faint to read, and saves each window as drawn (MORDOR_SNAPSHOT_DIR). The pictures are the run's
+# artifacts, one set per system: the same windows, drawn by each system's fonts and text engine.
+name: Screenshots
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: screenshots-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+
+jobs:
+  pictures:
+    # the public repository's runners are free; the private one's count against its minutes
+    if: github.repository == 'uncanardnoir/open-dejenol'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        id: dotnet
+        with:
+          dotnet-version: 8.0.x
+
+      # the runner has newer SDKs too; build with the .NET 8 one just installed, as the project does
+      - name: Pin the .NET 8 SDK
+        shell: bash
+        run: dotnet new globaljson --sdk-version "${{ steps.dotnet.outputs.dotnet-version }}" --force
+
+      - name: Build the window checks
+        shell: bash
+        run: dotnet build tests/Mordor.UiCheck -c Release
+
+      - name: Make the test fixture (an invented game, no Mordor files)
+        shell: bash
+        run: dotnet run --project tests/Mordor.UiCheck -c Release --no-build -- --make-fixture "$RUNNER_TEMP/fixture"
+
+      - name: Draw every window, Light and Dark, and check its text can be read
+        shell: bash
+        env:
+          MORDOR_SNAPSHOT_DIR: ${{ runner.temp }}/screenshots
+        run: dotnet run --project tests/Mordor.UiCheck -c Release --no-build -- "$RUNNER_TEMP/fixture" --contrast-only
+
+      - name: Keep the pictures
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: screenshots-${{ runner.os }}
+          path: ${{ runner.temp }}/screenshots
+          if-no-files-found: warn

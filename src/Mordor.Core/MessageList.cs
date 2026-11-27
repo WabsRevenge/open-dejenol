@@ -61,8 +61,10 @@ public static class MessageList
 /// it is about, and the colour a mod gave it then (null: the window's own). A line keeps its look
 /// when the list scrolls, trims or is carried between the town and the dungeon; a change of a
 /// mod's setting colours the lines added after it.
+/// The colour is either a role (<see cref="Ink"/>, a theme colour by its ThemeKeys name, which follows a
+/// change of theme) or a mod's own red, green and blue (drawn as it is).
 /// </summary>
-public readonly record struct MessageLook(MessageKind Kind, (byte R, byte G, byte B)? Colour = null)
+public readonly record struct MessageLook(MessageKind Kind, (byte R, byte G, byte B)? Colour = null, string? Ink = null)
 {
     /// <summary>No kind, the window's own colour.</summary>
     public static readonly MessageLook Plain = default;

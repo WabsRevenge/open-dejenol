@@ -153,6 +153,7 @@ public static class DesignFonts
     public static readonly Form GuildLog = new("frmGuildLog", 48, FontPass.SizeOnly);
     public static readonly Form Library = new("frmLibrary", 56, FontPass.SizeOnly);
     public static readonly Form Hall = new("frmHall", 58, FontPass.SizeOnly);
+    public static readonly Form CreateChar = new("frmCreateChar", 4, FontPass.SizeOnly);
 
     // ---- the controls with a font of their own, and the default-font ones the port's text stands for
 
@@ -175,6 +176,8 @@ public static class DesignFonts
     public static readonly DesignFont Disarm = new(DesignFont.ProFace, 7.5);
     /// <summary>frmMain's picToolbar, which sub08B9 paints the resistances on: Courier New 8.25 bold.</summary>
     public static readonly DesignFont Toolbar = new(DesignFont.ProFace, 8.25);
+    /// <summary>frmCreateChar's pnlPanel(0..5), the six figures: MS Sans Serif 9.75 bold.</summary>
+    public static readonly DesignFont CreateFigure = new(DesignFont.NonProFace, 9.75);
     /// <summary>frmExchange's pnlName, MS Sans Serif 9.75 bold.</summary>
     public static readonly DesignFont ExchangeName = new(DesignFont.NonProFace, 9.75);
     /// <summary>
@@ -215,6 +218,11 @@ public static class DesignFonts
         CharStat1.Control("elaGroupInfo", PlainSans),
         CharStat1.Control("picTabPicture", DesignFont.Default),
         CharStat1.Control("lblBuffer(0)", PlainSans),
+        CreateChar.Control("pnlPanel(0)", CreateFigure),
+        CreateChar.Control("lblGuild(0)", PlainSans),
+        CreateChar.Control("lblLabel(0)", DesignFont.Default),
+        CreateChar.Control("lblStatInfo(0)", DesignFont.Default),
+        CreateChar.Control("txtName", DesignFont.Default),
         CharStat1.Control("tabStatTab", PlainSans),
         CharStat3.Control("lblItem(0)", PlainSans),
         CharStat3.Control("lblItemStatus(0)", DesignFont.Default),

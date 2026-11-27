@@ -584,14 +584,14 @@ public sealed class ModHost
     }
 
     /// <summary>
-    /// Whether any running mod hooks <see cref="ModActions.CombatRound"/> (API version 15). The dungeon
+    /// Whether any running mod hooks <see cref="ModActions.CombatRound"/> (API version 16). The dungeon
     /// asks it at each tick before anything else, so with none hooked a round costs nothing more than
     /// the original's.
     /// </summary>
     public bool CombatRoundHooked => Live.Any(lm => lm.Context.Actions.CombatRound != null);
 
     /// <summary>
-    /// The main menu is up at the program's start, nothing loaded (API version 16): each live mod's
+    /// The main menu is up at the program's start, nothing loaded (API version 17): each live mod's
     /// <see cref="ModActions.MainMenuOpened"/>, as <see cref="EnteredDungeonFromTown"/> - in load
     /// order, each awaited, each with a <see cref="MainMenuContext"/> of its own closed when its hook
     /// is done. With no mod hooked the task is already complete and <paramref name="make"/> is never
@@ -605,7 +605,7 @@ public sealed class ModHost
     public bool MainMenuHooked => Live.Any(lm => lm.Context.Actions.MainMenuOpened != null);
 
     /// <summary>
-    /// The game's saves are on disk at a save point (<see cref="ModEvents.Saved"/>, API version 16):
+    /// The game's saves are on disk at a save point (<see cref="ModEvents.Saved"/>, API version 17):
     /// every live mod hears of it, each guarded. With no mod loaded, nothing.
     /// </summary>
     public void SavePointReached(SavePointKind kind)
@@ -895,6 +895,17 @@ public sealed class ModHost
             if (lm.Context.Decisions.TownIncomeBank is { } ask
                 && Guard(lm, "TownIncomeBank", () => ask(q ??= new TownIncome(party, ch, amount, kind)), null) is { } who)
                 return party.Members.Contains(who) ? who : null;
+        return null;
+    }
+
+    /// <summary>A Messages line's colour role (ThemeKeys): the first mod's answer, or null.</summary>
+    public string? MessageLineInk(string text, MessageKind kind)
+    {
+        MessageLineInfo? info = null;
+        foreach (var lm in Live.ToList())
+            if (lm.Context.UI.MessageLineInk is { } ask
+                && Guard(lm, "MessageLineInk", () => ask(info ??= new MessageLineInfo(text, kind)), null) is { } ink)
+                return ink;
         return null;
     }
 

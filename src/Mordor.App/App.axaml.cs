@@ -19,6 +19,7 @@ public partial class App : Application
         Mordor.Core.Librarian.Store.Note = CrashLog.Note;
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
+            ThemeSelection.Initialize(desktop);
             // music tracks loop: poll the MIDI player and restart a finished track. Ten seconds
             // is timMusic.Interval from FRMMAIN.FRM, the original's own polling rate.
             var loop = new Avalonia.Threading.DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };

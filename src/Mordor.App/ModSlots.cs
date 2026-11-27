@@ -36,7 +36,7 @@ internal static class ModSlots
             {
                 // the header's own face, the form's (frmParty's lblLabel), inherited from the drawing
                 Text = cols[i].Column.Header, FontWeight = FontWeight.Bold,
-                Foreground = Brush.Parse("#888"), HorizontalAlignment = HorizontalAlignment.Right, Tag = ModCell,
+                Foreground = Palette.Caption, HorizontalAlignment = HorizontalAlignment.Right, Tag = ModCell,
             };
             Grid.SetColumn(t, baseColumns + i);
             header.Children.Add(t);

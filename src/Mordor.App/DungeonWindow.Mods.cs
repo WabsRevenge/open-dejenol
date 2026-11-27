@@ -97,7 +97,7 @@ public partial class DungeonWindow
         leave();
     }
 
-    // ------------------------------------------------------------ the fight's round (API version 15)
+    // ------------------------------------------------------------ the fight's round (API version 16)
 
     /// <summary>
     /// The timer's tick in an engaged fight, before <see cref="PlayRound"/>: the mods'
@@ -110,7 +110,7 @@ public partial class DungeonWindow
         if (_combat == null || _combat.IsOver) return;
         try
         {
-            // asked first, so that with no mod hooked the tick makes no list and no context (API version 15)
+            // asked first, so that with no mod hooked the tick makes no list and no context (API version 16)
             if (!ModHost.Active.CombatRoundHooked) return;
             ModHost.Active.CombatRound(RoundContext);
         }
@@ -127,7 +127,7 @@ public partial class DungeonWindow
 
     /// <summary>
     /// The members the player gave an order by hand in each fight (<see cref="CombatRoundContext.ByHand"/>,
-    /// API version 15): marked by <see cref="MarkByHand"/>, gone with the fight.
+    /// API version 16): marked by <see cref="MarkByHand"/>, gone with the fight.
     /// </summary>
     private readonly System.Runtime.CompilerServices.ConditionalWeakTable<CombatEngine, HashSet<Character>> _byHand = new();
 

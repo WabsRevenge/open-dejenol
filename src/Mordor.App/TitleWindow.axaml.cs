@@ -40,6 +40,7 @@ public partial class TitleWindow : Window
     {
         InitializeComponent();
         KeyboardHome.Follow(this);   // Linux: keys come here, not to a window only hidden (issue #6)
+        ThemeSelection.Attach(this);
         // away from Windows, the form's Windows faces drawn in their Liberation twins (PortFonts)
         if (PortFonts.StandIn)
         {
@@ -158,7 +159,7 @@ public partial class TitleWindow : Window
             // a character marked "Preload Character" goes straight in, password and all
             if (_preloadTried) { MenuReady(); return; }
             _preloadTried = true;
-            // the port's own (docs/MODDING.md, MainMenuOpened, API version 16): a mod may act here,
+            // the port's own (docs/MODDING.md, MainMenuOpened, API version 17): a mod may act here,
             // with nothing loaded yet - the iCloud Saves mod offers a newer world from iCloud before
             // a preloaded character reads the old one. With no mod hooked nothing is asked.
             if (Mordor.Modding.ModHost.Active.MainMenuHooked)
@@ -618,8 +619,7 @@ public partial class TitleWindow : Window
         var win = new Window
         {
             Title = "Character List", Width = 420, SizeToContent = SizeToContent.Height, CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Brush.Parse("#101018"),
-            RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Dark,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Palette.Window,
             FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
             Content = new Border
             {
@@ -634,8 +634,8 @@ public partial class TitleWindow : Window
                             Orientation = Orientation.Horizontal, Spacing = 8,
                             Children =
                             {
-                                new TextBlock { Text = "Characters", Foreground = Brushes.LightGray },
-                                new TextBlock { Text = saved.Count.ToString(), Foreground = Brushes.White },
+                                new TextBlock { Text = "Characters", Foreground = Palette.Text },
+                                new TextBlock { Text = saved.Count.ToString(), Foreground = Palette.Text },
                             },
                         },
                         list,

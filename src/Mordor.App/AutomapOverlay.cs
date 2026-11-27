@@ -106,7 +106,7 @@ public sealed class AutomapOverlay : Control
         rs = rs > 0 ? rs : 1;
         Rect R(int l, int t, int r, int b) => new(l / rs, t / rs, (r - l) / rs, (b - t) / rs);
         IBrush Solid((byte R, byte G, byte B) c, byte a = 255) => new SolidColorBrush(Color.FromArgb(a, c.R, c.G, c.B));
-        var dark = new SolidColorBrush(Color.FromArgb(170, 0, 0, 0));
+        var dark = FixedColour.MapShade;
 
         foreach (var m in marks)
         {

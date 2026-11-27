@@ -88,6 +88,7 @@ public static partial class SelfCheckProbe
             ["frmDungeonMain"] = "FRMDUNM", ["frmInteract"] = "FRMINTER", ["frmCityMorgue"] = "FRMMORG", ["frmExchange"] = "FRMEXCHA",
             ["frmAutoMap"] = "FRMAUTOM", ["frmParty"] = "FRMGROUP", ["frmPartyOptions"] = "FRMPINFO", ["frmCitySeer"] = "FRMSEEK",
             ["frmCityCStore"] = "FRMCITYC", ["frmGuildLog"] = "FRMGLDL", ["frmLibrary"] = "FRMLIBRA", ["frmHall"] = "FRMHALL",
+            ["frmCreateChar"] = "CHARCREA",
         };
         foreach (var f in tableForms)
         {
@@ -139,8 +140,6 @@ public static partial class SelfCheckProbe
             ["UiFonts.cs"] = "the mechanism itself",
             ["SansStandIn.cs"] = "the mechanism itself: the faces MS Sans Serif is drawn in",
             ["AboutWindow.cs"] = "frmAbout and VbForm, its helpers: the callers on a restyled form (Exchange, Hall) put UiFonts over what they build",
-            ["CharacterCreationWindow.axaml"] = "the port's own creation layout, not frmCreateChar's",
-            ["CharacterCreationWindow.axaml.cs"] = "the port's own creation layout, not frmCreateChar's",
             ["ControlPanelWindow.cs"] = "the port's own Control Panel layout, not frmControlPanel's",
             ["HelpWindow.axaml"] = "the help viewer, WinHelp's and not a form",
             ["HelpWindow.axaml.cs"] = "the help viewer, WinHelp's and not a form",
@@ -165,6 +164,12 @@ public static partial class SelfCheckProbe
             ("DungeonWindow.axaml", "FontFamily=\"Cascadia Mono, Consolas, monospace\"", "the frame: its title bars and the port's own boxes"),
             ("AutomapWindow.axaml", "FontFamily=\"Cascadia Mono, Consolas, monospace\"", "the window the map is lifted out of; the map itself is frmAutoMap's font"),
             ("ExchangeWindow.cs", "FontFamily = VbForm.Sans,", "the gold amount's InputBox, Windows' own"),
+            ("CharacterCreationWindow.axaml.cs", "Content = \"▲\", FontSize = 8", "the spinner's up arrow, standing for cmdAdd's picture, not a caption"),
+            ("CharacterCreationWindow.axaml.cs", "Content = \"▼\", FontSize = 8", "the spinner's down arrow, standing for cmdSubtract's picture"),
+            // AccessCaption draws its text itself, in the font it inherits, as a TextBlock would: it reads the font, sets none
+            ("AccessCaption.cs", "AffectsMeasure<AccessCaption>(TextElement.FontFamilyProperty, TextElement.FontSizeProperty,", "it measures again when the inherited font changes"),
+            ("AccessCaption.cs", "new Typeface(GetValue(TextElement.FontFamilyProperty)", "the inherited font, read"),
+            ("AccessCaption.cs", "GetValue(TextElement.FontSizeProperty), GetValue(TextElement.ForegroundProperty));", "the inherited size, read"),
         };
         var fontLine = new Regex(@"FontFamily\s*=|FontSize\s*=|FontFamily=""|FontSize=""|FontSizeProperty|FontFamilyProperty|new FontFamily\(|SetFontSize|SetFontFamily|HeaderFontSize""\]|Property=""FontSize""|Property=""FontFamily""");
         var strays = new List<string>();

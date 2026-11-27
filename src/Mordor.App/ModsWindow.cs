@@ -24,8 +24,8 @@ namespace Mordor.App;
 /// </summary>
 public sealed class ModsWindow : Window
 {
-    private static readonly IBrush Heading = Brush.Parse("#8fb0ff");
-    private static readonly IBrush Faint = Brush.Parse("#9a9aae");
+    private static readonly IBrush Heading = Palette.Navy;
+    private static readonly IBrush Faint = Palette.Muted;
 
     /// <summary>Each mod's settings window while it is open (one at a time per mod, whichever page opened it).</summary>
     public static readonly System.Collections.Generic.Dictionary<string, ModSettingsWindow> OpenSettings = new(StringComparer.OrdinalIgnoreCase);
@@ -42,7 +42,7 @@ public sealed class ModsWindow : Window
         var host = ModHost.Active;
         Title = "Mods";
         SizeToContent = SizeToContent.WidthAndHeight;
-        Background = Brush.Parse("#101018");
+        Background = Palette.Window;
         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         CanResize = false;
@@ -53,7 +53,7 @@ public sealed class ModsWindow : Window
             + (atMainMenu
                 ? "Switching a mod on or off takes effect at once (a mod that cannot says so, and "
                   + "changes at the next start); a mod's own settings take effect at once."
-                : "A mod's own settings take effect at once."), Brushes.Gainsboro));
+                : "A mod's own settings take effect at once."), Palette.Text));
         if (!atMainMenu) body.Children.Add(Text(SwitchAtMainMenu, Heading));
 
         if (host.Discovered.Count == 0)
@@ -71,7 +71,7 @@ public sealed class ModsWindow : Window
             {
                 Content = "Enabled",
                 IsChecked = host.IsEnabled(mod.Id),
-                Foreground = Brushes.Gainsboro,
+                Foreground = Palette.Text,
                 FontSize = 12,
                 // switched only on the main menu's page, with no game window open
                 IsEnabled = mod.Problem == null && atMainMenu,
@@ -175,7 +175,7 @@ public sealed class ModsWindow : Window
         {
             Content = t.Label == "" ? t.Key : t.Label,
             IsChecked = host.Settings.ReadFlag(modId, t.Key, t.Default),
-            Foreground = Brushes.Gainsboro,
+            Foreground = Palette.Text,
             FontSize = 12,
         };
         if (t.Description != "") ToolTip.SetTip(box, t.Description);
@@ -201,7 +201,7 @@ public sealed class ModsWindow : Window
     internal static Control ChoiceEditor(Window owner, ModHost host, string modId, ModChoiceSpec choice, Thickness margin)
     {
         var panel = new StackPanel { Spacing = 2, Margin = margin };
-        var caption = new TextBlock { Text = choice.Label == "" ? choice.Key : choice.Label, Foreground = Brushes.Gainsboro, FontSize = 12 };
+        var caption = new TextBlock { Text = choice.Label == "" ? choice.Key : choice.Label, Foreground = Palette.Text, FontSize = 12 };
         if (choice.Description != "") ToolTip.SetTip(caption, choice.Description);
         panel.Children.Add(caption);
         var row = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 14, Margin = new Thickness(10, 0, 0, 0) };
@@ -214,7 +214,7 @@ public sealed class ModsWindow : Window
                 Content = option,
                 GroupName = "choice:" + modId + ":" + choice.Key,
                 IsChecked = Now() == option,
-                Foreground = Brushes.Gainsboro,
+                Foreground = Palette.Text,
                 FontSize = 12,
             };
             if (choice.TooltipFor(option) is { Length: > 0 } tip) ToolTip.SetTip(b, tip);
@@ -250,7 +250,7 @@ public sealed class ModsWindow : Window
         var tableCaption = new TextBlock
         {
             Text = table.Label == "" ? table.Key : table.Label,
-            Foreground = Brushes.Gainsboro, FontSize = 12,
+            Foreground = Palette.Text, FontSize = 12,
         };
         if (table.Description != "") ToolTip.SetTip(tableCaption, table.Description);
         panel.Children.Add(tableCaption);
@@ -342,7 +342,7 @@ public sealed class ModsWindow : Window
 
     internal static Border Group(Control heading, Control body) => new()
     {
-        BorderBrush = Brush.Parse("#3a3a4e"),
+        BorderBrush = Palette.Shadow,
         BorderThickness = new Thickness(1),
         Padding = new Thickness(10, 8),
         Child = new StackPanel

@@ -124,7 +124,7 @@ public sealed class CharacterPanel : UserControl
         _spells = spells;
 
         _misc = Page();
-        _buffers = new StackPanel { Spacing = 2 };
+        _buffers = new StackPanel();   // each label straight under the last (FRMCHAR1.BAS:80)
         // everything else on the window inherits picTabPicture's font, VB3's default (PictureFont)
         UiFonts.Set(this, DesignFonts.CharStat1, PictureFont);
 
@@ -156,7 +156,7 @@ public sealed class CharacterPanel : UserControl
 
     private static TextBlock Page() => new()
     {
-        Foreground = Brushes.Gainsboro,
+        Foreground = Palette.Text,
         TextWrapping = TextWrapping.Wrap,
     };
 
@@ -309,7 +309,7 @@ public sealed class CharacterPanel : UserControl
             var t = UiFonts.Set(new TextBlock
             {
                 Text = text,
-                Foreground = color ?? Brushes.Gainsboro,
+                Foreground = color ?? Palette.Text,
                 FontWeight = font.Bold ? FontWeight.Bold : FontWeight.Normal,
                 TextWrapping = TextWrapping.NoWrap,
                 ClipToBounds = false,
@@ -323,20 +323,22 @@ public sealed class CharacterPanel : UserControl
             right = Math.Max(right, x + wide);
             bottom = Math.Max(bottom, Y(top) + Math.Max(H(CharStatForm.lblStat0.Height), UiFonts.LineHeight(form, font)));
         }
-        // an Elastic: VideoSoft's bevelled box, its caption centred in it
+        // an Elastic: VideoSoft's bevelled box, its caption centred in it - standing out, light on
+        // top and shadow below, in the Light theme, as the game draws "You are Alone" and the bar
+        // under Gold (ClassicLook)
         void Elastic(FormRect r, int top, string? text = null, DesignFont font = default)
         {
-            var box = new Border
+            var box = ClassicLook.Raised(new Border
             {
                 BorderBrush = FormPage.Bevel, BorderThickness = new Avalonia.Thickness(1),
                 Width = W(r.Width), Height = H(r.Height),
-            };
+            });
             if (text != null)
             {
                 box.Height = Math.Max(box.Height, UiFonts.LineHeight(form, font) + 2);
                 box.Child = UiFonts.Set(new TextBlock
                 {
-                    Text = text, Foreground = Brushes.Gainsboro,
+                    Text = text, Foreground = Palette.Text,
                     FontWeight = font.Bold ? FontWeight.Bold : FontWeight.Normal,
                     HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
                 }, form, font);
@@ -409,8 +411,8 @@ public sealed class CharacterPanel : UserControl
         _stats.Height = Math.Ceiling(bottom);
     }
 
-    /// <summary>lblSpecial's ForeColor, &amp;HFF (pure red), in the dark theme.</summary>
-    private static readonly IBrush StateRed = new SolidColorBrush(Color.FromRgb(0xff, 0x40, 0x40));
+    /// <summary>lblSpecial's red ForeColor, adapted for each theme.</summary>
+    private static IBrush StateRed => Palette.Maroon;
 
     /// <summary>
     /// The Char page, painted as the original paints it: each piece of <see cref="CharStatFile.Paint"/>
@@ -442,7 +444,7 @@ public sealed class CharacterPanel : UserControl
         page.Children.Clear();
         var face = new Typeface(PictureFace);
         FormattedText Measure(string s) => new(s, System.Globalization.CultureInfo.CurrentCulture,
-                                               FlowDirection.LeftToRight, face, PageFontSize, Brushes.Gainsboro);
+                                               FlowDirection.LeftToRight, face, PageFontSize, Palette.Text);
         // the widest glyph of the ANSI set the picture box's font covers, and the line height
         double maxWidth = Enumerable.Range(0x20, 0xE0).Where(ch => ch < 0x7F || ch > 0x9F)
                                     .Max(ch => Measure(((char)ch).ToString()).WidthIncludingTrailingWhitespace);
@@ -484,7 +486,7 @@ public sealed class CharacterPanel : UserControl
             var t = UiFonts.Set(new TextBlock
             {
                 Text = p.Text,
-                Foreground = Brushes.Gainsboro,
+                Foreground = Palette.Text,
                 FontWeight = p.Bold ? FontWeight.Bold : FontWeight.Normal,
                 FontStyle = p.Italic ? FontStyle.Italic : FontStyle.Normal,
                 ClipToBounds = false,   // an italic's last letter leans past the box
@@ -508,7 +510,7 @@ public sealed class CharacterPanel : UserControl
     /// </summary>
     private static Control BufferRow(string label, string stat)
     {
-        var row = new DockPanel { LastChildFill = true };
+        var row = new DockPanel { LastChildFill = true, VerticalAlignment = VerticalAlignment.Center };
         var cost = new TextBlock { Text = stat, Margin = new Avalonia.Thickness(8, 0, 0, 0) };
         DockPanel.SetDock(cost, Dock.Right);
         row.Children.Add(cost);
@@ -522,17 +524,24 @@ public sealed class CharacterPanel : UserControl
         for (int i = 0; i < SpellBuffers.Count; i++)
         {
             int slot = i;
-            var b = new Button
+            // lblBuffer, a label, each under the one before (FRMCHAR1.BAS:73-83), not a button: a
+            // line of text that fires its buffer when clicked. The transparent ground takes the
+            // click and the drop across the whole line.
+            var b = new Border
             {
                 // lblBuffer: LTrim$(Str$(i + 1)) + ". " + what it holds, so 1. to 10.; lblBufferStat on
                 // the same line with a spell's cost (mdcharShowBuffer, MAINMOD2.BAS:4633-4665)
-                Content = BufferRow($"{i + 1}. {SpellBuffers.Describe(c, i, _spells, _item)}", SpellBuffers.CostText(c, i, _spells)),
-                Focusable = false,
+                Child = BufferRow($"{i + 1}. {SpellBuffers.Describe(c, i, _spells, _item)}", SpellBuffers.CostText(c, i, _spells)),
                 HorizontalAlignment = HorizontalAlignment.Stretch,
-                HorizontalContentAlignment = HorizontalAlignment.Left,
-                Background = Brush.Parse("#16161f"),
+                Background = Brushes.Transparent,
+                Padding = new Avalonia.Thickness(4, 0),
+                // lblBuffer(0) is 225 twips, 15 pixels, tall (frmCharStat1, MORDOR.EXE RCDATA 8), and the
+                // next one starts where it ends: a row the form's height at least, and the font's line
+                // and the port's list padding (UiFonts.RowPad), as every list's rows are, for a larger font
+                Height = UiFonts.RowHeight(DesignFonts.CharStat1, 225 / 15.0, DesignFonts.PlainSans),
             };
-            b.Click += (_, _) => BufferFired?.Invoke(slot);
+            // Tapped, as VB's Click: down and up on the same label
+            b.Tapped += (_, e) => { BufferFired?.Invoke(slot); e.Handled = true; };
 
             // lblBuffer_DragDrop: a slot takes an item or a spell and stores it outright - there
             // is no refusal in the original, whatever you drop goes in.

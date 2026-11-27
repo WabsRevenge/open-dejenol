@@ -23,10 +23,12 @@ namespace Mordor.Mod.AutoCombat;
 /// </summary>
 internal static class AutoCombatView
 {
-    private static readonly IBrush Heading = Brush.Parse("#8fb0ff");
-    private static readonly IBrush Faint = Brush.Parse("#9a9aae");
-    private static readonly IBrush Warn = Brush.Parse("#e0a050");
-    private static readonly IBrush Picked = Brush.Parse("#7fdc7f");
+    // the game's colour roles (ThemeKeys, docs/MODDING.md), so the window follows the theme; the Dark colours when no game publishes them (the mod's checks)
+    private static IBrush Role(string key, IBrush otherwise) => Application.Current?.FindResource(key) as IBrush ?? otherwise;
+    private static IBrush Heading => Role(ThemeKeys.Navy, Brush.Parse("#8fb0ff"));
+    private static IBrush Faint => Role(ThemeKeys.Muted, Brush.Parse("#9a9aae"));
+    private static IBrush Warn => Role(ThemeKeys.Warning, Brush.Parse("#e0a050"));
+    private static IBrush Picked => Role(ThemeKeys.Green, Brush.Parse("#7fdc7f"));
 
     /// <summary>The window's line under the heading.</summary>
     public const string Help = "Each round of a fight, every member takes the order of the first rule that fits them. "

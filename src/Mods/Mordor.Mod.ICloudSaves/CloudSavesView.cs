@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Mordor.Modding;
 
 namespace Mordor.Mod.ICloudSaves;
 
@@ -23,9 +24,11 @@ namespace Mordor.Mod.ICloudSaves;
 /// </summary>
 public static class CloudSavesView
 {
-    private static readonly IBrush Plain = Brushes.WhiteSmoke;
-    private static readonly IBrush Caption = Brushes.CornflowerBlue;
-    private static readonly IBrush Warn = Brushes.Khaki;
+    // the game's colour roles (ThemeKeys, docs/MODDING.md), so the window follows the theme; the Dark colours when no game publishes them (the mod's checks)
+    private static IBrush Role(string key, IBrush otherwise) => Application.Current?.FindResource(key) as IBrush ?? otherwise;
+    private static IBrush Plain => Role(ThemeKeys.Text, Brushes.WhiteSmoke);
+    private static IBrush Caption => Role(ThemeKeys.Navy, Brushes.CornflowerBlue);
+    private static IBrush Warn => Role(ThemeKeys.Warning, Brushes.Khaki);
 
     public static Control Build(CloudSaves saves, Action<string, Exception?> report)
     {

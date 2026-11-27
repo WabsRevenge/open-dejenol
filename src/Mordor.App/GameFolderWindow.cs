@@ -100,7 +100,7 @@ public sealed class GameFolderWindow : Window
         };
         Problem = new TextBlock
         {
-            TextWrapping = TextWrapping.Wrap, Foreground = Brushes.Salmon, FontSize = 13,
+            TextWrapping = TextWrapping.Wrap, Foreground = Palette.Maroon, FontSize = 13,   // the problem in the form's maroon: salmon was 2.5:1 on Light's white
             Text = Describe(found.Nearest, found.Explicit),
         };
         Status = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 13, IsVisible = false };

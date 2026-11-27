@@ -420,6 +420,21 @@ public sealed class ElasticCanvas : Canvas
     /// <summary>The height the tops are given for (the form's client, in its own pixels). Nought: no stretching.</summary>
     public double DrawnHeight { get; set; }
 
+    /// <summary>
+    /// Where a child's bottom is, in the drawing's own pixels as its top is: stretched with the tops,
+    /// so a box that runs down to the controls under it still does when the window is taller (the
+    /// Party window's rows box, which kept its height while the buttons under it moved down).
+    /// NaN, the default: the child keeps the height it asks for.
+    /// </summary>
+    public static readonly AttachedProperty<double> BottomAtProperty =
+        AvaloniaProperty.RegisterAttached<ElasticCanvas, Control, double>("BottomAt", double.NaN);
+    public static double GetBottomAt(Control c) => c.GetValue(BottomAtProperty);
+    public static void SetBottomAt(Control c, double value)
+    {
+        c.SetValue(BottomAtProperty, value);
+        (Avalonia.VisualTree.VisualExtensions.GetVisualParent(c) as Avalonia.Layout.Layoutable)?.InvalidateArrange();
+    }
+
     protected override Size ArrangeOverride(Size finalSize)
     {
         double k = DrawnHeight > 0 && finalSize.Height > 0 && !double.IsInfinity(finalSize.Height) ? finalSize.Height / DrawnHeight : 1;
@@ -432,7 +447,11 @@ public sealed class ElasticCanvas : Canvas
             else if (!double.IsNaN(right)) x = finalSize.Width - right - want.Width;
             if (!double.IsNaN(top)) y = top * k;
             else if (!double.IsNaN(bottom)) y = finalSize.Height - bottom * k - want.Height;
-            child.Arrange(new Rect(new Point(x, y), want));
+            double bottomAt = GetBottomAt(child);
+            var size = !double.IsNaN(bottomAt) && !double.IsNaN(top)
+                ? new Size(want.Width, Math.Max(0, bottomAt * k - y - child.Margin.Top - child.Margin.Bottom) + child.Margin.Top + child.Margin.Bottom)
+                : want;
+            child.Arrange(new Rect(new Point(x, y), size));
         }
         return finalSize;
     }

@@ -5,7 +5,7 @@ using Mordor.Core;
 using Mordor.Modding;
 
 /// <summary>
-/// The iCloud Saves mod and the two hooks added for it (API version 15, docs/MODDING.md): with mods off
+/// The iCloud Saves mod and the two hooks added for it (API version 17, docs/MODDING.md): with mods off
 /// nothing is hooked and nothing is written; the game raises <c>Saved</c> after its saves and asks
 /// <c>MainMenuOpened</c> only when hooked; the mod hooks nothing off macOS. Then the sync itself, on
 /// temporary folders standing in for two Macs' saves folders and one iCloud Drive - never the real
@@ -95,7 +95,7 @@ public static partial class ModProbe
 
     private static void HookChecks(string root, string bundled, string cloudDocs, string cloud)
     {
-        Console.WriteLine("iCloud Saves: the manifest, and the two hooks with mods off (API version 15):");
+        Console.WriteLine("iCloud Saves: the manifest, and the two hooks with mods off (API version 17):");
         string dir = Path.Combine(root, "host");
         Directory.CreateDirectory(dir);
         var log = new List<string>();
@@ -127,7 +127,7 @@ public static partial class ModProbe
               System.Text.RegularExpressions.Regex.IsMatch(tw, @"Task MenuModsOpened\(\)\s*\{\s*var shut = Form\.Children\.OfType<Button>\(\)\.Where\(b => b != ExitBtn[^;]*;\s*foreach \(var b in shut\) b\.IsEnabled = false;[^}]*try \{ await ModStartup\.MainMenuOpened\(this\); \}\s*finally\s*\{[^}]*foreach \(var b in shut\) b\.IsEnabled = true;"), true);
         string city = PortSource("src/Mordor.App", "CityWindow.axaml.cs").Replace("\r\n", "\n");
         Check("the city raises Saved after its arrival save, and after its last save as it closes",
-              city.Contains("RefreshSummary(); Save();\n        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 16)\n        Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);")
+              city.Contains("RefreshSummary(); Save();\n        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 17)\n        Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);")
               && System.Text.RegularExpressions.Regex.IsMatch(city, @"else \{ SaveWindowLayout\(\); Save\(\); \}\s*(//[^\n]*\n\s*)*Mordor\.Modding\.ModHost\.Active\.SavePointReached\(Mordor\.Modding\.SavePointKind\.GameEnded\);"), true);
 
         // a context is good only while its hook runs

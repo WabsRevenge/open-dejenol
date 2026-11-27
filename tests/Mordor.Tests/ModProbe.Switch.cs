@@ -33,7 +33,7 @@ public static partial class ModProbe
 
         // ---- Quality of Life ----
         var qol = h.Loaded.Single(m => m.Id == "QoL");
-        bool Coloured() => h.MessageLineColour("You were killed by a Kobold.", MessageKind.Foes) != null;
+        bool Coloured() => h.MessageLineInk("You were killed by a Kobold.", MessageKind.Foes) != null;
         Check("QoL on: a foe's Messages line coloured", Coloured(), true);
         Check("QoL on: its tooltip, its party columns, no window of its own", $"{h.ToolbarTooltip(tb)} {h.ShownPartyColumns().Count > 0} {h.Windows.Any(w => w.Mod.Id == "QoL")}", "AutoMap (F8) True False");
         Check("QoL on: the original's 20 Messages lines kept", h.MessagesKept(20), 20);

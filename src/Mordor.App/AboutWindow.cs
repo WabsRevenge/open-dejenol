@@ -20,12 +20,12 @@ internal static class VbForm
     public static readonly FontFamily Times = PortFonts.Family("Times New Roman");
 
     /// <summary>The system button face, which several of these controls take as their BackColor.</summary>
-    public static readonly IBrush ButtonFace = Brush.Parse("#F0F0F0");
-    public static readonly IBrush Grey = Brush.Parse("#C0C0C0");
+    public static readonly IBrush ButtonFace = FixedColour.Win31ButtonFace;
+    public static readonly IBrush Grey = FixedColour.Win31Grey;
     /// <summary>&amp;H00E0FFFF&amp;, the pale yellow the About, Credits and Hall panels are filled with.</summary>
-    public static readonly IBrush PaleYellow = Brush.Parse("#FFFFE0");
-    public static readonly IBrush Navy = Brush.Parse("#000080");
-    public static readonly IBrush Maroon = Brush.Parse("#800000");
+    public static readonly IBrush PaleYellow = FixedColour.PaleYellow;
+    public static readonly IBrush Navy = FixedColour.Win31Navy;
+    public static readonly IBrush Maroon = FixedColour.Win31Maroon;
 
     public static T At<T>(this T c, int left, int top, int width, int height) where T : Control
     {
@@ -68,7 +68,7 @@ internal static class VbForm
     public static Border Sunken(IBrush fill, Control child) => new()
     {
         Background = fill, BorderThickness = new Thickness(2, 2, 1, 1),
-        BorderBrush = Brush.Parse("#808080"), Child = child, ClipToBounds = true,
+        BorderBrush = FixedColour.Win31Shadow, Child = child, ClipToBounds = true,
     };
 
     public static Button Button(string caption, int px = 11, bool bold = false) => new()
@@ -76,20 +76,28 @@ internal static class VbForm
         Content = caption, FontFamily = Sans, FontSize = px, Padding = new Thickness(0),
         FontWeight = bold ? FontWeight.Bold : FontWeight.Normal,
         HorizontalContentAlignment = HorizontalAlignment.Center, VerticalContentAlignment = VerticalAlignment.Center,
-        CornerRadius = new CornerRadius(0), Foreground = Brushes.Black, Background = Grey,
-        BorderBrush = Brush.Parse("#808080"), BorderThickness = new Thickness(1),
+        CornerRadius = new CornerRadius(0), Foreground = FixedColour.Black, Background = Grey,
+        BorderBrush = FixedColour.Win31Shadow, BorderThickness = new Thickness(1),
     };
 
     /// <summary>A picture read out of the player's MORDOR.EXE at start (<see cref="Art"/>).</summary>
     public static Bitmap Asset(string name) => Art.Bitmap(name);
 
-    public static Window Dialog(string title, double width, double height, IBrush back, Canvas content) => new()
+    public static Window Dialog(string title, double width, double height, IBrush back, Canvas content)
     {
-        Title = title, Width = width, Height = height, CanResize = false,
-        WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = back,
-        RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Light, ShowInTaskbar = false,
-        FontFamily = Sans, Content = content,
-    };
+        var w = new Window
+        {
+            Title = title, Width = width, Height = height, CanResize = false,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = back,
+            ShowInTaskbar = false,
+            FontFamily = Sans, Content = content,
+        };
+        // the theme's ground, which the form's inks are chosen for (the About box's title is white in
+        // Dark), and the Light theme's relief inside: taken here, not only when the desktop recolours
+        // its windows, so the form is right however it is opened
+        ThemeSelection.ApplyWindowSurface(w);
+        return w;
+    }
 }
 
 /// <summary>
@@ -108,15 +116,17 @@ public sealed class AboutWindow
     {
         var form = new Canvas { Width = 282, Height = 95 };
         form.Children.Add(new Image { Source = VbForm.Asset("about_icon.png"), Stretch = Stretch.None }.At(90, 105, 480, 480));
-        form.Children.Add(VbForm.Label("MORDOR (The Depths of Dejenol)", 13, VbForm.Maroon, bold: true).At(645, 90, 3570, 240));
+        var title = VbForm.Label("MORDOR (The Depths of Dejenol)", 13, Palette.Maroon, bold: true).At(645, 90, 3570, 240);
+        form.Children.Add(title);
         // Form_Load (FRMABOUT.BAS:23) writes it: "Version " + gc0186 + " (Last Edited " + gc0196 + ")".
         // The label is 180 twips high for an 8.25 point line, so the bottom of the text is cut off,
         // as it is in the original. gc0196 is the full MORDOR.EXE's "7/20/95", and the shareware
         // one's "7/6/95" in the limited build (LimitedVersion.LastEdited).
-        form.Children.Add(VbForm.Label("Version 1.1 (Last Edited " + LimitedVersion.LastEdited + ")", 11, VbForm.Navy).At(660, 375, 3195, 180));
+        var version = VbForm.Label("Version 1.1 (Last Edited " + LimitedVersion.LastEdited + ")", 11, Palette.Navy).At(660, 375, 3195, 180);
+        form.Children.Add(version);
 
         var info = new Canvas();
-        info.Children.Add(VbForm.Label("Mordor is © Copyright 1995, MakeItSo Software", 11, Brushes.Black,
+        info.Children.Add(VbForm.Label("Mordor is © Copyright 1995, MakeItSo Software", 11, FixedColour.Black,
                                        align: TextAlignment.Center, face: VbForm.Times).At(15, 45, 4005, 240));
         form.Children.Add(VbForm.Sunken(VbForm.PaleYellow, info).At(90, 645, 4080, 345));
 
@@ -160,8 +170,8 @@ public sealed class OrderInfoWindow
     public OrderInfoWindow()
     {
         var form = new Canvas { Width = 604, Height = 336 };
-        form.Children.Add(VbForm.Label(LimitedVersion.OrderInfo, 11, Brushes.Black, bold: true).At(210, 165, 8655, 1590));
-        form.Children.Add(VbForm.Label(LimitedVersion.OrderHow, 11, Brushes.Black, bold: true).At(210, 1875, 8655, 2580));
+        form.Children.Add(VbForm.Label(LimitedVersion.OrderInfo, 11, Palette.Text, bold: true).At(210, 165, 8655, 1590));
+        form.Children.Add(VbForm.Label(LimitedVersion.OrderHow, 11, Palette.Text, bold: true).At(210, 1875, 8655, 2580));
         // cmdCommand(0).Left = (Me.Width / 2) - (cmdCommand(0).Width / 2) (FRMORDER.BAS:33)
         var ok = VbForm.Button("OK").At(9060 / 2 - 1335 / 2, 4605, 1335, 330);
         form.Children.Add(ok);
@@ -207,7 +217,7 @@ public sealed class CreditsWindow
 
         var pic = new Canvas();
         TextBlock Heading(string t, int l, int top, int w, int h) { var x = VbForm.Label(t, 13, VbForm.Maroon, bold: true).At(l, top, w, h); pic.Children.Add(x); return x; }
-        TextBlock Names(string t, int l, int top, int w, int h) { var x = VbForm.Label(t, 11, Brushes.Black, bold: true).At(l, top, w, h); pic.Children.Add(x); return x; }
+        TextBlock Names(string t, int l, int top, int w, int h) { var x = VbForm.Label(t, 11, FixedColour.Black, bold: true).At(l, top, w, h); pic.Children.Add(x); return x; }
 
         // the form's controls in the order it lists them; the ones tagged "C" are the names
         var tagged = new List<TextBlock>();
@@ -248,8 +258,8 @@ public sealed class CreditsWindow
         {
             // backwards through the controls, wrapping from the first to the last
             current = current - 1 < 0 ? tagged.Count - 1 : current - 1;
-            if (last > -1) tagged[last].Foreground = Brush.Parse("#090000");   // ForeColor = 9
-            tagged[current].Foreground = Brush.Parse("#008000");   // QBColor(2)
+            if (last > -1) tagged[last].Foreground = FixedColour.CreditsForeColor9;   // ForeColor = 9
+            tagged[current].Foreground = FixedColour.Win31Green;   // QBColor(2)
             last = current;
             Audio.PlayOnNextChannel(Sounds[rng.Next(Sounds.Length)]);           // sub086D Int(Rnd * 71)
         };

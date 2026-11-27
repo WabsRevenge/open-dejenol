@@ -10,7 +10,7 @@ namespace Mordor.Mod.QoL;
 /// (Character.MaxWornOfClass: 1 for the fifteen worn classes, 0 for the eight consumables, -1 for
 /// Miscellaneous Object). Only the short label is the mod's.
 /// </summary>
-public static class WearSlot
+public static class WearSlot  
 {
     /// <summary>The short labels, by the class's own name in MDATA1 (gv15C6).</summary>
     private static readonly Dictionary<string, string> Short = new(StringComparer.OrdinalIgnoreCase)
