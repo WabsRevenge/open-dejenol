@@ -13,6 +13,8 @@ This engine is built in C# using the Avalonia framework. It is almost entirely p
 
 OpenDejenol comes bundled with a few mods. These include:
 
+**Themes** - There are light and dark themes available. The light theme roughly approximates what the original Mordor looks like.
+
 **Quality of Life** - Auto-management systems for party gold, enhanced UIs for party information and the store and such. No change to gameplay, no additional information that isn't already exposed.
 
 <p align="center"><img src="docs/images/party-window.png" width="370" alt="The Party Information window with QoL's Next column, HP/SP and XP bars"> <img src="docs/images/general-store.png" width="400" alt="The General Store with QoL's Slot and Worn columns, sortable headings and the Hide unusable box"></p>
@@ -42,10 +44,18 @@ OpenDejenol comes bundled with a few mods. These include:
 
 Download the latest release from the [Releases page](https://github.com/uncanardnoir/open-dejenol/releases):
 
-- **OpenDejenol.Game-win-Setup.exe** - the installer (x64 Windows 10 or 11). It installs for your user only, needs no administrator rights or .NET, and adds Start-menu and desktop shortcuts. Uninstall it from Settings > Apps.
+**Windows (x64)**
+- **OpenDejenol.Game-win-Setup.exe** (recommended) - the installer (x64 Windows 10 or 11). It installs for your user only, needs no administrator rights or .NET, and adds Start-menu and desktop shortcuts. Uninstall it from Settings > Apps.
 - **OpenDejenol.Game-win-Portable.zip** - unzip anywhere and run `OpenDejenol.exe`.
-- **OpenDejenol.Game-win-arm64-Setup.exe** and **OpenDejenol.Game-win-arm64-Portable.zip** - the same two, built natively for ARM64 Windows PCs. An ARM64 copy only ever updates to ARM64 builds.
-- **OpenDejenol.Game.AppImage** - for Linux (x64): make it executable (`chmod +x OpenDejenol.Game.AppImage`, or Properties > Permissions in your file manager) and run it. It updates itself like the Windows builds. The music plays through OpenDejenol's own synthesizer with the bundled TimGM6mb SoundFont; on Windows that is an option (Options > Use built-in soundfont).
+
+**Windows (ARM)**
+- **OpenDejenol.Game-win-arm64-Setup.exe** and **OpenDejenol.Game-win-arm64-Portable.zip**
+
+**Linux**
+- **OpenDejenol.Game.AppImage** - for Linux (x64): make it executable (`chmod +x OpenDejenol.Game.AppImage`, or Properties > Permissions in your file manager) and run it. It updates itself like the Windows builds.
+
+**macOS (Apple Silicon)**
+- No download yet. The Mac app isn't signed by Apple, so a Mac would refuse to open a downloaded copy. You can build it yourself on an Apple Silicon Mac with macOS 12 or later: see [macOS](#macos) under Building from source (`make mac-app`). Intel Macs aren't supported.
 
 Releases aren't code-signed yet, so Windows may say "Windows protected your PC" the first time: choose More info, then Run anyway.
 
@@ -56,16 +66,14 @@ already installed some other way can be chosen with **Locate Mordor...** instead
 remembered in `%APPDATA%\OpenDejenol`. When a newer version is out, it offers the
 update on the main menu. To build it yourself instead, see [Building from source](#building-from-source).
 
-On Windows, open a window's system menu with **Alt+Space**, then choose **Theme Selection** to use
-Windows (system), Light, or Dark appearance. The selection is remembered between runs and applies to
-window and dialog surfaces as well as the controls.
-
 For `M1FULL.zip`, select the original ZIP directly. There is no need to extract it or select its
 `SETUP.EXE` or `.WIP` files; OpenDejenol reads the game and audio from the package itself.
 
 ## Building from source
 
-- The .NET 8 SDK.
+### Windows
+
+- Requires the .NET 8 SDK.
 - `dotnet build src/Mordor.App -c Release` builds `src/Mordor.App/bin/Release/net8.0/OpenDejenol.exe`.
 - `dotnet run --project src/Mordor.App` builds the Debug configuration and starts it.
 - `MORDOR_GAMEDIR=<path to your Mordor folder> dotnet test` runs the test suites under standard
@@ -76,7 +84,7 @@ For `M1FULL.zip`, select the original ZIP directly. There is no need to extract 
 
 ### macOS
 
-- The .NET 8 SDK and Xcode's command line tools (`codesign`, `iconutil`).
+- Requires the .NET 8 SDK and Xcode's command line tools (`codesign`, `iconutil`).
 - `make mac-app` builds `dist/macos/OpenDejenol.app` for Apple Silicon, self-contained and signed
   ad hoc: it runs on the Mac that built it. Another Mac's Gatekeeper refuses an ad-hoc app, so it
   is not something to hand out; a release for others would need a Developer ID and notarisation,
@@ -106,7 +114,7 @@ Feel free to create your own mods as well, and submit for PR. If they are of rea
 
 The only hardline rule I have for this project is that the base game **must be as faithful to the original as possible** (excepting UI look-and-feel that winforms provides - this is not a pixel-perfect recreation). Any changes to the game, even obvious bugfixes, must be done via a togglable mod.
 
-There are other possible extensions to OpenDejenol - mobile versions (need to figure out layout issues) and cloud saves would be an interesting idea. C#/Avalonia run on Linux and macOS, so a port to those OSes should be possible with some work as well. I will probably not prioritize any of these in the near future, but would be quite interested if someone else wants to work on it!
+There are other possible extensions to OpenDejenol - mobile versions (need to figure out layout issues) and cloud saves would be an interesting idea. I will probably not prioritize any of these in the near future, but would be quite interested if someone else wants to work on it!
 
 ## License
 
