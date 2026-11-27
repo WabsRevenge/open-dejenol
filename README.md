@@ -44,20 +44,19 @@ OpenDejenol comes bundled with a few mods. These include:
 
 Download the latest release from the [Releases page](https://github.com/uncanardnoir/open-dejenol/releases):
 
-**Windows (x64)**
+### Windows (x64)
 - **OpenDejenol.Game-win-Setup.exe** (recommended) - the installer (x64 Windows 10 or 11). It installs for your user only, needs no administrator rights or .NET, and adds Start-menu and desktop shortcuts. Uninstall it from Settings > Apps.
 - **OpenDejenol.Game-win-Portable.zip** - unzip anywhere and run `OpenDejenol.exe`.
+Releases aren't code-signed yet, so Windows may say "Windows protected your PC" the first time: choose More info, then Run anyway.
 
-**Windows (ARM)**
+### Windows (ARM)
 - **OpenDejenol.Game-win-arm64-Setup.exe** and **OpenDejenol.Game-win-arm64-Portable.zip**
 
-**Linux**
+### Linux
 - **OpenDejenol.Game.AppImage** - for Linux (x64): make it executable (`chmod +x OpenDejenol.Game.AppImage`, or Properties > Permissions in your file manager) and run it. It updates itself like the Windows builds.
 
-**macOS (Apple Silicon)**
+### macOS (Apple Silicon)
 - No download yet. The Mac app isn't signed by Apple, so a Mac would refuse to open a downloaded copy. You can build it yourself on an Apple Silicon Mac with macOS 12 or later: see [macOS](#macos) under Building from source (`make mac-app`). Intel Macs aren't supported.
-
-Releases aren't code-signed yet, so Windows may say "Windows protected your PC" the first time: choose More info, then Run anyway.
 
 On first run, OpenDejenol looks for your Mordor. If it can't find one, choose **Use the installer...**
 and pick the `M1FULL.zip`, `MordorSetup.exe` or `MordorDemoSetup.exe` you downloaded - if it's in your Downloads
