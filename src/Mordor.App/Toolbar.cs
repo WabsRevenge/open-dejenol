@@ -65,7 +65,8 @@ public sealed class Toolbar : UserControl
 
     public Toolbar()
     {
-        Background = ThemeSelection.RaisedSurface;
+        // the strip's ground: the party rows' pale yellow in Light, as the original's picToolbar is
+        Background = Palette.List;
 
         // No tooltips: VB3 buttons have no such property, and frmMain has no cmdTool_MouseMove to
         // put a hint anywhere either - only Click, KeyDown and KeyPress (FRMMAIN.BAS:48-120). The
@@ -99,8 +100,9 @@ public sealed class Toolbar : UserControl
         AttachedToVisualTree += (_, _) => { Mordor.Modding.ModHost.Active.Changed += retip; ApplyModTips(); };
         DetachedFromVisualTree += (_, _) => Mordor.Modding.ModHost.Active.Changed -= retip;
 
-        _gold = Readout(ThemeSelection.ToolbarGoldInk);
-        _experience = Readout(ThemeSelection.FormNavy);
+        // black in Light, as the original prints them; Dark keeps its gold and blue
+        _gold = Readout(Palette.Text);
+        _experience = Readout(Palette.Text);
         _readouts = new StackPanel
         {
             Spacing = 0,
@@ -127,14 +129,14 @@ public sealed class Toolbar : UserControl
             {
                 Text = Librarian.Resistances[i][..Math.Min(3, Librarian.Resistances[i].Length)],
                 FontWeight = FontWeight.Bold,
-                Foreground = ThemeSelection.ToolbarResistanceInk,
+                Foreground = Palette.Navy,
                 Margin = new Thickness(0, 0, 8, 0),
                 [Grid.ColumnProperty] = i,
             }, DesignFonts.Main, "picToolbar");
             var value = UiFonts.Set(new TextBlock
             {
                 Text = " -",
-                Foreground = ThemeSelection.ToolbarResistanceValueInk,
+                Foreground = Palette.Text,
                 Margin = new Thickness(0, 0, 8, 0),
                 [Grid.ColumnProperty] = i,
                 [Grid.RowProperty] = 1,
@@ -145,16 +147,29 @@ public sealed class Toolbar : UserControl
 
         Content = new Border
         {
-            BorderBrush = Brush.Parse("#2a2a38"),
+            BorderBrush = FixedColour.ToolbarLine,
             BorderThickness = new Thickness(0, 0, 0, 1),
             Padding = new Thickness(6, 3),
-            Child = new StackPanel
+            // the buttons from the left, and the Gold and experience lines against the right edge,
+            // each set right, as the original's picToolbar has them (they had followed the buttons)
+            Child = new DockPanel
             {
-                Orientation = Orientation.Horizontal,
-                Spacing = 2,
-                Children = { page, _icons, _readouts, _resistances },
+                LastChildFill = true,
+                Children =
+                {
+                    Docked(_readouts, Dock.Right),
+                    new StackPanel
+                    {
+                        Orientation = Orientation.Horizontal,
+                        Spacing = 2,
+                        Children = { page, _icons, _resistances },
+                    },
+                },
             },
         };
+        _readouts.HorizontalAlignment = HorizontalAlignment.Right;
+        _gold.TextAlignment = _experience.TextAlignment = TextAlignment.Right;
+        _gold.HorizontalAlignment = _experience.HorizontalAlignment = HorizontalAlignment.Right;
     }
 
     /// <summary>Every button with its command, the page button first.</summary>
@@ -194,10 +209,11 @@ public sealed class Toolbar : UserControl
         var b = new Button
         {
             Focusable = false,           // the keyboard belongs to the game
+            Classes = { "tool" },        // a picture button: ClassicLook leaves it as it is
             Padding = new Thickness(2),
             Width = 26,
             Height = 26,
-            Background = Brush.Parse("#2a2a38"),
+            Background = FixedColour.ToolbarLine,
             Content = new Image
             {
                 Width = 20,
@@ -214,6 +230,12 @@ public sealed class Toolbar : UserControl
     }
 
     // lblGold and lblExperience, MS Sans Serif 8.25 (MORDOR.EXE, frmMain): the "NonPro" role
+    private static Control Docked(Control c, Dock where)
+    {
+        DockPanel.SetDock(c, where);
+        return c;
+    }
+
     private static TextBlock Readout(IBrush foreground) => UiFonts.Set(new TextBlock
     {
         Foreground = foreground,

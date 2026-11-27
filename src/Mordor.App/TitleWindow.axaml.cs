@@ -585,7 +585,7 @@ public partial class TitleWindow : Window
         var win = new Window
         {
             Title = "Character List", Width = 420, SizeToContent = SizeToContent.Height, CanResize = false,
-            WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = ThemeSelection.WindowSurface,
+            WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = Palette.Window,
             FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
             Content = new Border
             {
@@ -600,8 +600,8 @@ public partial class TitleWindow : Window
                             Orientation = Orientation.Horizontal, Spacing = 8,
                             Children =
                             {
-                                new TextBlock { Text = "Characters", Foreground = Brushes.LightGray },
-                                new TextBlock { Text = saved.Count.ToString(), Foreground = Brushes.White },
+                                new TextBlock { Text = "Characters", Foreground = Palette.Text },
+                                new TextBlock { Text = saved.Count.ToString(), Foreground = Palette.Text },
                             },
                         },
                         list,

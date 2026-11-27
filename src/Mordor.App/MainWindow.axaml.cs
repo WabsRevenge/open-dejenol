@@ -52,7 +52,7 @@ public partial class MainWindow : Window
         if (loaded.Count == 0) { StatusText.Text = "No saved characters yet."; return; }
 
         var list = new ListBox { ItemsSource = rows, Height = 240 };
-        var open = new Button { Content = "Open", Background = new SolidColorBrush(Color.FromRgb(0x2d, 0x6a, 0x2d)) };
+        var open = new Button { Content = "Open", Background = FixedColour.GoButton };
         var picker = new Window
         {
             Title = "Load Character", Width = 420, Height = 360,
@@ -116,7 +116,7 @@ public partial class MainWindow : Window
         catch (Exception ex)
         {
             StatusText.Text = $"Error: {ex.Message}";
-            StatusText.Foreground = Brushes.IndianRed;
+            StatusText.Foreground = FixedColour.Refusal;
         }
     }
 
@@ -133,9 +133,9 @@ public partial class MainWindow : Window
         MapCanvas.Height = f.Height * Cell + 2;
         FloorInfo.Text = $"{f.Width}x{f.Height}   teleporters: {f.Teleporters.Count}   chutes: {f.Chutes.Count}";
 
-        var wall = new SolidColorBrush(Color.FromRgb(0xE0, 0xE0, 0xE8));
-        var door = new SolidColorBrush(Color.FromRgb(0xC8, 0x90, 0x40));
-        var secret = new SolidColorBrush(Color.FromRgb(0x80, 0x50, 0xC0));
+        var wall = FixedColour.DevWall;
+        var door = FixedColour.DevDoor;
+        var secret = FixedColour.DevSecret;
 
         for (int y = 0; y < f.Height; y++)
         for (int x = 0; x < f.Width; x++)
@@ -162,22 +162,22 @@ public partial class MainWindow : Window
             string? mark = Marker(f, x, y);
             if (mark != null)
                 MapCanvas.Children.Add(new TextBlock { Text = mark, FontSize = 11,
-                    Foreground = Brushes.White, HorizontalAlignment = HorizontalAlignment.Center,
+                    Foreground = FixedColour.White, HorizontalAlignment = HorizontalAlignment.Center,
                     [Canvas.LeftProperty] = px + 3, [Canvas.TopProperty] = py + 3 });
         }
 
         // outer border (west of col0, north handled per-cell; draw full frame)
-        AddLine(1, 1, 1, f.Height * Cell + 1, Brushes.Gray);                                   // west
-        AddLine(1, f.Height * Cell + 1, f.Width * Cell + 1, f.Height * Cell + 1, Brushes.Gray); // south
+        AddLine(1, 1, 1, f.Height * Cell + 1, FixedColour.DevGrid);                                   // west
+        AddLine(1, f.Height * Cell + 1, f.Width * Cell + 1, f.Height * Cell + 1, FixedColour.DevGrid); // south
     }
 
     private IBrush? FeatureFill(Floor f, int x, int y)
     {
-        if (f.Has(x, y, Floor.ROCK)) return new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x3b));
-        if (f.Has(x, y, Floor.WATER)) return new SolidColorBrush(Color.FromRgb(0x1e, 0x3a, 0x6a));
-        if (f.Has(x, y, Floor.QUICKSAND)) return new SolidColorBrush(Color.FromRgb(0x5a, 0x4a, 0x20));
-        if (f.Has(x, y, Floor.FOG)) return new SolidColorBrush(Color.FromRgb(0x40, 0x40, 0x48));
-        if (f.Has(x, y, Floor.ANTIMAGIC)) return new SolidColorBrush(Color.FromRgb(0x50, 0x20, 0x40));
+        if (f.Has(x, y, Floor.ROCK)) return FixedColour.DevRock;
+        if (f.Has(x, y, Floor.WATER)) return FixedColour.DevWater;
+        if (f.Has(x, y, Floor.QUICKSAND)) return FixedColour.DevQuicksand;
+        if (f.Has(x, y, Floor.FOG)) return FixedColour.DevFog;
+        if (f.Has(x, y, Floor.ANTIMAGIC)) return FixedColour.DevAntimagic;
         return null;
     }
 

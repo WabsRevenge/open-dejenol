@@ -78,6 +78,18 @@ public static class GameFiles
     public static readonly string[] Required =
         { "MORDOR.EXE", "MDATA1.MDR", "MDATA2.MDR", "MDATA3.MDR", "MDATA5.MDR", "MDATA11.MDR" };
 
+    /// <summary>
+    /// The file that marks a folder as the port's own test fixture (FixtureGame): a small invented
+    /// game, data files written by the port, no MORDOR.EXE and no MG11.DLL. Such a folder plays with
+    /// placeholder pictures and help (GameArt), so the checks can run where none of the game's files
+    /// may be - the public repository's CI.
+    /// </summary>
+    public const string FixtureMarker = FixtureGame.MarkerFile;
+
+    /// <summary>Whether <paramref name="dir"/> is the port's test fixture (<see cref="FixtureMarker"/>).</summary>
+    public static bool IsFixture(string? dir) =>
+        !string.IsNullOrWhiteSpace(dir) && File.Exists(Path.Combine(dir, FixtureMarker));
+
     /// <summary>Find a game data file in the game folder, or its DATA subfolder.</summary>
     public static string DataFile(string gameDir, string fileName)
     {
@@ -114,7 +126,9 @@ public static class GameFiles
 
         string P(string f) => Path.Combine(full, f);
         string D(string f) => DataFile(full, f);
-        var missing = Required.Where(f => !File.Exists(f == "MORDOR.EXE" ? P(f) : D(f))).ToList();
+        // the test fixture has the data files alone: no program to look for
+        bool fixture = IsFixture(full);
+        var missing = Required.Where(f => !(fixture && f == "MORDOR.EXE") && !File.Exists(f == "MORDOR.EXE" ? P(f) : D(f))).ToList();
         if (missing.Count == Required.Length)
             return new GameFilesCheck(full, GameFilesVerdict.Missing, "This folder has none of Mordor's files in it (MORDOR.EXE, MDATA1.MDR ...).");
         if (missing.Count > 0)
@@ -122,7 +136,7 @@ public static class GameFiles
 
         // Mordor 1.x is a Visual Basic 3 program for Windows 3.1: an MZ file with a New Executable
         // header behind it
-        if (!IsWin16Program(P("MORDOR.EXE")))
+        if (!fixture && !IsWin16Program(P("MORDOR.EXE")))
             return new GameFilesCheck(full, GameFilesVerdict.NotMordor, "MORDOR.EXE here is not the Windows 3.1 program Mordor 1.x is.");
 
         // MDATA1, 2, 3 and 5 open with a version string ("1.171..." in 1.1); its number is not
@@ -152,7 +166,7 @@ public static class GameFiles
         }
 
         // the shareware's data: played, as the limited build (LimitedVersion)
-        string? known = Recognise(P("MORDOR.EXE"));
+        string? known = fixture ? "the OpenDejenol test fixture (invented data, placeholder pictures)" : Recognise(P("MORDOR.EXE"));
         string share = "Mordor, shareware (Limited Version) data " + version;
         if (levels < FullLevels)
             return new GameFilesCheck(full, GameFilesVerdict.Limited,

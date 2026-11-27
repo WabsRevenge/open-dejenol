@@ -325,7 +325,7 @@ public partial class CityWindow
             {
                 new Setter(TemplatedControl.PaddingProperty, new Avalonia.Thickness(2, 0)),
                 new Setter(Layoutable.MinHeightProperty, 0d),
-                new Setter(TemplatedControl.ForegroundProperty, Brushes.IndianRed),
+                new Setter(TemplatedControl.ForegroundProperty, FixedColour.Refusal),
                 new Setter(TemplatedControl.FontWeightProperty, FontWeight.Bold),
                 // so a header can be right-justified, as the U G N E label is
                 new Setter(ContentControl.HorizontalContentAlignmentProperty, HorizontalAlignment.Stretch),
@@ -344,7 +344,7 @@ public partial class CityWindow
         // others are simply not bold (CurrentY = False, 1017-1023). Deviation at the user's request
         // (FIDELITY.md): they are also greyed, since bold alone is hard to tell apart in this font.
         FontWeight Weight(ShelfLine? r) => r is { Usable: true } ? FontWeight.Bold : FontWeight.Normal;
-        IBrush Ink(ShelfLine? r) => r is { Usable: true } ? ThemeSelection.FormInk : ThemeSelection.StoreMutedInk;
+        IBrush Ink(ShelfLine? r) => r is { Usable: true } ? Palette.Text : Palette.Muted;
         // A heading in its own font: Label9's Courier New for the form's two, the list's face for a mod's
         TextBlock Head(string text, DesignFont font) => UiFonts.Set(new TextBlock { Text = text, FontWeight = FontWeight.Bold }, pass, font);
         // a mod column's heading: in Label9's face too, set in as far as the column's cells (the
@@ -1085,7 +1085,7 @@ public partial class CityWindow
         var page = form.Page;
         Border? optionsHost = null;
         var buyCaption = ServiceForms.Store.BuyCaption;
-        if (ModSlots.StoreOptions(Brushes.LightGray, pass) is { } modOptions)
+        if (ModSlots.StoreOptions(Palette.Text, pass) is { } modOptions)
             optionsHost = FormPage.Place(root, new Border { Child = modOptions },
                 new FormRect(buyCaption.Left + buyCaption.Width, buyCaption.Top - 30,
                              ServiceForms.Store.ClientW - 60 - buyCaption.Left - buyCaption.Width, buyCaption.Height));

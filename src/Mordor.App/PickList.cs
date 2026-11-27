@@ -26,7 +26,7 @@ internal static class PickList
         {
             Title = title,
             Width = 420, Height = 300,
-            Background = ThemeSelection.WindowSurface,
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -36,7 +36,7 @@ internal static class PickList
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText },
+                        new TextBlock { Text = prompt, Foreground = Palette.Text },
                         list,
                         new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 8, Children = { ok, cancel } },
                     },

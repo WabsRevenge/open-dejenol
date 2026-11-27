@@ -61,11 +61,11 @@ public sealed class ExchangeWindow
             // pnlName: Chr$(34) + RTrim(Name) + Chr$(34) (FRMEXCHA.BAS:53-54), 9.75 bold. Every font
             // here is the form's through the Options fonts (UiFonts): Form_Load runs sub0784
             // (FRMEXCHA.BAS:44) and then sub07ED (FRMEXCHA.BAS:74), which sizes even pnlName at NonProSize
-            form.Children.Add(Raised(UiFonts.Set(VbForm.Label("\"" + _chars[side].Name.TrimEnd() + "\"", 13, Brushes.Black, bold: true,
+            form.Children.Add(Raised(UiFonts.Set(VbForm.Label("\"" + _chars[side].Name.TrimEnd() + "\"", 13, FixedColour.Black, bold: true,
                                                   align: TextAlignment.Center), DesignFonts.Exchange, "pnlName(0)")).At(60 + dx, 75, 3090, 360, grow));
 
             var inner = new Canvas();
-            _gold[side] = UiFonts.Set(VbForm.Label("", 11, Brushes.Black, bold: true, align: TextAlignment.Center), DesignFonts.Exchange);
+            _gold[side] = UiFonts.Set(VbForm.Label("", 11, FixedColour.Black, bold: true, align: TextAlignment.Center), DesignFonts.Exchange);
             var goldPanel = Raised(_gold[side]).At(105, 105, 2865, 360, grow);
             inner.Children.Add(goldPanel);
 
@@ -98,7 +98,7 @@ public sealed class ExchangeWindow
         form.Children.Add(Raised(UiFonts.Set(VbForm.Label(
             "To exchange Items, Drag and Drop an item label from one character to another."
             + " To exchange gold, Drag and Drop from the gold label to the other character's gold label and enter the amount."
-            + " When exchange is complete, click on Save Exchange to save.", 11, Brushes.Black), DesignFonts.Exchange, DesignFonts.PlainSans)).At(60, 4170, 4400, 1250, grow));
+            + " When exchange is complete, click on Save Exchange to save.", 11, FixedColour.Black), DesignFonts.Exchange, DesignFonts.PlainSans)).At(60, 4170, 4400, 1250, grow));
 
         var saveExchange = UiFonts.Set(VbForm.Button("Save Exchange", 11, bold: true), DesignFonts.Exchange).At(4530, 4695, 1740, 345, grow);
         var cancel = UiFonts.Set(VbForm.Button("Cancel", 11, bold: true), DesignFonts.Exchange).At(4530, 5070, 1740, 345, grow);
@@ -120,7 +120,7 @@ public sealed class ExchangeWindow
     private static Border Raised(Control child) => new()
     {
         Background = VbForm.Grey, BorderThickness = new Thickness(1, 1, 2, 2),
-        BorderBrush = Brush.Parse("#808080"), Padding = new Thickness(3, 1), Child = child, ClipToBounds = true,
+        BorderBrush = FixedColour.Win31Shadow, Padding = new Thickness(3, 1), Child = child, ClipToBounds = true,
     };
 
     /// <summary>
@@ -147,7 +147,7 @@ public sealed class ExchangeWindow
             row.FontWeight = PackRow.Bold(it, slot) ? FontWeight.Bold : FontWeight.Normal;
             row.FontStyle = PackRow.Italic(it, slot) ? FontStyle.Italic : FontStyle.Normal;
         }
-        row.Foreground = _blue[index] ? Brush.Parse("#0000FF") : Brushes.Black;
+        row.Foreground = _blue[index] ? FixedColour.Win31Blue : FixedColour.Black;
     }
 
     /// <summary>

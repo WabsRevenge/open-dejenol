@@ -15,7 +15,7 @@ public sealed class MdiDemoWindow : Window
         Title = "OpenDejenol — MDI bench";
         Width = 1100;
         Height = 760;
-        Background = ThemeSelection.ContentSurface;
+        Background = Palette.Well;
         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace");
 
         var host = new MdiHost();
@@ -23,7 +23,7 @@ public sealed class MdiDemoWindow : Window
         TextBlock Filler(string what) => new()
         {
             Text = what,
-            Foreground = Brushes.Gainsboro,
+            Foreground = FixedColour.DemoInk,
             TextWrapping = TextWrapping.Wrap,
             FontSize = 12,
         };
@@ -51,7 +51,7 @@ public sealed class MdiDemoWindow : Window
                 new Border
                 {
                     [DockPanel.DockProperty] = Dock.Bottom,
-                    Background = Brush.Parse("#14141c"),
+                    Background = FixedColour.DemoGround,
                     Child = new StackPanel
                     {
                         Orientation = Avalonia.Layout.Orientation.Horizontal,

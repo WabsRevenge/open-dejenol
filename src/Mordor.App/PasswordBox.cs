@@ -24,7 +24,7 @@ public static class PasswordBox
             Title = title,
             Width = 380,
             SizeToContent = SizeToContent.Height,
-            Background = ThemeSelection.WindowSurface,
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -34,7 +34,7 @@ public static class PasswordBox
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText },
+                        new TextBlock { Text = prompt, Foreground = Palette.Text },
                         box,
                         new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ok, cancel } },
                     },

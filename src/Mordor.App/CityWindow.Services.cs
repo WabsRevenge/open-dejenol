@@ -132,7 +132,7 @@ public partial class CityWindow
         Grid.SetColumn(s.Exit, 1);
         headerGrid.Children.Add(s.Title);
         headerGrid.Children.Add(s.Exit);
-        s.Header = new Border { Background = ThemeSelection.WindowSurface, Padding = new Avalonia.Thickness(8, 5), Child = headerGrid };
+        s.Header = new Border { Background = Palette.Window, Padding = new Avalonia.Thickness(8, 5), Child = headerGrid };
         DockPanel.SetDock(s.Header, Dock.Top);
         s.Page = new ContentControl();
         s.Scroll = new ScrollViewer { Content = s.Page };

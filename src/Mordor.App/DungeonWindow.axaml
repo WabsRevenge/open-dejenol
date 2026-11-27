@@ -5,7 +5,7 @@
         Title="Mordor 1.1" Width="1200" Height="780"
         FontFamily="Cascadia Mono, Consolas, monospace"
         WindowStartupLocation="CenterScreen"
-        Background="#0a0a10">
+        >
     <!-- The frame is captioned gc0192 + " " + gc0186, "Mordor 1.1", in the dungeon and the city alike
          (FRMMAIN.BAS:148-152, MAIN.TXT:33-35). -->
     <!--
@@ -72,7 +72,7 @@
             -->
             <Viewbox x:Name="DungeonBox" Stretch="Fill">
                 <!-- the form's MS Sans Serif 8.25 through the Options fonts (UiFonts); lblDisarm has its own -->
-                <Canvas x:Name="DungeonCanvas" Width="480" Height="203" Background="#0c0c14" app:UiFonts.Font="frmDungeonMain">
+                <Canvas x:Name="DungeonCanvas" Width="480" Height="203" app:UiFonts.Font="frmDungeonMain">
                     <Canvas.Styles>
                         <Style Selector="Button">
                             <Setter Property="Padding" Value="0"/>
@@ -90,36 +90,45 @@
                              them - game_files/dmainw1.png shows the black line between each pair.
                              The theme's frame is see-through, and the pairs read as one button. -->
                         <Style Selector="Button.frame">
-                            <Setter Property="BorderBrush" Value="Black"/>
+                            <Setter Property="BorderBrush" Value="{x:Static app:FixedColour.Black}"/>
                             <Setter Property="BorderThickness" Value="1"/>
                         </Style>
                         <Style Selector="Button.frame:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                            <Setter Property="BorderBrush" Value="Black"/>
+                            <Setter Property="BorderBrush" Value="{x:Static app:FixedColour.Black}"/>
                         </Style>
                         <Style Selector="Button.frame:pressed /template/ ContentPresenter#PART_ContentPresenter">
-                            <Setter Property="BorderBrush" Value="Black"/>
+                            <Setter Property="BorderBrush" Value="{x:Static app:FixedColour.Black}"/>
                         </Style>
                         <Style Selector="Button.frame:disabled /template/ ContentPresenter#PART_ContentPresenter">
-                            <Setter Property="BorderBrush" Value="Black"/>
+                            <Setter Property="BorderBrush" Value="{x:Static app:FixedColour.Black}"/>
                         </Style>
                     </Canvas.Styles>
 
-                    <!-- lblRoom: click the position readout to open the current area's Look list. -->
-                    <Button x:Name="PosButton" Classes="frame" Canvas.Left="3" Canvas.Top="2" Width="105" Height="15"
-                            Padding="0" Click="OnShowAreaLook">
-                        <TextBlock x:Name="PosText" Foreground="#e8e0c0" FontWeight="Bold" TextAlignment="Center"/>
-                    </Button>
+                    <!-- the readout's box: nothing in Dark, set in in Light (ClassicLook), as
+                         dmainw1.png draws it -->
+                    <Border x:Name="PosFrame" Canvas.Left="3" Canvas.Top="2" Width="105" Height="15"/>
+                    <!-- lblRoom: 45,30 1575x225 - where you are and which way you face. A click on
+                         it opens the Look tab: lblRoom_Click is sub0456 mc012C (FRMDUNM.BAS:377-379), the
+                         key handler given 113, F2, which is Look (OnKeyDown's Key.F2).
+                         A label, as lblRoom is: it takes no focus and no keys, and has no frame to
+                         cut its text. The transparent ground takes the click across the whole box.
+                         Its font is lblRoom's own, MS Sans Serif 8.25 plain (DesignFonts): it had been
+                         bold, and a long position ran out of the box. -->
+                    <TextBlock x:Name="PosText" Canvas.Left="3" Canvas.Top="2" Width="105" Height="15"
+                               Background="Transparent" Tapped="OnShowAreaLook"
+                               app:UiFonts.Font="frmDungeonMain.lblRoom"
+                               TextAlignment="Center"/>
 
                     <!-- shpMazeBox, three pixels bigger than picMaze2 and one pixel up and left of it
                          (FRMDUNM.BAS:262-265) -->
-                    <Rectangle Canvas.Left="4" Canvas.Top="19" Width="104" Height="104" Stroke="#333" StrokeThickness="1"/>
+                    <Border x:Name="ViewFrame" Canvas.Left="4" Canvas.Top="19" Width="104" Height="104" BorderBrush="{x:Static app:FixedColour.ViewFrame}" BorderThickness="1"/>
                     <!-- picMaze2: 75,300 1515x1515, the view, 101 pixels square -->
                     <Canvas x:Name="ViewCanvas" Canvas.Left="5" Canvas.Top="20" Width="101" Height="101"
-                            Background="#000" ClipToBounds="True"/>
+                            Background="{x:Static app:FixedColour.ViewBlack}" ClipToBounds="True"/>
                     <!-- lblDead, inside picMaze2 at 0,615 1470x225: the death-state word
                          (MAINMOD2.BAS:3043), shown only while it has one -->
                     <TextBlock x:Name="CombatTitle" Canvas.Left="5" Canvas.Top="61" Width="98" Height="15"
-                               Background="#808080" Foreground="#fff0f0" FontWeight="Bold" TextAlignment="Center"
+                               Background="{x:Static app:FixedColour.DeathBand}" Foreground="{x:Static app:FixedColour.DeathWord}" FontWeight="Bold" TextAlignment="Center"
                                IsVisible="{Binding $self.Text, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
 
                     <!-- picPicture(0) at 45,1890 holds cmdMove(0..3), 300x300 each, captioned in the
@@ -136,7 +145,7 @@
                         combat runs on a timer and a box you had to dismiss would be wrong.
                     -->
                     <Border x:Name="CombatPanel" IsVisible="False" Canvas.Left="111" Canvas.Top="3" Width="366" Height="143"
-                            Background="#18101a" BorderBrush="#a04040" BorderThickness="1">
+                            BorderThickness="1">
                         <Canvas x:Name="CombatCanvas" Width="364" Height="141">
                             <!-- sub0B9B draws the engaged picture 45x45 at 3,8 (MONSMOD.BAS:4444-4445) -->
                             <Image x:Name="StateIcon" Canvas.Left="2" Canvas.Top="7" Width="45" Height="45"
@@ -155,16 +164,16 @@
                             <!-- picMonGroups: 60,1050 5320x480, lblMonster(0..3) two to a column,
                                  167x13 each, with lblCurrentGroup's mark in front -->
                             <ItemsControl x:Name="MonsterList" Canvas.Left="3" Canvas.Top="70" Width="355" Height="32"
-                                          Background="#0a0a10">
+                                          >
                                 <ItemsControl.ItemsPanel>
                                     <ItemsPanelTemplate><WrapPanel Orientation="Vertical" ItemWidth="166" ItemHeight="14"/></ItemsPanelTemplate>
                                 </ItemsControl.ItemsPanel>
                             </ItemsControl>
                             <!-- lblCharacterHit 90,1605 5325x210 and lblMonsterHit 90,1860 5325x195 -->
                             <TextBlock x:Name="CombatHit" Canvas.Left="5" Canvas.Top="106" Width="355" Height="14"
-                                       Foreground="#ffe080" FontWeight="Bold" TextAlignment="Center"/>
+                                       FontWeight="Bold" TextAlignment="Center"/>
                             <TextBlock x:Name="CombatMonsterHit" Canvas.Left="5" Canvas.Top="123" Width="355" Height="13"
-                                       Foreground="#ff9090" FontWeight="Bold" TextAlignment="Center"/>
+                                       FontWeight="Bold" TextAlignment="Center"/>
                             <!-- No combat log here: picMonsters holds lblCharacterHit and lblMonsterHit and
                                  no list. Everything else a fight says goes through sub085B to the
                                  Messages window, as it happens. No order line, spell box or Fight /
@@ -183,7 +192,7 @@
                     <!-- lblSquareInfo: 60,2250 5190x405, the square's own caption, above the
                          command bar -->
                     <TextBlock x:Name="MsgText" Canvas.Left="4" Canvas.Top="150" Width="346" Height="27"
-                               Foreground="#c8c8d8" TextWrapping="Wrap"/>
+                               TextWrapping="Wrap"/>
 
                     <!--
                         picTrap: 5340,2250 1815x420, lblTrap and lblDisarm and nothing else
@@ -192,7 +201,7 @@
                         chest announces itself by being drawn.
                     -->
                     <Border x:Name="ChestPanel" IsVisible="False" Canvas.Left="356" Canvas.Top="150" Width="121" Height="28"
-                            Background="#1a1508" BorderBrush="#8a7a30" BorderThickness="1">
+                            BorderThickness="1">
                         <!-- VB clips a container's children to it, and lblTrap starts 195 twips
                              left of picTrap: ClipToBounds -->
                         <Canvas Width="119" Height="26" ClipToBounds="True">
@@ -201,12 +210,12 @@
                                  data in MORDOR.EXE (RCDATA 22). It was Courier New and centred, and
                                  "Magically Locked" ran out of the box -->
                             <TextBlock x:Name="ChestText" Canvas.Left="-14" Canvas.Top="-1" Width="130" Height="14"
-                                       Foreground="#ffd070" FontWeight="Bold" TextAlignment="Right"/>
+                                       FontWeight="Bold" TextAlignment="Right"/>
                             <!-- lblDisarm 120,195 1650x210, Courier New 7.5 bold, Alignment 1 (Right
                                  Justify) - the same form data -->
                             <TextBlock x:Name="ChestGauge" Canvas.Left="7" Canvas.Top="12" Width="110" Height="14"
                                        app:UiFonts.Font="frmDungeonMain.lblDisarm" FontWeight="Bold"
-                                       Foreground="#8fd9d9" TextAlignment="Right"/>
+                                       TextAlignment="Right"/>
                         </Canvas>
                     </Border>
 
@@ -233,14 +242,16 @@
                  bm5.png has none, the selected row is told by its colour. -->
             <app:ElasticCanvas x:Name="PartyBox" DrawnHeight="99" IsVisible="False" app:UiFonts.Font="frmParty">
                 <Grid ColumnDefinitions="72,49,42,53,64" x:Name="PartyHeader" Canvas.Left="5" Canvas.Top="1" Height="12">
-                    <TextBlock Grid.Column="0" Text="Name" FontWeight="Bold" Foreground="#888"/>
-                    <TextBlock Grid.Column="1" Text="Hits" FontWeight="Bold" Foreground="#888" HorizontalAlignment="Right" Margin="0,0,5,0"/>
-                    <TextBlock Grid.Column="2" Text="Spells" FontWeight="Bold" Foreground="#888" HorizontalAlignment="Right" Margin="0,0,2,0"/>
-                    <TextBlock Grid.Column="3" Text="Status" FontWeight="Bold" Foreground="#888" HorizontalAlignment="Right" Margin="0,0,10,0"/>
-                    <TextBlock Grid.Column="4" Text="Option" FontWeight="Bold" Foreground="#888" HorizontalAlignment="Right"/>
+                    <TextBlock Grid.Column="0" Text="Name" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1" Text="Hits" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,0,5,0"/>
+                    <TextBlock Grid.Column="2" Text="Spells" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,0,2,0"/>
+                    <TextBlock Grid.Column="3" Text="Status" FontWeight="Bold" HorizontalAlignment="Right" Margin="0,0,10,0"/>
+                    <TextBlock Grid.Column="4" Text="Option" FontWeight="Bold" HorizontalAlignment="Right"/>
                 </Grid>
-                <!-- FormPage.List creates the themed rows within this form-positioned host. -->
-                <Canvas x:Name="PartyRowsHost" Canvas.Left="5" Canvas.Top="18" Width="281" Height="56"/>
+                <!-- in their pale box, as the town's (CityWindow.FramePartyRows) -->
+                <Border x:Name="PartyRowsFrame" Canvas.Left="5" Canvas.Top="18" Margin="-1,-1,0,0" BorderThickness="1">
+                    <StackPanel x:Name="PartyRows"/>
+                </Border>
                 <!-- cmdCommand(0..2) (FRMGROUP.BAS:32-46) -->
                 <app:ElasticCanvas.Styles>
                     <Style Selector="Button">
@@ -269,7 +280,7 @@
                 -->
                 <!-- lstMessages has the form's own MS Sans Serif 8.25 (MORDOR.EXE, frmCharStat4), through
                      the Options fonts (UiFonts): it had been the frame's Cascadia Mono -->
-                <ListBox x:Name="MessageLog" Background="#08080c" BorderBrush="#333" BorderThickness="1"
+                <ListBox x:Name="MessageLog" BorderThickness="1"
                          app:UiFonts.Font="frmCharStat4.lstMessages" DoubleTapped="OnClearMessages">
                     <!-- at most twenty lines (mc04F2), so a plain StackPanel: every row is laid out as it is
                          added. Rows were seen blank at normal size until a maximise re-measured the
@@ -326,7 +337,6 @@
                             <Style Selector="ListBox">
                                 <Setter Property="Padding" Value="0"/>
                                 <Setter Property="BorderThickness" Value="0"/>
-                                <Setter Property="Background" Value="#0a0a10"/>
                             </Style>
                             <!-- a row is its labels' height: the theme's item padding made each pack row 44 pixels -->
                             <Style Selector="ListBoxItem">
@@ -340,14 +350,14 @@
                                  form puts cmdCast (2580, 600 twips wide) 15 twips over cmdInfo (3165), and the
                                  frame is what parts them, as the Dungeon window's button row (Button.frame there) -->
                             <Style Selector="Button.frame">
-                                <Setter Property="BorderBrush" Value="Black"/>
+                                <Setter Property="BorderBrush" Value="{x:Static app:FixedColour.Black}"/>
                                 <Setter Property="BorderThickness" Value="1"/>
                             </Style>
                             <Style Selector="Button.frame:pointerover /template/ ContentPresenter#PART_ContentPresenter">
-                                <Setter Property="BorderBrush" Value="Black"/>
+                                <Setter Property="BorderBrush" Value="{x:Static app:FixedColour.Black}"/>
                             </Style>
                             <Style Selector="Button.frame:pressed /template/ ContentPresenter#PART_ContentPresenter">
-                                <Setter Property="BorderBrush" Value="Black"/>
+                                <Setter Property="BorderBrush" Value="{x:Static app:FixedColour.Black}"/>
                             </Style>
                         </TabControl.Styles>
                         <!--
@@ -435,7 +445,7 @@
                         <TabItem Header="Companions">
                             <Canvas Width="254" Height="172" Margin="9,4,0,0" HorizontalAlignment="Left" VerticalAlignment="Top" x:Name="CompanionPage">
                                 <!-- lblCarryInfo 90,30 3330x210, Arial 8.25 bold -->
-                                <TextBlock x:Name="SheetStates" Canvas.Left="6" Canvas.Top="2" Width="222" Height="14" Foreground="#8fd9d9"
+                                <TextBlock x:Name="SheetStates" Canvas.Left="6" Canvas.Top="2" Width="222" Height="14" Foreground="{x:Static app:FixedColour.StatesInk}"
                                            app:UiFonts.Font="frmCharStat3.lblCarryInfo" FontWeight="Bold"/>
                                 <!--
                                     "The buttons allow you to kick out a specific companion whenever

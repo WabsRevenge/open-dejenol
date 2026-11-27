@@ -884,6 +884,14 @@ public sealed class ModUI
     /// </summary>
     public Func<MessageLineInfo, (byte R, byte G, byte B)?>? MessageLineColour { get; set; }
 
+    /// <summary>
+    /// A line of the Messages window's colour by role (a <see cref="ThemeKeys"/> name, ThemeKeys.Maroon for a
+    /// foe's blow), or null: the theme then colours the line, Light and Dark each with its own value.
+    /// Asked before <see cref="MessageLineColour"/>, and preferred to it: a colour of a mod's own is
+    /// drawn as it is in either theme. The first mod with a non-null answer decides. API version 15.
+    /// </summary>
+    public Func<MessageLineInfo, string?>? MessageLineInk { get; set; }
+
     private readonly List<BankCommand> _bank = new();
 
     /// <summary>Add a button to the Bank, on the "Deposit/Withdraw Items" caption's line (the BankCommands slot).</summary>

@@ -36,7 +36,7 @@ public static class IndexTab
         int rows = Math.Max(1, (tabs.ItemCount + perRow - 1) / perRow);
         var font = UiFonts.Design(form, control);
         double rowHeight = Math.Max(strip / rows, UiFonts.LineHeight(form, font with { Bold = true }) + 2);
-        tabs.ItemsPanel = new FuncTemplate<Panel?>(() => new UniformGrid { Columns = perRow });
+        tabs.ItemsPanel = new FuncTemplate<Panel?>(() => new IndexTabRows { Columns = perRow });
         // the theme reads these sizes as resources: the nearest one wins
         tabs.Resources["TabItemMinHeight"] = 0d;
         tabs.Resources["TabItemHeaderFontSize"] = UiFonts.SizeOf(form, font);
@@ -52,7 +52,7 @@ public static class IndexTab
                 new Setter(Layoutable.MarginProperty, new Thickness(0)),
                 new Setter(TemplatedControl.PaddingProperty, new Thickness(0)),
                 new Setter(TemplatedControl.BorderThicknessProperty, new Thickness(1, 1, 1, 0)),
-                new Setter(TemplatedControl.BorderBrushProperty, new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x66))),
+                new Setter(TemplatedControl.BorderBrushProperty, FixedColour.TabEdge),
                 new Setter(ContentControl.HorizontalContentAlignmentProperty, HorizontalAlignment.Center),
                 new Setter(ContentControl.VerticalContentAlignmentProperty, VerticalAlignment.Center),
             },
@@ -77,5 +77,52 @@ public static class IndexTab
         {
             Setters = { new Setter(Visual.IsVisibleProperty, false) },
         });
+    }
+}
+
+/// <summary>
+/// The IndexTab's rows of tabs, <see cref="Columns"/> to a row, each tab a column wide (a short last
+/// row leaves the rest of its width empty). The row holding the selected tab is drawn last, next to
+/// the page, and the others above it in turn after it: the original's tab moves its current row
+/// down so (bm13.png: Stats chosen, the rows read Look/Buffers/Misc over Stats/Resist./Char/Guild,
+/// and the game in play shows the same; CharacterPanel's summary has the order of the tabs).
+/// </summary>
+public sealed class IndexTabRows : Panel
+{
+    public int Columns { get; set; } = 1;
+
+    static IndexTabRows() => AffectsParentArrange<IndexTabRows>(TabItem.IsSelectedProperty);
+
+    private int Rows => Math.Max(1, (Children.Count + Columns - 1) / Columns);
+
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        double w = 0, h = 0;
+        var cell = new Size(availableSize.Width / Columns, availableSize.Height / Rows);
+        foreach (var c in Children)
+        {
+            c.Measure(cell);
+            w = Math.Max(w, c.DesiredSize.Width);
+            h = Math.Max(h, c.DesiredSize.Height);
+        }
+        return new Size(w * Columns, h * Rows);
+    }
+
+    protected override Size ArrangeOverride(Size finalSize)
+    {
+        int rows = Rows;
+        double w = finalSize.Width / Columns, h = finalSize.Height / rows;
+        int selectedRow = 0;
+        for (int i = 0; i < Children.Count; i++)
+            if (Children[i] is TabItem { IsSelected: true }) selectedRow = i / Columns;
+        for (int i = 0; i < Children.Count; i++)
+        {
+            int row = i / Columns;
+            // where the row is drawn, top to bottom: the rows after the selected one, wrapping round,
+            // and the selected one last
+            int place = (row - selectedRow - 1 + rows) % rows;
+            Children[i].Arrange(new Rect(w * (i % Columns), h * place, w, h));
+        }
+        return finalSize;
     }
 }

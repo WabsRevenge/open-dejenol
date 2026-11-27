@@ -33,6 +33,9 @@ public partial class CharacterCreationWindow : Window
         _gameDir = gameDir;
         InitializeComponent();
         ThemeSelection.ApplyWindowSurface(this);
+        ClassicLook.Sunken(PoolBox);   // the points left in a field set in, in the Light theme
+        // cmbRace, cmbSex and cmbAlignment show their choice in navy, as the original's do
+        RaceBox.Foreground = SexBox.Foreground = AlignBox.Foreground = Palette.Navy;
         RaceBox.ItemsSource = RaceData.All.Select(r => r.Name).ToList();
         SexBox.ItemsSource = new[] { "Male", "Female" };
         SexBox.SelectedIndex = 0;
@@ -77,8 +80,15 @@ public partial class CharacterCreationWindow : Window
 
             g.Children.Add(new TextBlock { Text = full[i], FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center });
 
-            var val = new TextBlock { Text = _stats[i].ToString(), Foreground = Brushes.DodgerBlue, FontWeight = FontWeight.Bold,
-                                      MinWidth = 22, TextAlignment = TextAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            // pnlPanel(i), a THREED panel with the figure as its caption (CHARCREA.BAS:69, 94): set in,
+            // the figure navy on the form's grey, as the original draws it
+            var val = ClassicLook.Sunken(new Border
+            {
+                Background = Palette.Window, BorderBrush = Palette.Shadow, BorderThickness = new Avalonia.Thickness(1),
+                MinWidth = 32, Padding = new Avalonia.Thickness(2, 1), VerticalAlignment = VerticalAlignment.Center,
+                Child = UiFonts.Set(new TextBlock { Text = _stats[i].ToString(), Foreground = Palette.Navy, TextAlignment = TextAlignment.Center },
+                                    DesignFonts.CreateChar, "pnlPanel(0)"),   // MS Sans Serif 9.75 bold
+            });
             Grid.SetColumn(val, 2); g.Children.Add(val);
 
             // the original's little up/down spinner
@@ -92,12 +102,13 @@ public partial class CharacterCreationWindow : Window
             spin.Children.Add(up); spin.Children.Add(down);
             Grid.SetColumn(spin, 3); g.Children.Add(spin);
 
-            var range = new TextBlock { Text = $"({_race.Min[i]}-{_race.Max[i]})", Foreground = Brushes.Gray, VerticalAlignment = VerticalAlignment.Center };
+            // lblStatInfo(i), in the form's ink (CHARCREA.BAS:75)
+            var range = new TextBlock { Text = $"({_race.Min[i]}-{_race.Max[i]})", Foreground = Palette.Text, VerticalAlignment = VerticalAlignment.Center };
             Grid.SetColumn(range, 4); g.Children.Add(range);
 
             StatRows.Children.Add(g);
         }
-        PoolText.Text = $"{_pool}   Stat Points Left";
+        PoolText.Text = _pool.ToString();
         RefreshGuilds();
     }
 
@@ -126,8 +137,8 @@ public partial class CharacterCreationWindow : Window
             // BackColor &HC0C0C0, ForeColor 0), so the bold and the italic read as they do in bm1.png;
             // white monospace on near-black had flattened the three states into one.
             if (!raceOk) continue;
-            var row = new TextBlock { Text = g.Name, FontSize = 14, Foreground = Brushes.Black,
-                                      FontFamily = PortFonts.Family("Microsoft Sans Serif, Segoe UI, sans-serif") };
+            // lblGuild(i): MS Sans Serif 8.25 plain, through the Options fonts (frmCreateChar's form data)
+            var row = UiFonts.Set(new TextBlock { Text = g.Name, Foreground = FixedColour.Black }, DesignFonts.CreateChar, "lblGuild(0)");
             if (!alignOk) row.FontStyle = FontStyle.Italic;
             else if (statsOk) row.FontWeight = FontWeight.Bold;
             GuildRows.Children.Add(row);
@@ -141,18 +152,6 @@ public partial class CharacterCreationWindow : Window
     private void OnRaceStats(object? s, Avalonia.Interactivity.RoutedEventArgs e) => new HelpWindow("Races: Statistics").Show();
 
     private void OnGuildStats(object? s, Avalonia.Interactivity.RoutedEventArgs e) => new HelpWindow("Guilds: Statistics").Show();
-
-    private static TextBlock Mono(string text, bool bold = false, IBrush? colour = null) =>
-        new() { Text = text, FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace"),
-                FontWeight = bold ? FontWeight.Bold : FontWeight.Normal, Foreground = colour ?? Brushes.LightGray };
-
-    private void Popup(string title, Control body) =>
-        new Window
-        {
-            Title = title, Width = 820, Height = 420, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = ThemeSelection.WindowSurface,
-            Content = new ScrollViewer { Content = body },
-        }.ShowDialog(this);
 
     /// <summary>
     /// cmdTutorial_Click (CHARCREA.BAS:198-205) opens the help file at its Tutorial topic. The port

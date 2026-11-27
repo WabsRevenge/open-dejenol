@@ -2,7 +2,6 @@ using System;
 using System.Collections.Specialized;
 using System.IO;
 using System.Runtime.InteropServices;
-using System.Text;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -13,27 +12,28 @@ using Mordor.Core;
 
 namespace Mordor.App;
 
+/// <summary>
+/// The port's Light and Dark themes (the port's own; the original has only its Windows 3.1 grey).
+/// The choice is settings.ini's [Appearance] Theme: Dark, Light or System (the operating system's,
+/// or the browser's, light or dark setting). With nothing saved it is Dark, the port's look before
+/// there was a choice, so an update changes nobody's game. It is made in the Options window on
+/// every system, and on Windows in each game window's system menu too.
+///
+/// The brushes below are shared: every window takes the same instances, and a change of theme
+/// recolours them in place. They start in the default theme's colours, so a host that never calls
+/// <see cref="Initialize"/> (the browser page) still draws a whole theme.
+/// </summary>
 internal static class ThemeSelection
 {
-    private const uint MfByPosition = 0x00000400;
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetMenuItemCount(IntPtr hMenu);
-
-    [DllImport("user32.dll", CharSet = CharSet.Unicode)]
-    private static extern int GetMenuStringW(
-        IntPtr hMenu,
-        uint uIDItem,
-        StringBuilder lpString,
-        int cchMax,
-        uint flags);
-
-    private enum Choice
+    internal enum Choice
     {
-        Windows,
+        System,
         Light,
         Dark,
     }
+
+    /// <summary>The theme with nothing saved: Dark, the port's look before the choice existed.</summary>
+    private const Choice Default = Choice.Dark;
 
     private const string Section = "Appearance";
     private const string Key = "Theme";
@@ -41,50 +41,37 @@ internal static class ThemeSelection
     private const uint WmInitMenuPopup = 0x0117;
     private const uint MfSeparator = 0x0800;
     private const uint MfPopup = 0x0010;
-    private const uint ScWindowsTheme = 0x1F00;
+    // the system-menu commands: below 0xF000, as a window's own SC_ items must be, and multiples of
+    // 16, as WM_SYSCOMMAND keeps the low four bits for itself (the handler masks them off)
+    private const uint ScSystemTheme = 0x1F00;
     private const uint ScLightTheme = 0x1F10;
     private const uint ScDarkTheme = 0x1F20;
 
-    private static Choice _choice = Choice.Windows;
+    private static Choice _choice = Default;
     private static IClassicDesktopStyleApplicationLifetime? _desktop;
     internal static event Action? ThemeChanged;
+
+    /// <summary>The theme chosen: what the Options window shows.</summary>
+    internal static Choice Current => _choice;
+
     internal static bool IsLight => _choice == Choice.Light
-        || (_choice == Choice.Windows && Application.Current?.ActualThemeVariant != ThemeVariant.Dark);
-    internal static SolidColorBrush AboutTitleInk { get; } = new(Color.Parse("#800000"));
-    internal static SolidColorBrush AboutVersionInk { get; } = new(Color.Parse("#000080"));
-    internal static SolidColorBrush WindowSurface { get; } = new(Color.Parse("#101018"));
-    internal static SolidColorBrush ContentSurface { get; } = new(Color.Parse("#0a0a10"));
-    internal static SolidColorBrush RaisedSurface { get; } = new(Color.Parse("#16161f"));
-    internal static SolidColorBrush DialogText { get; } = new(Color.Parse("#d8d8df"));
-    internal static SolidColorBrush FormFace { get; } = new(Color.Parse("#141420"));
-    internal static SolidColorBrush FormInk { get; } = new(Color.Parse("#d8d8e0"));
-    internal static SolidColorBrush FormBevel { get; } = new(Color.Parse("#555566"));
-    internal static SolidColorBrush FormDisplayField { get; } = new(Color.Parse("#33333a"));
-    internal static SolidColorBrush FormListSurface { get; } = new(Color.Parse("#0a0a10"));
-    internal static SolidColorBrush ButtonFace { get; } = new(Color.Parse("#3b3b40"));
-    internal static SolidColorBrush ToolbarButtonFace { get; } = new(Color.Parse("#2a2a38"));
-    internal static SolidColorBrush HelpHeaderSurface { get; } = new(Color.Parse("#1c2740"));
-    internal static SolidColorBrush HelpPaneSurface { get; } = new(Color.Parse("#101018"));
-    internal static SolidColorBrush HelpListSurface { get; } = new(Color.Parse("#0e0e14"));
-    internal static SolidColorBrush HelpHeadingInk { get; } = new(Color.Parse("#e8e0c0"));
-    internal static SolidColorBrush HelpTextInk { get; } = new(Color.Parse("#d0d0dc"));
-    internal static SolidColorBrush FormBlue { get; } = new(Color.Parse("#6495ed"));
-    internal static SolidColorBrush FormMaroon { get; } = new(Color.Parse("#cd5c5c"));
-    internal static SolidColorBrush FormNavy { get; } = new(Color.Parse("#8aa8e8"));
-    internal static SolidColorBrush ToolbarGoldInk { get; } = new(Color.Parse("#e8e0c0"));
-    internal static SolidColorBrush ToolbarResistanceInk { get; } = new(Color.Parse("#8fb0ff"));
-    internal static SolidColorBrush ToolbarResistanceValueInk { get; } = new(Color.Parse("#dcdcdc"));
-    internal static SolidColorBrush TrapReadoutInk { get; } = new(Color.Parse("#8aa8e8"));
-    internal static SolidColorBrush TrapSafeCaptionInk { get; } = new(Color.Parse("#8aa8e8"));
-    internal static SolidColorBrush TrapSprungCaptionInk { get; } = new(Color.Parse("#8aa8e8"));
-    internal static SolidColorBrush MonsterListInk { get; } = new(Color.Parse("#d8d8e0"));
-    internal static SolidColorBrush StoreMutedInk { get; } = new(Color.Parse("#808080"));
-    internal static SolidColorBrush PartyPlainInk { get; } = new(Color.Parse("#f5f5f5"));
-    internal static SolidColorBrush PartySelectedInk { get; } = new(Color.Parse("#90ee90"));
-    internal static SolidColorBrush PartyFixedInk { get; } = new(Color.Parse("#6495ed"));
-    internal static SolidColorBrush PartyWellInk { get; } = new(Color.Parse("#6495ed"));
-    internal static SolidColorBrush PartyAilingInk { get; } = new(Color.Parse("#cd5c5c"));
-    internal static SolidColorBrush PartyHeaderInk { get; } = new(Color.Parse("#888888"));
+        || (_choice == Choice.System && Application.Current?.ActualThemeVariant != ThemeVariant.Dark);
+
+    // the brushes take the default theme's colours before anything draws with them
+    static ThemeSelection()
+    {
+        Paint(Default == Choice.Light);
+        // a text box given a ground of its own keeps it under the pointer and with the keyboard: the
+        // theme swaps in its white for both (TextControlBackgroundPointerOver and ...Focused), and
+        // the Library's yellow page turned white when moused over. Boxes on the theme's own ground
+        // are left as the theme draws them.
+        TextBox.BackgroundProperty.Changed.AddClassHandler<TextBox>((box, e) =>
+        {
+            if (e.Priority != Avalonia.Data.BindingPriority.LocalValue) return;
+            box.Resources["TextControlBackgroundPointerOver"] = e.NewValue;
+            box.Resources["TextControlBackgroundFocused"] = e.NewValue;
+        });
+    }
 
     public static void Initialize(IClassicDesktopStyleApplicationLifetime desktop)
     {
@@ -95,56 +82,65 @@ internal static class ThemeSelection
             app.ActualThemeVariantChanged += (_, _) => UpdateWindowBackgrounds();
 
         string saved = Ini.Read(GameFolder.LaunchIniPath).Text(Section, Key);
-        _choice = saved.ToUpperInvariant() switch
+        Choice? read = saved.ToUpperInvariant() switch
         {
             "LIGHT" => Choice.Light,
             "DARK" => Choice.Dark,
-            "WINDOWS" or "SYSTEM" or "" => Choice.Windows,
-            _ => Choice.Windows,
+            // "Windows" is what the first builds of the choice wrote for System
+            "SYSTEM" or "WINDOWS" => Choice.System,
+            _ => null,
         };
-        if (saved != "" && saved.ToUpperInvariant() is not ("LIGHT" or "DARK" or "WINDOWS" or "SYSTEM"))
-            CrashLog.Note("unknown theme setting " + saved + "; using the Windows theme");
+        if (read is null && saved != "")
+            CrashLog.Note("unknown theme setting " + saved + "; using " + Default);
+        _choice = read ?? Default;
         Apply();
     }
 
-    public static void ApplyWindowSurface(Window window) => window.Background = WindowSurface;
+    /// <summary>The window's ground, and the Light theme's relief inside it (ClassicLook).</summary>
+    public static void ApplyWindowSurface(Window window)
+    {
+        window.Background = Palette.Window;
+        Classic(window);
+        _surfaces.RemoveAll(w => !w.TryGetTarget(out _));
+        _surfaces.Add(new WeakReference<StyledElement>(window));
+    }
+
+    /// <summary>The windows given the surface, for the relief to follow the theme in each.</summary>
+    private static readonly System.Collections.Generic.List<WeakReference<StyledElement>> _surfaces = new();
+    private static bool _classicStyled;
+
+    /// <summary>ClassicLook's class on a window in the Light theme, its styles in the application once.</summary>
+    private static void Classic(StyledElement window)
+    {
+        if (!_classicStyled && Application.Current is { } app)
+        {
+            app.Styles.Add(ClassicLook.Styles);
+            // the colour roles by name, for the mods (ThemeKeys): the same brushes, recoloured in place
+            Palette.Publish(app.Resources);
+            _classicStyled = true;
+        }
+        window.Classes.Set(ClassicLook.ClassName, IsLight);
+    }
 
     internal static void ApplyPartyHeader(Grid header)
     {
         foreach (Control child in header.Children)
             if (child is TextBlock label)
-                label.Foreground = PartyHeaderInk;
+                label.Foreground = Palette.Caption;
     }
 
     internal static void ApplyCommandButtonTheme(Canvas canvas, params Button[] buttons)
     {
-        canvas.Resources["ButtonBackground"] = ButtonFace;
-        canvas.Resources["ButtonBackgroundPointerOver"] = RaisedSurface;
-        canvas.Resources["ButtonBackgroundPressed"] = FormBevel;
-        canvas.Resources["ButtonBackgroundDisabled"] = ButtonFace;
+        canvas.Resources["ButtonBackground"] = Palette.Button;
+        canvas.Resources["ButtonBackgroundPointerOver"] = Palette.Window;
+        canvas.Resources["ButtonBackgroundPressed"] = Palette.Shadow;
+        canvas.Resources["ButtonBackgroundDisabled"] = Palette.Button;
         foreach (Button button in buttons)
-            button.Foreground = FormInk;
+            button.Foreground = Palette.Text;
     }
 
     internal static void ApplyItemCommandTheme(Canvas canvas, params Button[] buttons) =>
         ApplyCommandButtonTheme(canvas, buttons);
-
-    private static bool HasMenuItem(IntPtr menu, string text)
-    {
-        int count = GetMenuItemCount(menu);
-
-        for (uint i = 0; i < count; i++)
-        {
-            var sb = new StringBuilder(256);
-
-            GetMenuStringW(menu, i, sb, sb.Capacity, MfByPosition);
-
-            if (string.Equals(sb.ToString(), text, StringComparison.OrdinalIgnoreCase))
-                return true;
-        }
-
-        return false;
-    }
 
     public static void Attach(Window window)
     {
@@ -166,7 +162,7 @@ internal static class ThemeSelection
 
                     Choice? selected = command switch
                     {
-                        ScWindowsTheme => Choice.Windows,
+                        ScSystemTheme => Choice.System,
                         ScLightTheme => Choice.Light,
                         ScDarkTheme => Choice.Dark,
                         _ => null,
@@ -201,6 +197,8 @@ internal static class ThemeSelection
                     new IntPtr(unchecked((int)ScLightTheme)), "Light")
                 || !AppendMenuW(themeMenu, 0,
                     new IntPtr(unchecked((int)ScDarkTheme)), "Dark")
+                || !AppendMenuW(themeMenu, 0,
+                    new IntPtr(unchecked((int)ScSystemTheme)), "Same as Windows")
                 || !AppendMenuW(systemMenu, MfSeparator, IntPtr.Zero, null)
                 || !AppendMenuW(systemMenu, MfPopup, themeMenu, "Theme Selection"))
             {
@@ -216,8 +214,10 @@ internal static class ThemeSelection
             Win32Properties.RemoveWndProcHookCallback(window, hook);
     }
 
-    private static void Select(Choice choice)
+    /// <summary>Takes a theme at once and saves it to settings.ini.</summary>
+    internal static void Select(Choice choice)
     {
+        if (choice == _choice) return;
         _choice = choice;
         Apply();
 
@@ -251,59 +251,33 @@ internal static class ThemeSelection
 
     private static void UpdateWindowBackgrounds()
     {
-        if (_desktop is null || Application.Current is not { } app) return;
-
-        bool light = IsLight;
-        AboutTitleInk.Color = Color.Parse(light ? "#800000" : "#FFFFFF");
-        AboutVersionInk.Color = Color.Parse(light ? "#000080" : "#FFFFFF");
-        WindowSurface.Color = Color.Parse(light ? "#C0C0C0" : "#101018");
-        ContentSurface.Color = Color.Parse(light ? "#E6E6E6" : "#0a0a10");
-        RaisedSurface.Color = Color.Parse(light ? "#FFFFFF" : "#16161f");
-        DialogText.Color = Color.Parse(light ? "#202020" : "#d8d8df");
-        FormFace.Color = Color.Parse(light ? "#C0C0C0" : "#141420");
-        FormInk.Color = Color.Parse(light ? "#000000" : "#d8d8e0");
-        FormBevel.Color = Color.Parse(light ? "#808080" : "#555566");
-        FormDisplayField.Color = Color.Parse(light ? "#FFFFFF" : "#33333a");
-        FormListSurface.Color = Color.Parse(light ? "#FFFFE0" : "#0a0a10");
-        ButtonFace.Color = Color.Parse(light ? "#F0F0F0" : "#3b3b40");
-        ToolbarButtonFace.Color = Color.Parse(light ? "#F0F0F0" : "#2a2a38");
-        HelpHeaderSurface.Color = Color.Parse(light ? "#C0C0C0" : "#1c2740");
-        HelpPaneSurface.Color = Color.Parse(light ? "#C0C0C0" : "#101018");
-        HelpListSurface.Color = Color.Parse(light ? "#C0C0C0" : "#0e0e14");
-        HelpHeadingInk.Color = Color.Parse(light ? "#000080" : "#e8e0c0");
-        HelpTextInk.Color = Color.Parse(light ? "#202020" : "#d0d0dc");
-        FormBlue.Color = Color.Parse(light ? "#0000FF" : "#6495ed");
-        FormMaroon.Color = Color.Parse(light ? "#800000" : "#cd5c5c");
-        FormNavy.Color = Color.Parse(light ? "#000080" : "#8aa8e8");
-        ToolbarGoldInk.Color = Color.Parse(light ? "#705000" : "#e8e0c0");
-        ToolbarResistanceInk.Color = Color.Parse(light ? "#000080" : "#8fb0ff");
-        ToolbarResistanceValueInk.Color = Color.Parse(light ? "#202020" : "#dcdcdc");
-        TrapReadoutInk.Color = Color.Parse(light ? "#000000" : "#FED070");
-        TrapSafeCaptionInk.Color = Color.Parse(light ? "#008000" : "#8aa8e8");
-        TrapSprungCaptionInk.Color = Color.Parse(light ? "#ff0000" : "#8aa8e8");
-        MonsterListInk.Color = Color.Parse(light ? "#800000" : "#EFE68C");
-        StoreMutedInk.Color = Color.Parse(light ? "#666666" : "#808080");
-        PartyPlainInk.Color = Color.Parse(light ? "#202020" : "#f5f5f5");
-        PartySelectedInk.Color = Color.Parse(light ? "#008000" : "#90ee90");
-        PartyFixedInk.Color = Color.Parse(light ? "#000080" : "#6495ed");
-        PartyWellInk.Color = Color.Parse(light ? "#000080" : "#6495ed");
-        PartyAilingInk.Color = Color.Parse(light ? "#800000" : "#cd5c5c");
-        PartyHeaderInk.Color = Color.Parse(light ? "#666666" : "#888888");
-        foreach (Window window in _desktop.Windows)
-            window.Background = WindowSurface;
+        Paint(IsLight);
+        ClassicLook.Set(IsLight);
+        if (_desktop is not null)
+            foreach (Window window in _desktop.Windows)
+            {
+                window.Background = Palette.Window;
+                Classic(window);
+            }
+        _surfaces.RemoveAll(w => !w.TryGetTarget(out _));
+        foreach (var w in _surfaces)
+            if (w.TryGetTarget(out var surface)) Classic(surface);
         ThemeChanged?.Invoke();
     }
 
-    private static void UpdateCheck(IntPtr menu)
+    /// <summary>Every role's colour in the Light or the Dark theme (Palette).</summary>
+    private static void Paint(bool light) => Palette.Paint(light);
+
+
+    /// <summary>The system menu's item ticked for a theme: each its own, Same as Windows for System (it had ticked Light).</summary>
+    internal static uint MenuCommandFor(Choice choice) => choice switch
     {
-        uint command = _choice switch
-        {
-            Choice.Light => ScLightTheme,
-            Choice.Dark => ScDarkTheme,
-            _ => ScLightTheme,
-        };
-        CheckMenuRadioItem(menu, ScWindowsTheme, ScDarkTheme, command, 0);
-    }
+        Choice.Light => ScLightTheme,
+        Choice.Dark => ScDarkTheme,
+        _ => ScSystemTheme,
+    };
+
+    private static void UpdateCheck(IntPtr menu) => CheckMenuRadioItem(menu, ScSystemTheme, ScDarkTheme, MenuCommandFor(_choice), 0);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern IntPtr GetSystemMenu(IntPtr hWnd, [MarshalAs(UnmanagedType.Bool)] bool revert);

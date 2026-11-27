@@ -68,8 +68,8 @@ public partial class AutomapWindow : Window
     {
         InitializeComponent();
         ThemeSelection.ApplyWindowSurface(this);
-        LevelLabel.Foreground = InfoLabel.Foreground = ThemeSelection.FormNavy;
-        MapClip.Background = ThemeSelection.ContentSurface;
+        LevelLabel.Foreground = InfoLabel.Foreground = Palette.Navy;
+        MapClip.Background = Palette.Well;
         _floors = Array.Empty<Floor>();
         _map = new SharedMap();
     }
@@ -266,8 +266,8 @@ public partial class AutomapWindow : Window
     {
         InitializeComponent();
         ThemeSelection.ApplyWindowSurface(this);
-        LevelLabel.Foreground = InfoLabel.Foreground = ThemeSelection.FormNavy;
-        MapClip.Background = ThemeSelection.ContentSurface;
+        LevelLabel.Foreground = InfoLabel.Foreground = Palette.Navy;
+        MapClip.Background = Palette.Well;
         _floors = floors;
         _map = map;
         _deepest = Math.Clamp(deepestReached <= 0 ? 1 : deepestReached, 1, Math.Max(1, floors.Count));
@@ -473,7 +473,7 @@ public partial class AutomapWindow : Window
                 mi.Icon = new Border
                 {
                     Width = 12, Height = 12, BorderThickness = new Thickness(1),
-                    BorderBrush = new SolidColorBrush(Color.FromRgb(0x20, 0x20, 0x20)),
+                    BorderBrush = FixedColour.SwatchEdge,
                     Background = new SolidColorBrush(Color.FromRgb(c.R, c.G, c.B)),
                 };
             mi.Click += (_, _) => { ModHost.Active.RunAutomapItem(mod, item); RefreshMarks(); };
@@ -1091,7 +1091,7 @@ public partial class AutomapWindow : Window
     {
         Text = n.ToString(),
         FontWeight = FontWeight.Bold,
-        Foreground = ThemeSelection.FormNavy,
+        Foreground = Palette.Navy,
     };
 
     private static void Fill(int[] px, int bw, int bh, int x, int y, int w, int h, int colour)

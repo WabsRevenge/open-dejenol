@@ -134,7 +134,7 @@ public sealed class CompanionsPage
                 Width = n.Width / 15.0, Height = n.Height / 15.0, IsVisible = false,
                 TextAlignment = right ? TextAlignment.Right : TextAlignment.Left,
                 TextTrimming = TextTrimming.None, TextWrapping = TextWrapping.NoWrap,
-                Foreground = Brushes.Khaki, Background = Brushes.Transparent,
+                Foreground = Palette.Name, Background = Brushes.Transparent,
                 Cursor = new Avalonia.Input.Cursor(Avalonia.Input.StandardCursorType.Hand),
             };
             UiFonts.SetFont(label, "frmCharStat3.lblCompName(0)");
@@ -156,7 +156,7 @@ public sealed class CompanionsPage
             {
                 Width = h.Width / 15.0, Height = h.Height / 15.0, IsVisible = false, FontWeight = FontWeight.Bold,
                 TextAlignment = right ? TextAlignment.Right : TextAlignment.Left, TextWrapping = TextWrapping.NoWrap,
-                Foreground = Brushes.LightGray,
+                Foreground = Palette.Text,
             };
             Canvas.SetLeft(hits, ex + h.Left / 15.0);
             Canvas.SetTop(hits, ey + h.Top / 15.0);

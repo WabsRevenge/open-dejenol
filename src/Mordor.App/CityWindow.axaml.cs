@@ -5,17 +5,13 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
-
 using Avalonia.Media.Imaging;
-
 using Mordor.Core;
 
 namespace Mordor.App;
 
 public partial class CityWindow : Window
 {
-    private ListBox _partyRows = null!;
-
     public CityWindow()
     {
         InitializeComponent();
@@ -35,6 +31,18 @@ public partial class CityWindow : Window
         return true;
     }
 
+
+    /// <summary>
+    /// The town's captions with their access letters, as the original draws them (the help's own
+    /// picture of the game, and the Alt keys frmCityMain's Form_KeyDown takes: C, S, B, M, R, G, X
+    /// and D, FRMCTYM.BAS:35-58). Seer's is its last letter, r, as the Seer's key is.
+    /// </summary>
+    private static readonly Dictionary<string, string> CityCaptions = new()
+    {
+        ["General Store"] = "General &Store", ["Morgue"] = "&Morgue", ["Guilds"] = "&Guilds",
+        ["Dungeon"] = "&Dungeon", ["Confinement"] = "&Confinement", ["Seer"] = "See&r",
+        ["Bank"] = "&Bank", ["Exit"] = "E&xit",
+    };
 
     // The parameterless constructor is for the XAML designer; the runtime constructor below sets these.
     private readonly Party _party = null!;
@@ -99,13 +107,27 @@ public partial class CityWindow : Window
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
         ThemeSelection.Attach(this);
-        _partyRows = CreatePartyRows(PartyRowsHost);
+        FramePartyRows(PartyRowsFrame, PartySwitchBtn);
+        // the Light theme's relief (ClassicLook): the lists set in, as the original's are
+        ClassicLook.Field(MessageLog); ClassicLook.Field(PackList); ClassicLook.Field(SpellList);
+        // lblSelection(0..7), the pictures' captions: the theme's face and ink, and each one's access
+        // letter underlined, the Alt keys Form_KeyDown answers (FRMCTYM.BAS:35-58, OnKeyDown below)
+        foreach (var caption in CityPanel.Children.OfType<Button>().Where(b => b.Classes.Contains("caption")))
+        {
+            caption.Background = Palette.Button;
+            caption.Foreground = Palette.Text;
+            if (caption.Content is TextBlock t && CityCaptions.TryGetValue(t.Text ?? "", out var withAmpersand))
+                caption.Content = new AccessCaption(withAmpersand);
+        }
         ThemeSelection.ApplyPartyHeader(PartyHeader);
         ThemeSelection.ApplyCommandButtonTheme(PartyBox, PartySwitchBtn, PartyOptionsBtn, PartyLeaveBtn);
         ThemeSelection.ApplyItemCommandTheme((Canvas)PackEquipBtn.Parent!, PackEquipBtn, PackUseBtn, PackDropBtn, PackInfoBtn);
-        PackList.Background = ThemeSelection.WindowSurface;
-        SpellList.Background = ThemeSelection.ContentSurface;
-        MessageLog.Background = ThemeSelection.ContentSurface;
+        PackList.Background = Palette.Window;
+        // the spell list and the Spell box in the lists' pale yellow, as the original's are, the same as
+        // the party's rows (they had been a lighter grey than the window)
+        SpellList.Background = Palette.List;
+        SpellText.Background = Palette.List;
+        MessageLog.Background = Palette.Well;
         MessageLog.BorderBrush = FormPage.Bevel;
         SetTiledBackground(Art.Bitmap("main_background.png"));
         Host.Background = Brushes.Transparent;
@@ -707,8 +729,8 @@ public partial class CityWindow : Window
             ColumnDefinitions = new ColumnDefinitions("*,Auto"),
             Children =
             {
-                new TextBlock { Text = label, Foreground = colour ?? Brushes.LightGray, FontWeight = bold ? FontWeight.Bold : FontWeight.Normal },
-                new TextBlock { Text = value, Foreground = colour ?? Brushes.White, FontWeight = bold ? FontWeight.Bold : FontWeight.Normal,
+                new TextBlock { Text = label, Foreground = colour ?? Palette.Text, FontWeight = bold ? FontWeight.Bold : FontWeight.Normal },
+                new TextBlock { Text = value, Foreground = colour ?? Palette.Text, FontWeight = bold ? FontWeight.Bold : FontWeight.Normal,
                                 HorizontalAlignment = HorizontalAlignment.Right, [Grid.ColumnProperty] = 1 },
             },
         };
@@ -733,7 +755,7 @@ public partial class CityWindow : Window
     private void RefreshParty()
     {
         Mordor.Modding.ModHost.Active.GameChanged();   // a mod's own window looks again (ctx.Game)
-        _partyRows.Items.Clear();
+        PartyRows.Children.Clear();
         var modColumns = ModSlots.PartyHeader(PartyHeader, 5);   // the mods' party columns, if any (docs/MODDING.md)
         for (int i = 0; i < _party.Size; i++)
         {
@@ -820,7 +842,7 @@ public partial class CityWindow : Window
             // there is no combat test: lblName_DragDrop runs lblName_Click Index (FRMGROUP.BAS:220)
             // and nothing else, so the commands go to the member it was let go over
             Dragging.Target(row, DragKind.Companion, _ => SwitchIfOther(slot));
-            _partyRows.Items.Add(row);
+            PartyRows.Children.Add(row);
         }
     }
 
@@ -1247,7 +1269,7 @@ public partial class CityWindow : Window
         FormPage.Label(root, "Stats Required", ServiceForms.Guild.StatsCaption, FormPage.Maroon);  // Label2(0)
         // elaElastic(1) holds lblStatName and lblStat, Courier New 8.25; Form_Load loads 1..5 each
         // at the one before's Left + Width (FRMCTYG.BAS:631-640), and sub294F fills the numbers
-        var stats = FormPage.Elastic(root, ServiceForms.Guild.StatsBox, ThemeSelection.FormListSurface);
+        var stats = FormPage.Elastic(root, ServiceForms.Guild.StatsBox, Palette.List);
         for (int i = 0; i < 6; i++)
         {
             FormPage.Label(stats, RaceData.StatNamesLong[i][..3], FormPage.Across(ServiceForms.Guild.lblStatName0, i), DesignFonts.GuildStatName);
@@ -1628,7 +1650,7 @@ public partial class CityWindow : Window
         {
             Title = title,
             Width = 420, Height = 300,
-            Background = ThemeSelection.WindowSurface,
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -1638,7 +1660,7 @@ public partial class CityWindow : Window
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText },
+                        new TextBlock { Text = prompt, Foreground = Palette.Text },
                         list,
                         new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ok, cancel } },
                     },
@@ -1670,7 +1692,7 @@ public partial class CityWindow : Window
         {
             Title = title,
             Width = 380, SizeToContent = SizeToContent.Height,
-            Background = ThemeSelection.WindowSurface,
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -1680,7 +1702,7 @@ public partial class CityWindow : Window
                     Spacing = 10,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText },
+                        new TextBlock { Text = prompt, Foreground = Palette.Text },
                         box,
                         new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { ok, cancel } },
                     },
@@ -1705,7 +1727,7 @@ public partial class CityWindow : Window
         {
             Title = title,
             Width = 460, SizeToContent = SizeToContent.Height,
-            Background = ThemeSelection.WindowSurface,
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -1715,7 +1737,7 @@ public partial class CityWindow : Window
                     Spacing = 12,
                     Children =
                     {
-                        new TextBlock { Text = prompt, Foreground = ThemeSelection.DialogText, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = prompt, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap },
                         new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, Children = { yesBtn, noBtn } },
                     },
                 },
@@ -1737,7 +1759,7 @@ public partial class CityWindow : Window
         {
             Title = title,
             Width = 420, SizeToContent = SizeToContent.Height,
-            Background = ThemeSelection.WindowSurface,
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
@@ -1747,7 +1769,7 @@ public partial class CityWindow : Window
                     Spacing = 12,
                     Children =
                     {
-                        new TextBlock { Text = text, Foreground = ThemeSelection.DialogText, TextWrapping = TextWrapping.Wrap },
+                        new TextBlock { Text = text, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap },
                         okBtn,
                     },
                 },
@@ -2410,7 +2432,7 @@ public partial class CityWindow : Window
             sp.Children.Add(new TextBlock
             {
                 Text = Rescue.DeadInRock,
-                Foreground = Brushes.IndianRed, TextWrapping = TextWrapping.Wrap,
+                Foreground = FixedColour.Refusal, TextWrapping = TextWrapping.Wrap,
             });
         }
         // MAINMOD2.BAS:3068 - the morgue is only on offer once the body is out of the dungeon.
@@ -2424,7 +2446,7 @@ public partial class CityWindow : Window
             {
                 // sub0930's own label (MAINMOD2.BAS:3052); the port had a paragraph of its own here
                 Text = Rescue.DeadInTheDungeon,
-                Foreground = Brushes.IndianRed, TextWrapping = TextWrapping.Wrap,
+                Foreground = FixedColour.Refusal, TextWrapping = TextWrapping.Wrap,
             });
             var wait = new Button { Content = "_Wait for Rescue" };
             wait.Click += async (_, _) => await WaitForRescue(wait);
@@ -2460,10 +2482,10 @@ public partial class CityWindow : Window
             sp.Children.Add(new TextBlock
             {
                 Text = Rescue.DeadInTheDungeon,
-                Foreground = Brushes.IndianRed, TextWrapping = TextWrapping.Wrap,
+                Foreground = FixedColour.Refusal, TextWrapping = TextWrapping.Wrap,
             });
 
-            var msg = new TextBlock { Foreground = Brushes.Khaki, TextWrapping = TextWrapping.Wrap };
+            var msg = new TextBlock { Foreground = Palette.Name, TextWrapping = TextWrapping.Wrap };
             var btn = new Button
             {
                 Content = "_Visit the Morgue",
@@ -3362,11 +3384,11 @@ public partial class CityWindow : Window
         for (int r = 0; r < Rows; r++)
         {
             rowTag[r] = "";
-            rowName[r] = FormPage.Label(buyBox, "", RowAt(ServiceForms.Confinement.elaComp0, r), DesignFonts.PlainSans, Brushes.Black);
-            rowInfo[r] = FormPage.Label(buyBox, "", RowAt(ServiceForms.Confinement.elaCompInfo0, r), DesignFonts.CompCounts, Brushes.Black);
+            rowName[r] = FormPage.Label(buyBox, "", RowAt(ServiceForms.Confinement.elaComp0, r), DesignFonts.PlainSans, FixedColour.Black);
+            rowInfo[r] = FormPage.Label(buyBox, "", RowAt(ServiceForms.Confinement.elaCompInfo0, r), DesignFonts.CompCounts, FixedColour.Black);
             rowName[r].VerticalAlignment = rowInfo[r].VerticalAlignment = VerticalAlignment.Top;
             rowName[r].Padding = rowInfo[r].Padding = new Avalonia.Thickness(0, (UiFonts.RowPad - 1) / 2, 0, 0);
-            rowName[r].Background = rowInfo[r].Background = Brushes.White;
+            rowName[r].Background = rowInfo[r].Background = FixedColour.White;
             rowName[r].TextWrapping = rowInfo[r].TextWrapping = TextWrapping.NoWrap;
             // the counts set right in their column, CountsPad in, under "G N E" (see countsWidth)
             rowInfo[r].TextAlignment = TextAlignment.Right;
@@ -3452,10 +3474,10 @@ public partial class CityWindow : Window
         }
 
         // sub336F (FRMCITYC.BAS:725-735): the clicked row goes blue (QBColor 9), the last one black
-        IBrush blue = new SolidColorBrush(Color.FromRgb(0x00, 0x00, 0xFF));
+        IBrush blue = FixedColour.Win31Blue;
         void Light(int r)
         {
-            if (lit > -1 && lit < Rows) { rowName[lit].Foreground = Brushes.Black; rowInfo[lit].Foreground = Brushes.Black; }
+            if (lit > -1 && lit < Rows) { rowName[lit].Foreground = FixedColour.Black; rowInfo[lit].Foreground = FixedColour.Black; }
             lit = r;
             rowName[r].Foreground = blue;
             rowInfo[r].Foreground = blue;
@@ -3471,8 +3493,8 @@ public partial class CityWindow : Window
             top += sbValue - sbTag;
             for (int r = 0; r < Rows; r++)
             {
-                rowName[r].Foreground = Brushes.Black;
-                rowInfo[r].Foreground = Brushes.Black;
+                rowName[r].Foreground = FixedColour.Black;
+                rowInfo[r].Foreground = FixedColour.Black;
                 if (r > order.Count - 1) continue;
                 int k = top + r;
                 if (k < 0 || k >= order.Count || order[k] < 0 || order[k] >= _monsters.Count) return;
@@ -3840,7 +3862,7 @@ public partial class CityWindow : Window
             IsReadOnly = true, TextWrapping = TextWrapping.Wrap, AcceptsReturn = true,
             FontWeight = FontWeight.Bold, Padding = new Avalonia.Thickness(3, 1),
             MinHeight = 0, MinWidth = 0,
-            Background = new SolidColorBrush(Color.FromRgb(0x0a, 0x0a, 0x10)), Foreground = Brushes.Gainsboro,
+            Background = Palette.List, Foreground = Palette.Text,
         }, form.Fonts, DesignFont.Default);
         info.Styles.Add(new Avalonia.Styling.Style(x => Avalonia.Styling.Selectors.OfType<Avalonia.Controls.Primitives.ScrollBar>(x)) { Setters = { new Avalonia.Styling.Setter(Avalonia.Controls.Primitives.ScrollBar.AllowAutoHideProperty, false) } });
         ScrollViewer.SetVerticalScrollBarVisibility(info, Avalonia.Controls.Primitives.ScrollBarVisibility.Visible);

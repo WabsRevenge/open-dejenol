@@ -210,7 +210,7 @@ public static class OriginalBox
         {
             Title = title,
             Width = 420, SizeToContent = SizeToContent.Height,
-            Background = ThemeSelection.WindowSurface,
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };
         // Windows' message font, as MsgBox's text is, whatever the Options fonts and the owner's face
@@ -239,7 +239,7 @@ public static class OriginalBox
                 Spacing = 12,
                 Children =
                 {
-                    new TextBlock { Text = text, Foreground = ThemeSelection.DialogText, TextWrapping = TextWrapping.Wrap },
+                    new TextBlock { Text = text, Foreground = Palette.Text, TextWrapping = TextWrapping.Wrap },
                     buttons,
                 },
             },

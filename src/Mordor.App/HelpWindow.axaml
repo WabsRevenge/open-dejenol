@@ -4,27 +4,27 @@
         Title="" Width="1000" Height="700"
         FontFamily="Cascadia Mono, Consolas, monospace"
         WindowStartupLocation="CenterScreen"
-        Background="#12121a">
+        >
     <!-- The title and the header are the help file's own title, |SYSTEM's TITLE, which WinHelp
          captioned its window with (set in code from the extraction). The original opened WinHelp
          on MORDOR.HLP (MAIN.TXT:596, MODULE1.BAS:42); the search box stands in for WinHelp's own Search. -->
     <DockPanel>
-        <Border x:Name="HelpHeader" DockPanel.Dock="Top" Background="#1c2740" Padding="10,6">
-            <TextBlock x:Name="HelpHeading" FontWeight="Bold" Foreground="#e8e0c0" VerticalAlignment="Center"/>
+        <Border x:Name="HelpHeader" DockPanel.Dock="Top" Padding="10,6">
+            <TextBlock x:Name="HelpHeading" FontWeight="Bold" VerticalAlignment="Center"/>
         </Border>
 
-        <Border x:Name="TopicPane" DockPanel.Dock="Left" Width="300" Padding="8" Background="#101018">
+        <Border x:Name="TopicPane" DockPanel.Dock="Left" Width="300" Padding="8">
             <DockPanel>
                 <TextBox DockPanel.Dock="Top" x:Name="SearchBox" Watermark="Search" Margin="0,0,0,6"/>
-                <ListBox x:Name="TopicList" Background="#0e0e14"/>
+                <ListBox x:Name="TopicList"/>
             </DockPanel>
         </Border>
 
         <Border x:Name="BodyPane" Padding="14">
             <DockPanel>
-                <TextBlock DockPanel.Dock="Top" x:Name="TopicTitle" FontSize="17" FontWeight="Bold" Foreground="#e8e0c0" Margin="0,0,0,8"/>
+                <TextBlock DockPanel.Dock="Top" x:Name="TopicTitle" FontSize="17" FontWeight="Bold" Margin="0,0,0,8"/>
                 <ScrollViewer x:Name="BodyScroll" BringIntoViewOnFocusChange="False">
-                    <SelectableTextBlock x:Name="TopicBody" Foreground="#d0d0dc" TextWrapping="Wrap" FontSize="13"/>
+                    <SelectableTextBlock x:Name="TopicBody" TextWrapping="Wrap" FontSize="13"/>
                 </ScrollViewer>
             </DockPanel>
         </Border>

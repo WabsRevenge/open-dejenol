@@ -4850,8 +4850,10 @@ public static partial class SelfCheckProbe
             Check("fighting from the Hall's own index", Row(6, 2), HallRecords.FightingSkill(gc, _ => null) + " Fighting");
             Check("Current Guild", $"{Row(10, 1)}|{Row(11, 2)}", "Current Guild|Nomad");
             Check("every ability, fn123F never giving less than 1", page.Count(x => x.Col == 12), 6);
-            Check("names every third row, bold", string.Join(",", page.Where(x => x.Col == 12).Select(x => x.Row + (x.Bold ? "b" : ""))), "3b,6b,9b,12b,15b,18b");
-            Check("the rating two rows under, in italics", page.First(x => x.Row == 5 && x.Col == 13).Italic, true);
+            // sub09B8 takes its row by reference and lowers it (MAINMOD2.BAS:3252), and the name's call
+            // passes l06F2 itself (5357): each name a row higher than the l06F2 + 3 it was given after the first
+            Check("names every second row, bold", string.Join(",", page.Where(x => x.Col == 12).Select(x => x.Row + (x.Bold ? "b" : ""))), "3b,5b,7b,9b,11b,13b");
+            Check("the rating on the row straight under, in italics", page.First(x => x.Row == 4 && x.Col == 13).Italic, true);
 
             // a stale guild: dual guilds with no modifier for ability a, only the later one rating a-1
             string? stale = null, want = null;
@@ -4867,7 +4869,7 @@ public static partial class SelfCheckProbe
                         dual.Guilds.Add(new GuildMembership { Guild = table[j].Name, Level = 5 });
                         dual.Guilds.Add(new GuildMembership { Guild = table[i].Name, Level = 5 });
                         var pg = GuildTabPage.Paint(dual, _ => null, gsp);
-                        stale = pg.First(x => x.Row == 3 * (a + 1) + 2 && x.Col == 13).Text;
+                        stale = pg.First(x => x.Row == 2 * a + 4 && x.Col == 13).Text;
                         want = "1 from " + table[j].Name + " (not " + table[i].Name + ")";
                         stale += " (not " + table[i].Name + ")";
                     }
@@ -5216,6 +5218,7 @@ public static partial class SelfCheckProbe
         Section(() => LegacyInstallerChecks(dir));
         Section(() => ImportChecks(dir));
         Section(() => SafeSaveChecks(dir));
+        Section(() => FixtureChecks(dir));
 
         Console.WriteLine(_failed == 0 ? "\nall checks passed" : $"\n{_failed} CHECK(S) FAILED");
         return _failed == 0 ? 0 : 1;
@@ -6732,7 +6735,7 @@ public static partial class SelfCheckProbe
             {
                 string x = PortSource("src/Mordor.App", file + ".axaml");
                 Check($"{file}: the frame is black, and stays black under the pointer and pressed",
-                      x.Contains("<Style Selector=\"Button.frame\">") && x.Contains("<Setter Property=\"BorderBrush\" Value=\"Black\"/>")
+                      x.Contains("<Style Selector=\"Button.frame\">") && x.Contains("<Setter Property=\"BorderBrush\" Value=\"{x:Static app:FixedColour.Black}\"/>")
                       && x.Contains("<Style Selector=\"Button.frame:pointerover /template/ ContentPresenter#PART_ContentPresenter\">")
                       && x.Contains("<Style Selector=\"Button.frame:pressed /template/ ContentPresenter#PART_ContentPresenter\">"), true);
                 Check($"{file}: txtSpell has no scroll bar", x.Contains("<Setter Property=\"ScrollViewer.VerticalScrollBarVisibility\" Value=\"Disabled\"/>"), true);

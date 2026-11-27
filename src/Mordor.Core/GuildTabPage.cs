@@ -13,8 +13,8 @@ namespace Mordor.Core;
 /// thieving indexes (<c>mdrhalGetIndexValue</c> 9, 10 and 11), each followed by its word.</item>
 /// <item>Two rows below that, "Current Guild" and its name.</item>
 /// <item>At column 11, "Guild Abilities": every ability <c>fn123F</c> rates above nought - which is
-/// all six, since it never returns less than 1 - its name bold every third row from row 3, and two
-/// rows under it in italics "rating from Guild".</item>
+/// all six, since it never returns less than 1 - its name bold every second row from row 3, and on
+/// the row straight under it in italics "rating from Guild" (the name's call moves the row back one: see Paint).</item>
 /// </list>
 ///
 /// A fault kept: the guild named is <c>gv141C.M5493</c>, which <c>abilityChance</c> sets only
@@ -80,6 +80,13 @@ public static class GuildTabPage
             if (rating <= 0) continue;
             row += 3;
             Put(row, 12, Rules.AbilityNames[a], bold: true);
+            // VB3 passes arguments by reference unless told otherwise, and sub09B8 begins
+            // "p0516 = p0516 - 1" (MAINMOD2.BAS:3252): the name's call hands it l06F2 itself
+            // (MAINMOD2.BAS:5357), so printing the name takes one off the row. The rating's
+            // "l06F2 + 2" is an expression, and its call changes nothing. So the rating falls on the
+            // row straight under the name, and the next name two rows on, as the game shows them:
+            // name, rating, name, rating, with no gap.
+            row -= 1;
             Put(row + 2, 13, N(rating) + " from " + lead, italic: true);
         }
         return p;

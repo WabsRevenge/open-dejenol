@@ -130,17 +130,13 @@ public static class DpsView
     public static Control Build(ModGame game, DpsTally tally, Action<string, Exception> report,
                                 Func<string?>? getMode = null, Action<string>? setMode = null)
     {
-        var plain = new SolidColorBrush(Colors.WhiteSmoke);
-        var selectedInk = new SolidColorBrush(Colors.LightGreen);
-        var captionInk = new SolidColorBrush(Colors.CornflowerBlue);
-        void ApplyTextTheme()
-        {
-            bool light = Application.Current?.ActualThemeVariant != ThemeVariant.Dark;
-            plain.Color = Color.Parse(light ? "#000000" : "#F5F5F5");
-            selectedInk.Color = Color.Parse(light ? "#008000" : "#90EE90");
-            captionInk.Color = Color.Parse(light ? "#000080" : "#6495ED");
-        }
-        ApplyTextTheme();
+        // the game's colour roles (ThemeKeys, docs/MODDING.md): one brush each, which the game recolours
+        // when the theme changes, so the meter follows it with nothing of its own; the Dark colours when
+        // no game publishes them (the mod's checks)
+        static IBrush Role(string key, IBrush otherwise) => Application.Current?.FindResource(key) as IBrush ?? otherwise;
+        var plain = Role(ThemeKeys.Text, Brushes.WhiteSmoke);
+        var selectedInk = Role(ThemeKeys.Green, Brushes.LightGreen);
+        var captionInk = Role(ThemeKeys.Navy, Brushes.CornflowerBlue);
 
         void Safe(string what, Action act)
         {
@@ -332,15 +328,8 @@ public static class DpsView
         root.Children.Add(scroll);
 
         Action changed = () => Dispatcher.UIThread.Post(() => Safe("redrawing", () => Look(false)));
-        EventHandler themeChanged = (_, _) => ApplyTextTheme();
         root.AttachedToVisualTree += (_, _) => Safe("opening", () =>
         {
-            if (Application.Current is { } app)
-            {
-                app.ActualThemeVariantChanged -= themeChanged;
-                app.ActualThemeVariantChanged += themeChanged;
-                ApplyTextTheme();
-            }
             game.Changed -= changed; game.Changed += changed;
             tally.Changed -= changed; tally.Changed += changed;
             Look(true);
@@ -349,7 +338,6 @@ public static class DpsView
         {
             game.Changed -= changed;
             tally.Changed -= changed;
-            if (Application.Current is { } app) app.ActualThemeVariantChanged -= themeChanged;
         };
         return root;
     }

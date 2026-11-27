@@ -55,7 +55,7 @@ public sealed class OptionsWindow : Window
 
         Title = "Options";
         SizeToContent = SizeToContent.WidthAndHeight;
-        Background = ThemeSelection.WindowSurface;
+        Background = Palette.Window;
         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
@@ -65,7 +65,7 @@ public sealed class OptionsWindow : Window
             {
                 Content = caption,
                 IsChecked = value,
-                Foreground = Brushes.Gainsboro,
+                Foreground = Palette.Text,
                 FontSize = 12,
                 Margin = new Thickness(0, 1),
             };
@@ -165,8 +165,8 @@ public sealed class OptionsWindow : Window
         _music.IsEnabled = !_o.NoMusic;
         _fx.IsEnabled = !_o.NoFX;
 
-        _label2 = new TextBlock { Foreground = Brushes.Gainsboro, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
-        _label3 = new TextBlock { Foreground = Brushes.Gainsboro, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        _label2 = new TextBlock { Foreground = Palette.Text, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
+        _label3 = new TextBlock { Foreground = Palette.Text, FontSize = 12, VerticalAlignment = VerticalAlignment.Center };
         ShowFonts();
 
         var useDefaults = new Button
@@ -199,6 +199,25 @@ public sealed class OptionsWindow : Window
         // the port's own, under the original's boxes (see _soundfontWas)
         if (_boxes.TryGetValue(SoundfontKey, out var soundfontBox)) musicSettings.Children.Add(soundfontBox);
 
+        // the port's own too, under the Game Settings boxes: the theme (ThemeSelection), on every
+        // system, where the Windows system menu's Theme Selection is on Windows alone. Live, as the
+        // music boxes are, and saved as it is chosen; Cancel puts back the one the form opened with.
+        var themes = new[] { ThemeSelection.Choice.Dark, ThemeSelection.Choice.Light, ThemeSelection.Choice.System };
+        var themeWas = ThemeSelection.Current;
+        var theme = new ComboBox
+        {
+            ItemsSource = new[] { "Dark", "Light", "Same as system" },
+            SelectedIndex = Array.IndexOf(themes, themeWas),
+            FontSize = 12, MinWidth = 150, VerticalAlignment = VerticalAlignment.Center,
+        };
+        theme.SelectionChanged += (_, _) => { if (theme.SelectedIndex >= 0) ThemeSelection.Select(themes[theme.SelectedIndex]); };
+        Closed += (_, _) => { if (!Accepted) ThemeSelection.Select(themeWas); };
+        var themeRow = new StackPanel
+        {
+            Orientation = Orientation.Horizontal, Spacing = 10,
+            Children = { new TextBlock { Text = "Theme", Foreground = Palette.Text, FontSize = 12, VerticalAlignment = VerticalAlignment.Center }, theme },
+        };
+
         Content = new Border
         {
             Padding = new Thickness(14),
@@ -217,10 +236,18 @@ public sealed class OptionsWindow : Window
                                 Spacing = 10,
                                 Children =
                                 {
-                                    Group("Game Settings", new Grid
+                                    Group("Game Settings", new StackPanel
                                     {
-                                        ColumnDefinitions = new ColumnDefinitions("Auto,16,Auto"),
-                                        Children = { left, Place(right, 2) },
+                                        Spacing = 8,
+                                        Children =
+                                        {
+                                            new Grid
+                                            {
+                                                ColumnDefinitions = new ColumnDefinitions("Auto,16,Auto"),
+                                                Children = { left, Place(right, 2) },
+                                            },
+                                            themeRow,
+                                        },
                                     }),
                                     Group("Music Settings", musicSettings),
                                 },
@@ -285,7 +312,7 @@ public sealed class OptionsWindow : Window
         Spacing = 2,
         Children =
         {
-            new TextBlock { Text = caption, Foreground = Brush.Parse("#8fb0ff"), FontSize = 11 },
+            new TextBlock { Text = caption, Foreground = Palette.Navy, FontSize = 11 },
             new StackPanel
             {
                 Orientation = Orientation.Horizontal,
@@ -298,14 +325,14 @@ public sealed class OptionsWindow : Window
     private static TextBlock Caption(string text) => new()
     {
         Text = text,
-        Foreground = Brush.Parse("#8fb0ff"),
+        Foreground = Palette.Navy,
         FontWeight = FontWeight.Bold,
         FontSize = 11,
     };
 
     private static Border Group(string caption, Control body) => new()
     {
-        BorderBrush = Brush.Parse("#3a3a4e"),
+        BorderBrush = Palette.Shadow,
         BorderThickness = new Thickness(1),
         Padding = new Thickness(10, 8),
         Child = new StackPanel
@@ -336,7 +363,7 @@ public sealed class OptionsWindow : Window
         _lastBackup = new TextBlock
         {
             Text = _o.LastBackupLine,
-            Foreground = Brushes.Gainsboro,
+            Foreground = Palette.Text,
             FontSize = 12,
             TextWrapping = TextWrapping.Wrap,
         };

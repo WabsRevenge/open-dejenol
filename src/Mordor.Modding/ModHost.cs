@@ -844,6 +844,17 @@ public sealed class ModHost
         return null;
     }
 
+    /// <summary>A Messages line's colour role (ThemeKeys): the first mod's answer, or null.</summary>
+    public string? MessageLineInk(string text, MessageKind kind)
+    {
+        MessageLineInfo? info = null;
+        foreach (var lm in Live.ToList())
+            if (lm.Context.UI.MessageLineInk is { } ask
+                && Guard(lm, "MessageLineInk", () => ask(info ??= new MessageLineInfo(text, kind)), null) is { } ink)
+                return ink;
+        return null;
+    }
+
     /// <summary>A Messages line's colour: the first mod's answer, or null (the original: the window's own).</summary>
     public (byte R, byte G, byte B)? MessageLineColour(string text, MessageKind kind)
     {

@@ -1,21 +1,22 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:app="clr-namespace:Mordor.App"
         x:Class="Mordor.App.MainWindow"
         Title="OpenDejenol — Data Browser"
         Width="1100" Height="720"
         FontFamily="Cascadia Mono, Consolas, monospace">
 
     <DockPanel>
-        <Border DockPanel.Dock="Top" Background="#1e1e28" Padding="8">
+        <Border DockPanel.Dock="Top" Background="{x:Static app:FixedColour.DevBar}" Padding="8">
             <StackPanel Orientation="Horizontal" Spacing="8">
                 <TextBlock Text="Data folder:" VerticalAlignment="Center"/>
                 <TextBox x:Name="PathBox" Width="620" VerticalAlignment="Center"/>
                 <Button x:Name="ReloadBtn" Content="Reload" Click="OnReload"/>
-                <Button x:Name="NewCharBtn" Content="▶ New Character" Background="#2d6a2d" Click="OnNewCharacter"/>
+                <Button x:Name="NewCharBtn" Content="▶ New Character" Background="{x:Static app:FixedColour.GoButton}" Click="OnNewCharacter"/>
                 <Button x:Name="LoadCharBtn" Content="Load Character" Click="OnLoadCharacter"/>
                 <CheckBox x:Name="SoundBox" Content="Sound" IsChecked="True" VerticalAlignment="Center"/>
                 <CheckBox x:Name="MusicBox" Content="Music" IsChecked="True" VerticalAlignment="Center"/>
-                <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="#8fd98f"/>
+                <TextBlock x:Name="StatusText" VerticalAlignment="Center" Foreground="{x:Static app:FixedColour.DevStatus}"/>
             </StackPanel>
         </Border>
 
@@ -72,10 +73,10 @@
                     <StackPanel DockPanel.Dock="Top" Orientation="Horizontal" Spacing="8" Margin="8">
                         <TextBlock Text="Level:" VerticalAlignment="Center"/>
                         <ComboBox x:Name="LevelBox" Width="90" SelectionChanged="OnLevelChanged"/>
-                        <TextBlock x:Name="FloorInfo" VerticalAlignment="Center" Foreground="#c8c8d8"/>
+                        <TextBlock x:Name="FloorInfo" VerticalAlignment="Center" Foreground="{x:Static app:FixedColour.DevInfo}"/>
                     </StackPanel>
                     <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
-                        <Canvas x:Name="MapCanvas" Background="#101018"/>
+                        <Canvas x:Name="MapCanvas" Background="{x:Static app:FixedColour.DevGround}"/>
                     </ScrollViewer>
                 </DockPanel>
             </TabItem>

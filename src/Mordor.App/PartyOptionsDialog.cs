@@ -31,15 +31,18 @@ internal static class PartyOptionsDialog
     {
         var characterPage = new FormPage(1650, 1800, new FormRect(0, 0, 1650, 1800));
         var who = FormPage.List(characterPage.Root, new FormRect(0, 0, 1650, 1800));
-        who.Foreground = ThemeSelection.FormInk;
+        who.Foreground = Palette.Text;
         who.ItemsSource = party.Members.Select(m => m.Name.TrimEnd()).ToList();
         who.SelectedIndex = party.SelectedIndex;
 
+        // a row each, as tight as bm6.png's: the theme's radio buttons are 32 pixels tall with room around them
         RadioButton Option(string text) => new()
         {
             Content = text,
             GroupName = "defaults",
-            Foreground = ThemeSelection.FormInk,
+            Foreground = Palette.Text,
+            MinHeight = 0,
+            Padding = new Thickness(4, 0, 0, 0),
         };
         var nothing = Option("Nothing");
         var fight = Option("Fight");
@@ -52,8 +55,8 @@ internal static class PartyOptionsDialog
         var whichBuffer = new ComboBox
         {
             Width = 70,
-            Background = ThemeSelection.FormListSurface,
-            Foreground = ThemeSelection.FormInk,
+            Background = Palette.List,
+            Foreground = Palette.Text,
             ItemsSource = Enumerable.Range(1, SpellBuffers.Count).Select(i => i.ToString()).ToList(),
         };
 
@@ -94,51 +97,53 @@ internal static class PartyOptionsDialog
             Content = "OK",
             IsDefault = true,
             Width = 96,
-            Background = ThemeSelection.FormFace,
-            Foreground = ThemeSelection.FormInk,
+            Background = Palette.Window,
+            Foreground = Palette.Text,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
         };
 
-        var defaults = new Border
+        var defaults = ClassicLook.Sunken(new Border
         {
-            Background = ThemeSelection.FormFace,
-            BorderBrush = ThemeSelection.FormBevel,
+            Background = Palette.Window,
+            BorderBrush = Palette.Shadow,
             BorderThickness = new Thickness(1),
-            Padding = new Thickness(10, 6),
+            Padding = new Thickness(6, 2, 6, 6),
             Child = new StackPanel
             {
-                Spacing = 4,
+                Spacing = 2,
                 Children =
                 {
-                    new TextBlock { Text = "Defaults", Foreground = ThemeSelection.FormBlue },
+                    // the frame's caption, black and bold as bm6.png has it (it had been the form's blue)
+                    new TextBlock { Text = "Defaults", Foreground = Palette.Text, FontWeight = FontWeight.Bold },
                     nothing, fight, defend, buffer, whichBuffer,
                 },
             },
-        };
+        });
+        ok.Width = double.NaN;
+        ok.HorizontalAlignment = Avalonia.Layout.HorizontalAlignment.Stretch;
 
         // frmPartyOptions' own font, MS Sans Serif 8.25 (lstCharacters), which its Form_Load puts
-        // through sub0784 (FRMPINFO.BAS): the Options fonts, UiFonts. It had been the frame's Cascadia Mono
+        // through sub0784 (FRMPINFO.BAS): the Options fonts, UiFonts. It had been the frame's Cascadia Mono.
+        // bm6.png's arrangement: the list with OK under it on the left, the Defaults frame the whole
+        // height on the right, the window no bigger than they are
         var win = UiFonts.Set(new Window
         {
             Title = "Party Options",
-            Width = 400, SizeToContent = SizeToContent.Height,
-            Background = ThemeSelection.WindowSurface,
+            SizeToContent = SizeToContent.WidthAndHeight,
+            CanResize = false,
+            Background = Palette.Window,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
-                Background = ThemeSelection.FormFace,
-                Padding = new Thickness(12),
-                Child = new StackPanel
+                Background = Palette.Window,
+                Padding = new Thickness(6),
+                Child = new Grid
                 {
-                    Spacing = 10,
+                    ColumnDefinitions = new ColumnDefinitions("Auto,6,Auto"),
                     Children =
                     {
-                        new Grid
-                        {
-                            ColumnDefinitions = new ColumnDefinitions("Auto,12,Auto"),
-                            Children = { characterPage.Page, new ContentControl { Content = defaults, [Grid.ColumnProperty] = 2 } },
-                        },
-                        ok,
+                        new StackPanel { Spacing = 6, Children = { characterPage.Page, ok } },
+                        new ContentControl { Content = defaults, [Grid.ColumnProperty] = 2 },
                     },
                 },
             },
@@ -158,15 +163,15 @@ internal static class PartyOptionsDialog
 internal static class PartyRowColours
 {
     /// <summary>QBColor(0): every Name and Hits label before the switch colours one (MULTIMOD.BAS:613-616).</summary>
-    public static IBrush Plain => ThemeSelection.PartyPlainInk;
+    public static IBrush Plain => Palette.Text;
     /// <summary>QBColor(mc0116 = 2): the selected member's Name and Hits (MULTIMOD.BAS:640-641).</summary>
-    public static IBrush Selected => ThemeSelection.PartySelectedInk;
+    public static IBrush Selected => Palette.Green;
     /// <summary>QBColor(mc014C = 1): lblStatus reading "OK" (FRMGROUP.BAS:446-448).</summary>
-    public static IBrush Well => ThemeSelection.PartyWellInk;
+    public static IBrush Well => Palette.Navy;
     /// <summary>QBColor(mc014E = 4): lblStatus with Po/Di/Pa in it (FRMGROUP.BAS:449-450).</summary>
-    public static IBrush Ailing => ThemeSelection.PartyAilingInk;
+    public static IBrush Ailing => Palette.Maroon;
     /// <summary>lblSpells and lblOption are never recoloured in code; they are blue in game_files/bm5.png.</summary>
-    public static IBrush Fixed => ThemeSelection.PartyFixedInk;
+    public static IBrush Fixed => Palette.Navy;
 
     public static IBrush NameAndHits(bool selected) => selected ? Selected : Plain;
     /// <summary>Only lblName is made bold, "frmParty!lblName(p00FA).FontBold = True" (MULTIMOD.BAS:642).</summary>

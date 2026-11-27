@@ -64,7 +64,7 @@ public partial class HelpWindow : Window
     private int _pressed = -1;
 
     /// <summary>WinHelp draws a jump in green, RGB 0,128,0, with a solid underline.</summary>
-    private static readonly IBrush JumpBrush = new SolidColorBrush(Color.FromRgb(0, 128, 0));
+    private static readonly IBrush JumpBrush = FixedColour.HelpJump;
 
     /// <summary>Every help window that is up.</summary>
     private static readonly List<HelpWindow> OpenWindows = new();
@@ -84,12 +84,12 @@ public partial class HelpWindow : Window
     {
         InitializeComponent();
         ThemeSelection.ApplyWindowSurface(this);
-        HelpHeader.Background = ThemeSelection.HelpHeaderSurface;
-        HelpHeading.Foreground = ThemeSelection.HelpHeadingInk;
-        TopicPane.Background = BodyPane.Background = ThemeSelection.HelpPaneSurface;
-        TopicList.Background = ThemeSelection.HelpListSurface;
-        TopicTitle.Foreground = ThemeSelection.HelpHeadingInk;
-        TopicBody.Foreground = ThemeSelection.HelpTextInk;
+        HelpHeader.Background = Palette.Banner;
+        HelpHeading.Foreground = Palette.Navy;
+        TopicPane.Background = BodyPane.Background = Palette.Window;
+        TopicList.Background = Palette.Well;
+        TopicTitle.Foreground = Palette.Navy;
+        TopicBody.Foreground = Palette.Text;
         Opened += (_, _) => OpenWindows.Add(this);
         Closed += (_, _) => OpenWindows.Remove(this);
         // a session end closes every window at once, the help among them; but the help goes only

@@ -34,7 +34,11 @@ namespace Mordor.Mod.Kaizen;
 /// </summary>
 internal static class KaizenView
 {
-    private static readonly IBrush Warn = Brush.Parse("#e0a050");
+    // the game's colour roles (ThemeKeys, docs/MODDING.md): one brush each, which the game recolours when
+    // the theme changes, so the window follows it with nothing of its own; the Dark colours when no game
+    // publishes them (the mod's checks)
+    private static IBrush Role(string key, IBrush otherwise) => Application.Current?.FindResource(key) as IBrush ?? otherwise;
+    private static IBrush Warn => Role(ThemeKeys.Warning, new SolidColorBrush(Color.Parse("#e0a050")));
 
     private static bool Same(string a, string b) => string.Equals(a.Trim(), b.Trim(), StringComparison.OrdinalIgnoreCase);
 
@@ -52,15 +56,8 @@ internal static class KaizenView
 
     public static Control Build(ModGame game, BuffLists lists, ModSettings settings, Action<string, Exception> report)
     {
-        var heading = new SolidColorBrush(Color.Parse("#8fb0ff"));
-        var faint = new SolidColorBrush(Color.Parse("#9a9aae"));
-        void ApplyTextTheme()
-        {
-            bool light = Application.Current?.ActualThemeVariant != ThemeVariant.Dark;
-            heading.Color = Color.Parse(light ? "#000080" : "#8fb0ff");
-            faint.Color = Color.Parse(light ? "#202020" : "#9a9aae");
-        }
-        ApplyTextTheme();
+        var heading = Role(ThemeKeys.Navy, Brushes.CornflowerBlue);
+        var faint = Role(ThemeKeys.Muted, Brushes.Gray);
 
         void Safe(string what, Action act)
         {
@@ -366,15 +363,8 @@ internal static class KaizenView
 
         Action changed = () => Dispatcher.UIThread.Post(() => Safe("redrawing", () => Look(false)));
         Action<string> settingChanged = _ => changed();
-        EventHandler themeChanged = (_, _) => ApplyTextTheme();
         root.AttachedToVisualTree += (_, _) => Safe("opening", () =>
         {
-            if (Application.Current is { } app)
-            {
-                app.ActualThemeVariantChanged -= themeChanged;
-                app.ActualThemeVariantChanged += themeChanged;
-                ApplyTextTheme();
-            }
             game.Changed -= changed;
             game.Changed += changed;
             // "Buff on entering the dungeon" ticked or cleared on the Mods page: the note follows
@@ -386,7 +376,6 @@ internal static class KaizenView
         {
             game.Changed -= changed;
             settings.Changed -= settingChanged;
-            if (Application.Current is { } app) app.ActualThemeVariantChanged -= themeChanged;
         };
         return root;
     }

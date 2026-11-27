@@ -25,6 +25,15 @@ using Mordor.Core;
 //   Mordor.UiCheck <gamedir>        exit code 1 if anything failed
 //   add --body-recovery-only for the fatal-step/pickup regression alone
 
+// --make-fixture <dir>: write the port's invented test game there (FixtureGame) and stop, for CI's
+// pictures of the windows where none of Mordor's files may be (.github/workflows/screenshots.yml)
+if (args.Length == 2 && args[0] == "--make-fixture")
+{
+    FixtureGame.Write(args[1]);
+    Console.WriteLine($"the test fixture written to {Path.GetFullPath(args[1])}");
+    return 0;
+}
+
 string game = args.Length > 0 ? args[0] : Path.Combine("..", "game_files");
 string mdr = Path.Combine(game, "MDATA11.MDR");
 if (!File.Exists(mdr)) { Console.WriteLine($"  FAIL  no dungeon file at {mdr}"); return 1; }
@@ -42,11 +51,13 @@ Environment.SetEnvironmentVariable("MORDOR_ART_CACHE", artRoot);
 string? artError = Art.Prepare(game);
 if (artError != null) { Console.WriteLine($"  FAIL  the game's art could not be read: {artError}"); return 1; }
 
-if (args.Skip(1).Any(a => a is "--uncurse-only" or "--m1full-only" or "--body-recovery-only" or "--store-exit-only"))
+if (args.Skip(1).Any(a => a is "--uncurse-only" or "--m1full-only" or "--body-recovery-only" or "--store-exit-only" or "--contrast-only" or "--themes-only"))
 {
     try
     {
-        return args.Contains("--store-exit-only") ? StoreExitCheck.Run(game)
+        return args.Contains("--themes-only") ? ThemeRegressionCheck.Run(game)
+            : args.Contains("--contrast-only") ? ContrastCheck.Run(game)
+            : args.Contains("--store-exit-only") ? StoreExitCheck.Run(game)
             : args.Contains("--m1full-only") ? LegacyInstallerCheck.Run(game)
             : args.Contains("--body-recovery-only") ? BodyRecoveryCheck.Run(game) : StoreUncurseCheck.Run(game);
     }
@@ -256,7 +267,9 @@ Console.WriteLine("\nthe enlarged map (a GUI deviation, docs/FIDELITY.md)");
         var pic = Named<Image>("MapImage");
         var at = pic.TranslatePoint(default, clip)!.Value;
         double left = at.X, right = clip.Bounds.Width - at.X - pic.Bounds.Width;
-        Check($"the map itself centred across (left {left:0.#}, right {right:0.#})", Math.Abs(left - right) <= 1.5, true);
+        // within 2: the box and the map in it are each snapped to whole pixels, up to half a pixel each,
+        // and each half pixel the map moves is a whole one between its two margins
+        Check($"the map itself centred across (left {left:0.#}, right {right:0.#})", Math.Abs(left - right) <= 2, true);
     }
     Drawn("a big window");
     Check("nearest neighbour while a drag stretches it", Avalonia.Media.RenderOptions.GetBitmapInterpolationMode(Named<Image>("MapImage")),
@@ -1629,7 +1642,7 @@ Console.WriteLine("\nthe mods' windows, children of the game's frame:");
               (true, true, true, true));
 
         // the text: Party Information's row font, through the Options fonts
-        var partyRows = town.FindControl<Canvas>("PartyRowsHost")!.GetVisualDescendants().OfType<ListBox>().Single();
+        var partyRows = town.FindControl<StackPanel>("PartyRows")!;
         string FontOf(Visual v) => $"{v.GetValue(Avalonia.Controls.Documents.TextElement.FontFamilyProperty)} {v.GetValue(Avalonia.Controls.Documents.TextElement.FontSizeProperty)}";
         Control? Tagged(Control under, string tag) => under.GetVisualDescendants().OfType<Control>().FirstOrDefault(c => Equals(c.Tag, tag));
         var dpsName = dps.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => Equals(t.Tag, "Name"));
@@ -1714,6 +1727,20 @@ Console.WriteLine("\nthe mods' windows, children of the game's frame:");
         ChildField<Button>(dps, "_maxBtn").RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
         Pump();
         Check("ModWin: maximised in the town's frame", (dps.Maximised, Math.Abs(dps.Width - frameArea.Bounds.Width) < 1), (true, true));
+        // down and up in the Light theme, its relief on (ClassicLook): the town's captions came back
+        // empty there. Taken straight, not chosen, so no settings.ini is written.
+        var themeType = typeof(App).Assembly.GetType("Mordor.App.ThemeSelection")!;
+        void Theme(string c)
+        {
+            var choiceType = themeType.GetNestedType("Choice", BindingFlags.Public | BindingFlags.NonPublic)!;
+            themeType.GetField("_choice", BindingFlags.Static | BindingFlags.NonPublic)!.SetValue(null, Enum.Parse(choiceType, c));
+            themeType.GetMethod("Apply", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, null);
+            Pump();
+        }
+        Theme("Light");
+        // the mods' windows in the town's frame, readable in either theme (the DPS Meter's and Kaizen's
+        // text, and their toolbar buttons, were left in Dark's colours on the Light grey)
+        Check("ModWin: Light, the town with the DPS Meter and Kaizen up: every text at least 3:1", string.Join("; ", ContrastCheck.LowContrast(town).Distinct()), "");
         typeof(CityWindow).GetMethod("EnterDungeon", flags)!.Invoke(town, new object?[] { null, new Avalonia.Interactivity.RoutedEventArgs() });
         for (int i = 0; i < 10; i++) Pump();
         down = typeof(CityWindow).GetField("_below", flags)!.GetValue(town) as DungeonWindow;
@@ -1734,25 +1761,35 @@ Console.WriteLine("\nthe mods' windows, children of the game's frame:");
         // engine gave it in the old Combat Log's colour, the text untouched; off, or QoL off: plain
         var messages = (ListBox)typeof(DungeonWindow).GetField("MessageLog", flags)!.GetValue(down)!;
         var say = typeof(DungeonWindow).GetMethod("Log", flags, new[] { typeof(string), typeof(MessageKind) })!;
+        // which colour role a line is drawn in (Palette), or plain: a line's colour is the theme's role,
+        // read with no row chosen (a chosen row is white on navy)
+        var paletteType = typeof(App).Assembly.GetType("Mordor.App.Palette")!;
+        string RoleOf(ListBox box, TextBlock tb)
+        {
+            box.SelectedIndex = -1; Pump();
+            foreach (var p in paletteType.GetProperties(BindingFlags.Static | BindingFlags.Public))
+                if (p.PropertyType == typeof(Avalonia.Media.SolidColorBrush) && ReferenceEquals(p.GetValue(null), tb.Foreground)) return p.Name;
+            return "plain";
+        }
         string Said(string line, MessageKind kind)
         {
             say.Invoke(down, new object[] { line, kind });
             for (int i = 0; i < 3; i++) Pump();
             var tb = messages.GetVisualDescendants().OfType<ListBoxItem>().Select(r => r.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Text == line)).LastOrDefault(t => t != null);
-            return tb == null ? "no row" : tb.IsSet(TextBlock.ForegroundProperty) ? tb.Foreground?.ToString() ?? "null" : "plain";
+            return tb == null ? "no row" : RoleOf(messages, tb);
         }
         modHost.Settings.WriteFlag("QoL", "ColorCodedCombatMessages", true);
-        Check("ModWin: Messages, a foe's line in indian red", Said("You were killed by a Kobold.", MessageKind.Foes), "IndianRed");
-        Check("ModWin: Messages, the party's in light green", Said("\"Uiwin\" heals \"Uiwinb\".", MessageKind.Party), "LightGreen");
+        Check("ModWin: Messages, a foe's line in the theme's maroon", Said("You were killed by a Kobold.", MessageKind.Foes), "Maroon");
+        Check("ModWin: Messages, the party's in the theme's green", Said("\"Uiwin\" heals \"Uiwinb\".", MessageKind.Party), "Green");
         Check("ModWin: Messages, a line of no kind plain", Said("You found a chest.", MessageKind.None), "plain");
         modHost.Settings.WriteFlag("QoL", "ColorCodedCombatMessages", false);
         Check("ModWin: Messages, the toggle off: a foe's line plain", Said("The Kobold hits!", MessageKind.Foes), "plain");
         string Shown(ListBox box, string line)
         {
             var tb = box.GetVisualDescendants().OfType<ListBoxItem>().Select(r => r.GetVisualDescendants().OfType<TextBlock>().FirstOrDefault(t => t.Text == line)).LastOrDefault(t => t != null);
-            return tb == null ? "no row" : tb.IsSet(TextBlock.ForegroundProperty) ? tb.Foreground?.ToString() ?? "null" : "plain";
+            return tb == null ? "no row" : RoleOf(box, tb);
         }
-        Check("ModWin: Messages, a line keeps the look it was added with: the earlier foe's line still indian red", Shown(messages, "You were killed by a Kobold."), "IndianRed");
+        Check("ModWin: Messages, a line keeps the look it was added with: the earlier foe's line still the maroon", Shown(messages, "You were killed by a Kobold."), "Maroon");
         modHost.Settings.WriteFlag("QoL", "ColorCodedCombatMessages", true);
         modHost.Switch("QoL", false);
         Check("ModWin: Messages, QoL off: plain", Said("The Kobold hits again!", MessageKind.Foes), "plain");
@@ -1764,10 +1801,23 @@ Console.WriteLine("\nthe mods' windows, children of the game's frame:");
         for (int i = 0; i < 10; i++) Pump();
         Check("ModWin: back in town, the windows come back into the town's frame, still open",
               (Child(frameArea, "DPS Meter") == dps, Child(frameArea, "Kaizen") == kaizen, Tool("DPS Meter").IsChecked == true, dps.Placement()), (true, true, true, new Rect(30, 40, 400, 250)));
+        // the town's captions, their access letters underlined (FormPage.Underline), whole again
+        // after the party comes back up: they had come back empty
+        var cityPanel = (Canvas)typeof(CityWindow).GetField("CityPanel", flags)!.GetValue(town)!;
+        string Captions() => string.Join("|", cityPanel.Children.OfType<Button>().Where(b => b.Classes.Contains("caption"))
+            .Select(b => b.Content is AccessCaption c ? $"{c.Text}:{c.Bounds.Width > 0}" : "?"));
+        Check("ModWin: back in town, the town's captions still read, their letters underlined", Captions(),
+              "General Store:True|Morgue:True|Guilds:True|Dungeon:True|Confinement:True|Seer:True|Bank:True|Exit:True");
+        string Inks() => string.Join("|", cityPanel.Children.OfType<Button>().Where(b => b.Classes.Contains("caption"))
+            .Select(b => b.Content is AccessCaption c && c.GetValue(Avalonia.Controls.Documents.TextElement.ForegroundProperty) is Avalonia.Media.ISolidColorBrush s
+                ? $"#{s.Color.ToUInt32():x8}" : "none").Distinct());
+        Check("ModWin: ... in the Light theme's black", Inks(), "#ff000000");
+        Theme("Dark");
+        Check("ModWin: Dark, back in town with the DPS Meter and Kaizen up: every text at least 3:1", string.Join("; ", ContrastCheck.LowContrast(town).Distinct()), "");
         var townMessages = (ListBox)typeof(CityWindow).GetField("MessageLog", flags)!.GetValue(town)!;
         Check("ModWin: the dungeon's Messages carried up to town, each line with its own look",
               $"{Shown(townMessages, "You were killed by a Kobold.")} {Shown(townMessages, "You found a chest.")} {Shown(townMessages, "The Kobold hits!")} {Shown(townMessages, "\"Uiwin\" heals \"Uiwinb\".")}",
-              "IndianRed plain plain LightGreen");
+              "Maroon plain plain Green");
         Check("ModWin: no handler failed", string.Join("; ", modHost.Live.Where(m => !m.Running).Select(m => m.Id)), "");
     }
     catch (Exception ex) { Check("ModWin: the mods' windows could be driven", ex.GetType().Name + ": " + ex.Message, ""); }
@@ -1878,7 +1928,7 @@ Console.WriteLine("\na character loaded dead below ground:");
         // the hostile group's room: sub0A91's sub0BDE -1 (MONSMOD.BAS:726) on Form_Load gives the dead one
         // their Combat Setting, Fight (CHARCREA.BAS:243), shown in the Party window's Option column
         // (observed in the original 2026-10-26: "Fight" for a dead character loaded where they fell)
-        var rows = Ctl<ListBox>("_partyRows");
+        var rows = Ctl<StackPanel>("PartyRows");
         Check("... with a hostile group in the room, the Party window's Option is the Combat Setting, Fight",
               rows.GetVisualDescendants().OfType<TextBlock>().Select(t => t.Text).Where(t => t is "None" or "Fight" or "Defend").FirstOrDefault(), "Fight");
     }
@@ -1989,9 +2039,11 @@ Console.WriteLine("\nthe DPS Meter window:");
         Check("DPS Meter: a click on a bar shows its shares, no name, total or kills", Breakdown(),
               "Physical 0 (0%)   Magical 250 (100%)   Companion 0 (0%)");
         TextBlock NameOf(string name) => (TextBlock)Tagged(Row(name), "Name")!;
+        object? DpsRole(string name) => typeof(App).Assembly.GetType("Mordor.App.Palette")!.GetProperty(name)!.GetValue(null);
         Check("DPS Meter: and marks the row as the Party window marks its selected member (green, bold)",
-              (NameOf("Bert").Foreground == Avalonia.Media.Brushes.LightGreen, NameOf("Bert").FontWeight == Avalonia.Media.FontWeight.Bold,
-               NameOf("Anna").Foreground == Avalonia.Media.Brushes.WhiteSmoke, NameOf("Anna").FontWeight == Avalonia.Media.FontWeight.Normal),
+              // the game's own role brushes (Palette, by ThemeKeys), as the Party window's: green for the chosen, the text's ink else
+              (ReferenceEquals(NameOf("Bert").Foreground, DpsRole("Green")), NameOf("Bert").FontWeight == Avalonia.Media.FontWeight.Bold,
+               ReferenceEquals(NameOf("Anna").Foreground, DpsRole("Text")), NameOf("Anna").FontWeight == Avalonia.Media.FontWeight.Normal),
               (true, true, true, true));
         ClickOn(Row("Anna"));
         Check("DPS Meter: another bar, its shares", Breakdown(),
@@ -2631,10 +2683,54 @@ Console.WriteLine("\nthe program's icon on the windows:");
     finally { try { plain?.Close(); helpWin?.Close(); Pump(); } catch { } }
 }
 
+// ---- the themes: a change of theme with a button whose caption is a control. The Light theme's
+// relief (ClassicLook) once put a template of its own on the buttons and took it off again for Dark,
+// and the caption, still in the old template, threw "already has a visual parent" ----
+Console.WriteLine("\nLight and Dark (ThemeSelection, ClassicLook):");
+{
+    string scratchRoot = Path.Combine(Path.GetTempPath(), "mordor-theme-" + Guid.NewGuid().ToString("N")[..8]);
+    string? iniWas = Environment.GetEnvironmentVariable(GameFolder.EnvIni);
+    Window? themeWin = null;
+    var theme = typeof(App).Assembly.GetType("Mordor.App.ThemeSelection")!;
+    var choice = theme.GetNestedType("Choice", BindingFlags.Public | BindingFlags.NonPublic)!;
+    void Select(string c) => theme.GetMethod("Select", BindingFlags.Static | BindingFlags.NonPublic)!.Invoke(null, new[] { Enum.Parse(choice, c) });
+    try
+    {
+        // the choice is saved as it is made: into a settings.ini of this check's own
+        Environment.SetEnvironmentVariable(GameFolder.EnvIni, Path.Combine(Directory.CreateDirectory(scratchRoot).FullName, "settings.ini"));
+        var button = new Button { Content = new TextBlock { Text = "Confinement" } };
+        themeWin = new Window { Width = 200, Height = 100, Content = new StackPanel { Children = { button } } };
+        theme.GetMethod("ApplyWindowSurface", BindingFlags.Static | BindingFlags.Public | BindingFlags.NonPublic)!.Invoke(null, new object[] { themeWin });
+        themeWin.Show(); Pump();
+        string? thrown = null;
+        int Lines() => button.GetVisualDescendants().OfType<Avalonia.Controls.Presenters.ContentPresenter>()
+            .FirstOrDefault(p => p.Name == "PART_ContentPresenter")?.BoxShadow.Count ?? -1;
+        int light = -1, dark = -1;
+        try
+        {
+            Select("Light"); Pump(); light = Lines();
+            Select("Dark"); Pump(); dark = Lines();
+            Select("Light"); Pump();
+        }
+        catch (Exception ex) { thrown = (ex.InnerException ?? ex).GetType().Name + ": " + (ex.InnerException ?? ex).Message; }
+        Check("Light, Dark and Light again, a button's caption a control: nothing thrown", thrown, null);
+        Check("... the button in Light drawn in its black line and relief, and in Dark not", (light > 0, dark), (true, 0));
+    }
+    catch (Exception ex) { Check("the theme window could be shown", ex.GetType().Name + ": " + ex.Message, ""); }
+    finally
+    {
+        try { Select("Dark"); themeWin?.Close(); Pump(); } catch { }
+        Environment.SetEnvironmentVariable(GameFolder.EnvIni, iniWas);
+        try { Directory.Delete(scratchRoot, true); } catch { }
+    }
+}
+
 failed += StoreUncurseCheck.Run(game);
 failed += StoreExitCheck.Run(game);
 failed += LegacyInstallerCheck.Run(game);
 failed += BodyRecoveryCheck.Run(game);
+failed += ContrastCheck.Run(game);
+failed += ThemeRegressionCheck.Run(game);
 
 Environment.SetEnvironmentVariable("MORDOR_ART_CACHE", artWas);
 try { Directory.Delete(artRoot, true); } catch { }

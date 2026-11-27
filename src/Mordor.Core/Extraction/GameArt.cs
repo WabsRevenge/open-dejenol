@@ -147,6 +147,7 @@ public static class GameArt
     {
         using var sha = SHA256.Create();
         var all = new StringBuilder($"mordor-art v{Version}\n");
+        if (GameFiles.IsFixture(gameDir)) all.Append("the test fixture: placeholders\n");
         foreach (var s in Sources)
         {
             string? p = Find(gameDir, s.Name);
@@ -165,7 +166,8 @@ public static class GameArt
     {
         try
         {
-            foreach (var s in Sources.Where(s => s.Required))
+            bool fixture = GameFiles.IsFixture(gameDir);
+            foreach (var s in Sources.Where(s => s.Required && !fixture))
                 if (Find(gameDir, s.Name) == null)
                     return new GameArtResult(null, $"{s.Name} is missing from {gameDir}: {s.Why} are in it, and the game cannot start without it.", Array.Empty<string>());
             string root = cacheRoot ?? CacheRoot;
@@ -178,7 +180,7 @@ public static class GameArt
             string temp = dir + ".part-" + Guid.NewGuid().ToString("N")[..8];
             Directory.CreateDirectory(temp);
             List<string> notes;
-            try { notes = Extract(gameDir, temp); }
+            try { notes = fixture ? Placeholders(gameDir, temp) : Extract(gameDir, temp); }
             catch { TryDelete(temp); throw; }
             if (Directory.Exists(dir)) TryDelete(dir);    // an earlier, unfinished one
             try { Directory.Move(temp, dir); }
@@ -200,7 +202,7 @@ public static class GameArt
     {
         try
         {
-            if (Sources.Any(s => s.Required && Find(gameDir, s.Name) == null)) return false;
+            if (!GameFiles.IsFixture(gameDir) && Sources.Any(s => s.Required && Find(gameDir, s.Name) == null)) return false;
             return Complete(Path.Combine(cacheRoot ?? CacheRoot, Key(gameDir)));
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
@@ -296,7 +298,6 @@ public static class GameArt
 
         // MORDOR.EXE
         var exe = NeModule.Read(Need("MORDOR.EXE"));
-        //exe.ExtractPictures(outDir); //for debugging, extract all images to see what may be missed and how to use them.
 
         RgbaImage FormPicture(string form, int index, int w = 0, int h = 0)
         {
@@ -377,6 +378,64 @@ public static class GameArt
             pictures = Pictures.Select(p => new { name = p.Name, from = p.From }),
             help = File.Exists(Path.Combine(outDir, HelpFile)),
             helpTitle = File.Exists(Path.Combine(outDir, HelpFile)) ? hlp?.Title : null,
+            notes,
+        };
+        File.WriteAllText(Path.Combine(outDir, ManifestFile), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
+        return notes;
+    }
+
+    /// <summary>
+    /// The test fixture's art (<see cref="GameFiles.FixtureMarker"/>): for every picture the port
+    /// loads, a placeholder of the picture's own size - a muted colour of its name's, framed, with
+    /// diagonal stripes so it reads as a stand-in - and monsters.png as a grid of 60x60 cells, a
+    /// portrait apiece; and a small help of invented topics, among them those the game opens by
+    /// name. Nothing of the game's is in it: the fixture is for the checks and the CI's pictures of
+    /// the windows, where none of Mordor's files may be.
+    /// </summary>
+    private static List<string> Placeholders(string gameDir, string outDir)
+    {
+        var notes = new List<string> { "the test fixture: every picture a placeholder, the help invented" };
+        foreach (var p in Pictures)
+        {
+            // frmMain's background is tiled, and has no fixed size: a tile
+            int w = p.Width > 0 ? p.Width : 64, h = p.Height > 0 ? p.Height : 64;
+            uint hash = 2166136261;
+            foreach (char ch in p.Name) hash = (hash ^ ch) * 16777619;
+            byte r = (byte)(96 + hash % 96), g = (byte)(96 + (hash >> 8) % 96), b = (byte)(96 + (hash >> 16) % 96);
+            uint ground = 0xFF000000u | ((uint)r << 16) | ((uint)g << 8) | b;
+            uint stripe = 0xFF000000u | ((uint)(r - 40) << 16) | ((uint)(g - 40) << 8) | (uint)(b - 40);
+            const uint Line = 0xFF202020;
+            int cell = p.Name == "monsters.png" ? 60 : 0;
+            var img = new RgbaImage(w, h);
+            for (int y = 0; y < h; y++)
+                for (int x = 0; x < w; x++)
+                {
+                    int cx = cell > 0 ? x % cell : x, cy = cell > 0 ? y % cell : y;
+                    int cw = cell > 0 ? cell : w, ch = cell > 0 ? cell : h;
+                    bool edge = cx == 0 || cy == 0 || cx == cw - 1 || cy == ch - 1;
+                    img[x, y] = edge ? Line : (cx + cy) % 8 < 2 ? stripe : ground;
+                }
+            File.WriteAllBytes(Path.Combine(outDir, p.Name), Png.Encode(img));
+        }
+
+        // the help: its contents, and every topic the game opens by its title
+        var topics = new List<HelpBundle.Topic>
+        {
+            new("OpenDejenol test fixture", "This is the OpenDejenol test fixture: a small invented game, with placeholder pictures and this help in place of Mordor's.", null, null, true),
+            new("Tutorial", "The fixture's tutorial: there is nothing to learn here but that the help opens.", null),
+            new("Races: Statistics", "The fixture's races are invented for the checks.", null),
+            new("Guilds: Statistics", "The fixture's guilds are invented for the checks.", null),
+        };
+        File.WriteAllText(Path.Combine(outDir, HelpFile), HelpBundle.Serialize(topics));
+
+        var manifest = new
+        {
+            version = Version,
+            game = Path.GetFullPath(gameDir),
+            made = DateTime.UtcNow.ToString("u"),
+            pictures = Pictures.Select(p => new { name = p.Name, from = "a placeholder (the test fixture)" }),
+            help = true,
+            helpTitle = "OpenDejenol test fixture",
             notes,
         };
         File.WriteAllText(Path.Combine(outDir, ManifestFile), JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));

@@ -98,8 +98,8 @@ public sealed class MdiChild : Border
     public MdiChild(string title, Control content, double width, double height)
     {
         _title = title;
-        Background = ThemeSelection.WindowSurface;
-        BorderBrush = Brush.Parse("#3a3a4e");
+        Background = Palette.Window;
+        BorderBrush = FixedColour.ChildFrame;
         BorderThickness = new Thickness(1);
         Width = width;
         Height = height;
@@ -109,7 +109,7 @@ public sealed class MdiChild : Border
         _caption = new TextBlock
         {
             Text = title,
-            Foreground = Brushes.White,
+            Foreground = FixedColour.ChildTitleInk,
             FontWeight = FontWeight.Bold,
             FontSize = 12,
             VerticalAlignment = VerticalAlignment.Center,
@@ -122,7 +122,7 @@ public sealed class MdiChild : Border
 
         _titleBar = new Border
         {
-            Background = Brush.Parse("#2b2b52"),
+            Background = FixedColour.ChildTitle,
             Height = BarHeight,
             Child = new Grid
             {
@@ -154,7 +154,7 @@ public sealed class MdiChild : Border
             Child = new Path
             {
                 Data = Geometry.Parse("M 13,3 L 13,13 L 3,13 Z"),
-                Fill = Brush.Parse("#55556e"),
+                Fill = FixedColour.ChildGrip,
             },
         };
         grip.PointerPressed += (_, e) =>
@@ -237,8 +237,8 @@ public sealed class MdiChild : Border
             Height = BarHeight - 4,
             Padding = new Thickness(0),
             FontSize = 11,
-            Background = Brush.Parse("#3c3c66"),
-            Foreground = Brushes.White,
+            Background = FixedColour.ChildButton,
+            Foreground = Palette.Text,   // white on the Dark navy, black on the Light theme's grey button
             HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center,
             Margin = new Thickness(0, 2, 2, 2),
@@ -468,7 +468,7 @@ public sealed class MdiHost : Canvas
 
     public MdiHost()
     {
-        Background = ThemeSelection.ContentSurface;
+        Background = Palette.Well;
         ClipToBounds = true;
         // the icons keep to the bottom row whatever the frame's size, and one parked before the
         // frame had a size at all is put there once it has one

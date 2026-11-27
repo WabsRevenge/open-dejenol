@@ -94,7 +94,7 @@ public static partial class ModProbe
             Check("Store check boxes: none, the Store's page is the original's", off.StoreOptions.Count(), 0);
             Check("Store columns: none, the Buy list is the original's", $"{off.StoreColumns().Count} {off.ShownStoreColumns().Count}", "0 0");
             Check("Messages keeps the original's 20", off.MessagesKept(MessageList.Kept), 20);
-            Check("Messages lines in the window's own colour", $"{off.MessageLineColour("You were killed by a Kobold.", MessageKind.Foes)} {ModHost.Empty().MessageLineColour("x", MessageKind.Party)}", " ");
+            Check("Messages lines in the window's own colour", $"{off.MessageLineInk("You were killed by a Kobold.", MessageKind.Foes)} {ModHost.Empty().MessageLineInk("x", MessageKind.Party)}", " ");
             off.CaptionShown(CaptionKind.CharacterHit, "You hit the Kobold for 3 damage!", party.Selected);   // nobody listening: nothing happens
             Check("a caption with no mod: nothing written", File.Exists(offIni), false);
             var twenty = new List<string>();
@@ -137,8 +137,8 @@ public static partial class ModProbe
             Check("no mod window (the Combat Log is gone, 1.9.0)", on.Windows.Count(), 0);
             Check("Messages keeps the original's 20 (the Combat Log's 200 gone with it)", on.MessagesKept(MessageList.Kept), 20);
             Check("combat colours: the party's side, the foes', a chest, a join, the rest",
-                  string.Join(" ", new[] { MessageKind.Party, MessageKind.Foes, MessageKind.Chest, MessageKind.Join, MessageKind.None }.Select(k => on.MessageLineColour("a line", k)?.ToString() ?? "-")),
-                  "(144, 238, 144) (205, 92, 92) (255, 165, 0) (221, 160, 221) -");
+                  string.Join(" ", new[] { MessageKind.Party, MessageKind.Foes, MessageKind.Chest, MessageKind.Join, MessageKind.None }.Select(k => on.MessageLineInk("a line", k) ?? "-")),
+                  $"{ThemeKeys.Green} {ThemeKeys.Maroon} {ThemeKeys.Warning} {ThemeKeys.Magic} -");
             var sort = on.ObjectsCommands.FirstOrDefault(p => p.Command.Label == "Sort");
             Check("Sort command added", sort.Command != null, true);
             Check("Sort shown", sort.Command != null && on.IsShown(sort.Mod, sort.Command), true);
@@ -177,7 +177,7 @@ public static partial class ModProbe
             Check("Store: the row change back to the original's lock (Unlocked Store alignment choice off, a toggle again 1.12.0)", on.StoreAllowsRowChangeWhileChoosing(), false);
             Check("ALT-p back to the original", on.CityAltP(new CityAltPRequest(party, party.Selected)).Action, CityAltPAction.PoolOnHand);
             Check("no toolbar tooltip (Toolbar tooltips off, a toggle again 1.12.0)", on.ToolbarTooltip(new ToolbarButton("Automap", "AutoMap", "F8")), null);
-            Check("combat colours off: the window's own", on.MessageLineColour("You were killed by a Kobold.", MessageKind.Foes), null);
+            Check("combat colours off: the window's own", on.MessageLineInk("You were killed by a Kobold.", MessageKind.Foes), null);
             Check("no pack-line mark (Unidentified-item marks off)", on.PackRowDecoration(party.Selected, anyItem, new InventorySlot { ItemId = anyItem.Id, Known = IdLevel.Barely }, 1), null);
             Check("Sort still there: no toggle since 1.8.0", on.IsShown(sort.Mod, sort.Command!), true);
             Check("Bank Sort still there too", on.BankCommands.Any() && on.BankCommands.All(p => on.IsShown(p.Mod, p.Command)), true);
@@ -1191,9 +1191,9 @@ public static partial class ModProbe
               string.Join(",", lm.UI.PartyColumns.Select(p => p.Header + " " + p.Width)), "HP/SP 40,Next 50");
 
         Console.WriteLine("Color-coded combat messages:");
-        string Colour(MessageKind k) => on.MessageLineColour("You were killed by a Kobold.", k)?.ToString() ?? "-";
+        string Colour(MessageKind k) => on.MessageLineInk("You were killed by a Kobold.", k) ?? "-";
         s.WriteFlag("QoL", "ColorCodedCombatMessages", true);
-        Check("toggle on: the foes' lines indian red", Colour(MessageKind.Foes), "(205, 92, 92)");
+        Check("toggle on: the foes' lines the theme's maroon", Colour(MessageKind.Foes), ThemeKeys.Maroon);
         Check("toggle on: a line of no kind keeps the window's colour", Colour(MessageKind.None), "-");
         s.WriteFlag("QoL", "ColorCodedCombatMessages", false);
         Check("toggle off, read live: the window's own", Colour(MessageKind.Foes), "-");

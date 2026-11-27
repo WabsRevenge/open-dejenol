@@ -5,6 +5,7 @@ using Avalonia.Controls.Templates;
 using Avalonia.Layout;
 using Avalonia.Media;
 using Mordor.Core;
+using Mordor.Modding;
 
 namespace Mordor.Mod.QoL;
 
@@ -17,7 +18,8 @@ public static class Views
 {
     private static readonly IBrush Track = new SolidColorBrush(Rgb(BarColours.Track));
     /// <summary>The Party window's own blue (PartyRowColours.Fixed): the colour of its Spells and Option text.</summary>
-    private static readonly IBrush Text = Brushes.CornflowerBlue;
+    // the game's navy role (ThemeKeys): the one brush the theme recolours; the Dark blue when no game publishes it
+    private static IBrush Text => Application.Current?.FindResource(ThemeKeys.Navy) as IBrush ?? Brushes.CornflowerBlue;
 
     private static Color Rgb((byte R, byte G, byte B) c, byte alpha = 255) => Color.FromArgb(alpha, c.R, c.G, c.B);
 

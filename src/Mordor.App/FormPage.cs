@@ -78,21 +78,21 @@ internal sealed class FormPage
     private static DesignFont Sans(bool bold) => bold ? DesignFont.Default : DesignFont.Default.Plain;
 
     /// <summary>The form's blue (lblWelcome's &amp;HFF0000), adjusted for the active theme.</summary>
-    public static readonly IBrush Blue = ThemeSelection.FormBlue;
+    public static readonly IBrush Blue = Palette.Blue;
     /// <summary>The form's maroon captions (&amp;H80: the Guild's GuildMaster, the Bank's lblStatus).</summary>
-    public static readonly IBrush Maroon = ThemeSelection.FormMaroon;
+    public static readonly IBrush Maroon = Palette.Maroon;
     /// <summary>The form's navy captions (&amp;H800000: the Bank's lblLabel, the Seer's lblLabel).</summary>
-    public static readonly IBrush Navy = ThemeSelection.FormNavy;
+    public static readonly IBrush Navy = Palette.Navy;
     /// <summary>A plain caption, black in Light and pale in Dark.</summary>
-    public static readonly IBrush Ink = ThemeSelection.FormInk;
+    public static readonly IBrush Ink = Palette.Text;
     /// <summary>A tan-yellow field you type into (the help's "tan-yellow fields take input").</summary>
-    public static readonly IBrush InputField = new SolidColorBrush(Color.FromRgb(0xd8, 0xc8, 0x8a));
+    public static readonly IBrush InputField = FixedColour.InputField;
     /// <summary>A display-only field; white in Light and dark grey in Dark.</summary>
-    public static readonly IBrush DisplayField = ThemeSelection.FormDisplayField;
+    public static readonly IBrush DisplayField = Palette.Field;
     /// <summary>The form's own ground, adapting from VB's BackColor (&amp;HC0C0C0) in Light.</summary>
-    public static readonly IBrush Face = ThemeSelection.FormFace;
+    public static readonly IBrush Face = Palette.Window;
     /// <summary>An Elastic's bevelled line, adapted for the active theme.</summary>
-    public static readonly IBrush Bevel = ThemeSelection.FormBevel;
+    public static readonly IBrush Bevel = Palette.Shadow;
 
     /// <summary>The client area, in pixels: the size the service window's inside is made.</summary>
     public Size Client { get; }
@@ -200,10 +200,10 @@ internal sealed class FormPage
         }
         t.Margin = new Thickness(2, 0);
         t.VerticalAlignment = VerticalAlignment.Center;
-        var field = Place(into, new Border
+        var field = Place(into, ClassicLook.Sunken(new Border
         {
             Background = DisplayField, BorderBrush = Bevel, BorderThickness = new Thickness(1), Child = t,
-        }, r);
+        }), r);
         LetOut(t, field, font, align, 6);
         return t;
     }
@@ -295,17 +295,17 @@ internal sealed class FormPage
     /// default 11-pixel face, where VB's are the line's 13): the theme's roomy item padding is
     /// taken off, and a larger Options font makes taller rows rather than clipped ones.
     /// </summary>
-    public static ListBox List(Canvas into, FormRect r, bool bold = false, double? rowHeight = null)
+    public static ListBox List(Canvas into, FormRect r, bool bold = false)
     {
         var l = UiFonts.Set(new ListBox
         {
             Padding = new Thickness(0),
             FontWeight = bold ? FontWeight.Bold : FontWeight.Normal,
-            Background = ThemeSelection.FormListSurface,
+            Background = Palette.List,
             BorderBrush = Bevel, BorderThickness = new Thickness(1),
         }, Pass, Sans(bold));
-        TightRows(l, rowHeight ?? UiFonts.RowHeight(Pass, 0, Sans(bold)));
-        return Place(into, l, r);
+        TightRows(l, UiFonts.RowHeight(Pass, 0, Sans(bold)));
+        return Place(into, ClassicLook.Field(l), r);
     }
 
     /// <summary>
@@ -367,7 +367,7 @@ internal sealed class FormPage
                     new Avalonia.Controls.Shapes.Ellipse
                     {
                         Width = 12, Height = 12, Stroke = Bevel, StrokeThickness = 1,
-                        Fill = ThemeSelection.FormListSurface,
+                        Fill = Palette.List,
                     },
                     dot,
                 },
@@ -407,7 +407,7 @@ internal sealed class FormPage
             {
                 Width = 12, Height = 12, VerticalAlignment = VerticalAlignment.Center,
                 BorderBrush = Bevel, BorderThickness = new Thickness(1),
-                Background = ThemeSelection.FormListSurface, Child = tick,
+                Background = Palette.List, Child = tick,
             };
             Grid.SetColumn(presenter, 1);
             // a transparent ground, so the caption takes the click as well as the square
@@ -421,7 +421,7 @@ internal sealed class FormPage
     {
         var box = UiFonts.Set(new TextBox
         {
-            Background = InputField, Foreground = Brushes.Black,
+            Background = InputField, Foreground = FixedColour.Black,
             MinHeight = 0, MinWidth = 0,
             Padding = new Thickness(2, 0),
             FontWeight = bold ? FontWeight.Bold : FontWeight.Normal,
