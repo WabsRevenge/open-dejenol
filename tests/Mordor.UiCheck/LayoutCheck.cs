@@ -143,7 +143,10 @@ static class LayoutCheck
                         i += width - 1;
                         if (cp < 0x20 || cp is >= 0x7F and <= 0x9F || cp <= 0xFFFF && char.IsWhiteSpace((char)cp)) continue;
                         if (cp is 0xAD or 0x200B or 0x200C or 0x200D or 0xFEFF) continue;   // shown as nothing on purpose
-                        if (!face.TryGetGlyph((uint)cp, out ushort glyph) || glyph == 0)
+                        // macOS's Last Resort font has a glyph for every code point: the box that says no font
+                        // has it. Fallback lands there for anything nothing else draws, so a character it
+                        // draws is missing all the same (the first macOS run found the self-test passing it)
+                        if (!face.TryGetGlyph((uint)cp, out ushort glyph) || glyph == 0 || IsLastResort(face.FamilyName))
                             missing[cp] = face.FamilyName;
                     }
                 }
@@ -152,6 +155,9 @@ static class LayoutCheck
                     "no glyph for " + string.Join(", ", missing.Select(m => $"U+{m.Key:X4} '{char.ConvertFromUtf32(m.Key)}' in {m.Value}")));
         }
     }
+
+    /// <summary>macOS's Last Resort face (".LastResort", "LastResort"): only ever the "no font has this" box.</summary>
+    static bool IsLastResort(string family) => family.TrimStart('.').StartsWith("LastResort", StringComparison.OrdinalIgnoreCase);
 
     static int CodePoint(string s, int i, out int width)
     {
