@@ -10,7 +10,11 @@
     <ProjectReference Include="..\..\src\Mordor.Modding\Mordor.Modding.csproj" />
   </ItemGroup>
 
-  <!-- the bundled mods beside the suites too, so the mods suite loads the real QoL build -->
+  <!-- the bundled mods beside the suites too, so the mods suite loads the real QoL build; the
+       iCloud Saves mod on every system, though only a macOS build ships it (ShipMods.targets) -->
+  <PropertyGroup>
+    <ShipICloudSaves>true</ShipICloudSaves>
+  </PropertyGroup>
   <Import Project="..\..\src\Mods\ShipMods.targets" />
 
   <PropertyGroup>

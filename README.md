@@ -29,10 +29,14 @@ OpenDejenol comes bundled with a few mods. These include:
 
 <p align="center"><img src="docs/images/cartographer.png" width="450" alt="The automap with Cartographer: coloured squares and a waypoint's arrow to its destination"></p>
 
+**Auto-combat** - Gives each character's fight order every round by your own ordered rules: Fight, Defend, a combat spell or an item, and which monster group to aim at, chosen by the party's hits and spell points and the monster list as shown. Every order goes through the game's own keys and Cast; nothing the game hides (a monster's hits, an unidentified monster) is read.
+
+**iCloud Saves** (macOS) - Copies your saves folder to iCloud Drive after the game saves, and offers a newer copy from another Mac at start. Whole-world snapshots, a backup before every restore, and a conflict is always your choice. Off by default; does nothing on Windows.
+
 ## Requirements
 
 - Your own copy of Mordor: The Depths of Dejenol - the full version or the shareware, available from [Decklin's Domain](https://www.decklinsdemise.com/mordor.htm). OpenDejenol reads the full game's `M1FULL.zip` or `MordorSetup.exe`, and the demo's `MordorDemoSetup.exe`, without running their old installers.
-- 64-bit Windows 10 or 11, on an x64 (Intel or AMD) or ARM64 (e.g. Snapdragon) PC, or 64-bit x64 Linux (including Steam Deck / SteamOS and Bazzite)
+- 64-bit Windows 10 or 11, on an x64 (Intel or AMD) or ARM64 (e.g. Snapdragon) PC, 64-bit x64 Linux (including Steam Deck / SteamOS and Bazzite), or macOS 12 or later on Apple Silicon (built from source; see below)
 
 ## Installing and running
 
@@ -69,6 +73,21 @@ For `M1FULL.zip`, select the original ZIP directly. There is no need to extract 
 - `sh tools/check.sh <path to your Mordor folder>` runs the checks (Git Bash or another POSIX
   shell). A few of them read material that is not in this repository and say
   "skipped: decompiled source not present"; that is expected.
+
+### macOS
+
+- The .NET 8 SDK and Xcode's command line tools (`codesign`, `iconutil`).
+- `make mac-app` builds `dist/macos/OpenDejenol.app` for Apple Silicon, self-contained and signed
+  ad hoc: it runs on the Mac that built it. Another Mac's Gatekeeper refuses an ad-hoc app, so it
+  is not something to hand out; a release for others would need a Developer ID and notarisation,
+  which are not set up.
+- `make verify` builds as CI does; `make check GAME=<path to your Mordor folder>` runs the suites.
+  `tools/check.sh` is Windows-only.
+- Sound effects and music play through OpenDejenol's cross-platform SDL3 audio output and built-in
+  MIDI synthesiser with the bundled TimGM6mb SoundFont (the same audio path as Linux).
+- Known on Apple Silicon: Harmony patches do not apply, so a third-party mod that patches the game
+  through `ctx.Harmony` is disabled there (the bundled mods use none), and a few pixel-exact window
+  checks differ.
 
 ## Contributing
 There are many ways to contribute:

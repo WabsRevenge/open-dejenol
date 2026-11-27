@@ -54,7 +54,7 @@ AUTHORS="OpenDejenol contributors"
 APP_PROJ=src/Mordor.App/Mordor.App.csproj
 ICON=src/Mordor.App/Assets/Icon/opendejenol.ico
 SPLASH=src/Mordor.App/Assets/Icon/opendejenol-256.png
-MODS="QoL:Mordor.Mod.QoL Kaizen:Mordor.Mod.Kaizen DpsMeter:Mordor.Mod.DpsMeter Cartographer:Mordor.Mod.Cartographer"
+MODS="QoL:Mordor.Mod.QoL Kaizen:Mordor.Mod.Kaizen DpsMeter:Mordor.Mod.DpsMeter Cartographer:Mordor.Mod.Cartographer AutoCombat:Mordor.Mod.AutoCombat"
 
 if [ -z "${DOTNET:-}" ]; then
     for d in "${DOTNET_ROOT:-}" "${USERPROFILE:+$(cygpath -u "$USERPROFILE" 2>/dev/null)/.dotnet}" "$HOME/.dotnet"; do
@@ -128,7 +128,10 @@ pack_one() {
         [ -f "$PUB/mods/$folder/$dll.dll" ] && [ -f "$PUB/mods/$folder/mod.json" ] \
             || die "the bundled mod $folder is not in the $RID publish (mods/$folder/$dll.dll and mod.json)"
     done
-    echo "  ok    $EXE, LICENSE.txt, and mods/{QoL,Kaizen,DpsMeter,Cartographer} with dll and mod.json"
+    echo "  ok    $EXE, LICENSE.txt, and mods/{QoL,Kaizen,DpsMeter,Cartographer,AutoCombat} with dll and mod.json"
+    # the iCloud Saves mod is macOS's alone (src/Mods/ShipMods.targets): here it would only say "Running." and do nothing
+    [ ! -e "$PUB/mods/ICloudSaves" ] || die "the macOS-only iCloud Saves mod is in the $RID publish (mods/ICloudSaves)"
+    echo "  ok    no macOS-only mod (mods/ICloudSaves)"
     # the SoundFont and the fonts' licence ship beside the program, each with its own licence
     [ -f "$PUB/soundfont/TimGM6mb.sf2" ] && [ -f "$PUB/soundfont/GPL-2.0.txt" ] && [ -f "$PUB/soundfont/README.txt" ] \
         || die "the SoundFont is not in the $RID publish (soundfont/TimGM6mb.sf2, GPL-2.0.txt, README.txt)"

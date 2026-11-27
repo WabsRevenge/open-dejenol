@@ -4326,6 +4326,9 @@ public partial class DungeonWindow : Window
                 // PlayRound draws the blows a quarter-second apart, so it outlives this call.
                 // It clears _inRound itself; the guard has to hold until the round really ends.
                 _keepRoundGuard = true;
+                // the mods' orders for this round (ModActions.CombatRound), given as keys pressed
+                // between ticks would be; with no mod hooked nothing happens here
+                BeforeCombatRound();
                 PlayRound();
                 return;
             }
@@ -4933,6 +4936,7 @@ public partial class DungeonWindow : Window
         int index = all.IndexOf(first);
         if (index < 0) return;
         _party.OrderFor(_ch).Target = index;
+        MarkByHand();
         // and nothing is said: "CombatOrders(Me).M547A = n : monShowCursor" and no more. "X takes
         // aim at Y." was this port's.
         ShowCursor();
@@ -5118,6 +5122,7 @@ public partial class DungeonWindow : Window
         // an order given to monsters who have not moved yet is what starts the fight
         if (kind != OrderKind.None) EngageWaiting();
         if (_combat == null) return;
+        MarkByHand();
         var o = _party.OrderFor(_ch);
         o.Kind = kind;
         o.SpellId = spellId;
@@ -5152,6 +5157,7 @@ public partial class DungeonWindow : Window
         // is written back that way
         foreach (var m in group) m.Hostile = true;
         _combat = new CombatEngine(_party, group, Lookup, _rng, isLair);
+        CarryByHand(group, _combat);
         _combat.UseMonsterTable(_monsters);
         _combat.UseSpellTable(_spells);
         // a monster's kill runs sub0930 (MULTIMOD.BAS:362-363), which in a party is the list's
@@ -5385,6 +5391,8 @@ public partial class DungeonWindow : Window
     {
         await System.Threading.Tasks.Task.CompletedTask;
         if (!MonstersHere) return;
+        // tried by hand, refused or not: the rules leave the one in command alone this fight
+        MarkByHand();
         // cmdCast_Click (FRMCHAR3.BAS:174-184) has no paralysis test. A known spell becomes the order
         // first (M56C4 = l00E0) and only then does mdrcharCheckCast run - and a refusal takes the
         // order away again (see RefusedOrder)
@@ -5419,6 +5427,7 @@ public partial class DungeonWindow : Window
         // "Foes(0).Engaged = mc0138 : sub0BDE -1" (MAINMOD2.BAS:6131-6132)
         EngageWaiting();
         if (_combat == null || _combat.IsOver) return;
+        MarkByHand();
         Sub0BDE();   // already engaged, sub0BDE runs all the same (6132)
 
         // then the item becomes the order, not a cast: "Att = False : M56C4 = l0862 + 1000 :

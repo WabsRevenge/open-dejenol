@@ -159,6 +159,14 @@ public partial class TitleWindow : Window
             // a character marked "Preload Character" goes straight in, password and all
             if (_preloadTried) { MenuReady(); return; }
             _preloadTried = true;
+            // the port's own (docs/MODDING.md, MainMenuOpened, API version 17): a mod may act here,
+            // with nothing loaded yet - the iCloud Saves mod offers a newer world from iCloud before
+            // a preloaded character reads the old one. With no mod hooked nothing is asked.
+            if (Mordor.Modding.ModHost.Active.MainMenuHooked)
+            {
+                await MenuModsOpened();
+                if (!OriginalBox.CanOwn(this)) return;
+            }
             if (Preloaded() is Character ready) { _loaded = ready; ShowMenuState(); await Play(ready); }
             MenuReady();
         };
@@ -168,6 +176,32 @@ public partial class TitleWindow : Window
         Updates.Found += OfferUpdate;
         Closed += (_, _) => Updates.Found -= OfferUpdate;
     }
+
+    /// <summary>
+    /// The mods' <see cref="Mordor.Modding.ModActions.MainMenuOpened"/>, with the menu shut while they
+    /// run. A hook may be busy with no box up (the iCloud Saves mod reading iCloud, or restoring the
+    /// saves); a Play pressed meanwhile would load characters it is still writing, and the game would
+    /// later save its copies over the restored world. So every button but Exit is off, and the
+    /// status line says why, until the last hook is done. Exit stays, so a hook that never finishes
+    /// (iCloud Drive hanging on a read) cannot keep the player in: nothing is loaded to lose, and a
+    /// restore cut short is caught at the next start.
+    /// </summary>
+    internal async System.Threading.Tasks.Task MenuModsOpened()
+    {
+        var shut = Form.Children.OfType<Button>().Where(b => b != ExitBtn && b.IsEnabled).ToList();
+        foreach (var b in shut) b.IsEnabled = false;
+        StatusText.Text = MenuWaitText;
+        try { await ModStartup.MainMenuOpened(this); }
+        finally
+        {
+            if (StatusText.Text == MenuWaitText) StatusText.Text = "";
+            foreach (var b in shut) b.IsEnabled = true;
+            CreateBtn.Focus();
+        }
+    }
+
+    /// <summary>The port's own: the status line while the mods' start-up hooks run.</summary>
+    public const string MenuWaitText = "Waiting for the mods...";
 
     /// <summary>The menu's start-up boxes are over: an update found can be offered from now on.</summary>
     private bool _menuReady;
