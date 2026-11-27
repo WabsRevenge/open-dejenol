@@ -24,8 +24,8 @@ public sealed record GameArtResult(string? Dir, string? Error, IReadOnlyList<str
 /// pictures and the monster portraits. The original will not start without MG11.DLL ("Cannot
 /// locate graphics file", MODULE12.BAS:71-75), and neither does this.</item>
 /// <item>MORDOR.EXE: the pictures Visual Basic keeps in its forms - frmMenu's background,
-/// frmCredits' portrait, frmCityMain's Exit sign and its seven building pictures, frmMain's nine
-/// toolbar buttons - and the program's icon (About).</item>
+/// frmMain's background and nine toolbar buttons, frmCredits' portrait, frmCityMain's Exit sign and
+/// its seven building pictures - and the program's icon (About).</item>
 /// <item>The city's building buttons as the port draws them, 103x75: cut from the screenshot of the
 /// City window the 1.1 install carries (cityw1.png, or CITYW1.BMP inside MORDOR.HLP); a copy with
 /// neither gets the program's own 120x87 pictures scaled down.</item>
@@ -39,9 +39,9 @@ public static class GameArt
     /// <summary>
     /// Bumped whenever what is extracted changes, so an old cache is not reused. 2: help.json marks
     /// the help file's Contents topic (<see cref="HelpBundle.Topic.Contents"/>). 3: the manifest keeps
-    /// the help file's title (<see cref="HelpTitle"/>).
+    /// the help file's title (<see cref="HelpTitle"/>). 4: extract frmMain's background.
     /// </summary>
-    public const int Version = 3;
+    public const int Version = 4;
 
     public const string HelpFile = "help.json";
     public const string ManifestFile = "extracted.json";
@@ -102,6 +102,7 @@ public static class GameArt
         var l = new List<Picture>();
         foreach (var m in Mg11) l.Add(new Picture(m.Name, m.Width, m.Height, $"MG11.DLL, resource MORDOR/{m.Resource}"));
         l.Add(new Picture("menu_background.png", 600, 400, "MORDOR.EXE, frmMenu's picture"));
+        l.Add(new Picture("main_background.png", 0, 0, "MORDOR.EXE, frmMain's picture"));
         l.Add(new Picture("credits_david.png", 150, 150, "MORDOR.EXE, frmCredits' picture"));
         l.Add(new Picture("town_exit.png", 120, 42, "MORDOR.EXE, frmCityMain's first picture (the Exit sign)"));
         foreach (var (t, i) in Toolbar.Select((t, i) => (t, i)))
@@ -270,13 +271,13 @@ public static class GameArt
             try
             {
                 img = make();
-                if (img.Width != pic.Width || img.Height != pic.Height)
+                if (pic.Width > 0 && (img.Width != pic.Width || img.Height != pic.Height))
                     throw new InvalidDataException($"it is {img.Width}x{img.Height}, not {pic.Width}x{pic.Height}");
             }
             catch (Exception ex) when (ex is InvalidDataException or ArgumentException or IndexOutOfRangeException or FileNotFoundException)
             {
                 notes.Add($"{name}: blank - {pic.From} did not read ({ex.Message})");
-                img = new RgbaImage(pic.Width, pic.Height);
+                img = new RgbaImage(Math.Max(pic.Width, 1), Math.Max(pic.Height, 1));
             }
             made[name] = img;
         }
@@ -295,6 +296,8 @@ public static class GameArt
 
         // MORDOR.EXE
         var exe = NeModule.Read(Need("MORDOR.EXE"));
+        //exe.ExtractPictures(outDir); //for debugging, extract all images to see what may be missed and how to use them.
+
         RgbaImage FormPicture(string form, int index, int w = 0, int h = 0)
         {
             var pics = exe.FormPictures(form);
@@ -305,6 +308,8 @@ public static class GameArt
         Put("menu_background.png", () => FormPicture("frmMenu", 0));
         Put("credits_david.png", () => FormPicture("frmCredits", 0));
         Put("town_exit.png", () => FormPicture("frmCityMain", 0));
+        Put("main_background.png", () => FormPicture("frmMain", 0));
+
         for (int i = 0; i < Toolbar.Length; i++)
         {
             int k = i;

@@ -55,7 +55,7 @@ public sealed class OptionsWindow : Window
 
         Title = "Options";
         SizeToContent = SizeToContent.WidthAndHeight;
-        Background = Brush.Parse("#101018");
+        Background = ThemeSelection.WindowSurface;
         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 

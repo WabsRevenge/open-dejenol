@@ -29,18 +29,22 @@ internal static class PartyOptionsDialog
 {
     public static void Show(Window owner, Party party, Action closed)
     {
-        var who = new ListBox
-        {
-            Width = 110,
-            Background = Brush.Parse("#0a0a10"),
-            ItemsSource = party.Members.Select(m => m.Name.TrimEnd()).ToList(),
-            SelectedIndex = party.SelectedIndex,
-        };
+        var characterPage = new FormPage(1650, 1800, new FormRect(0, 0, 1650, 1800));
+        var who = FormPage.List(characterPage.Root, new FormRect(0, 0, 1650, 1800));
+        who.Foreground = ThemeSelection.FormInk;
+        who.ItemsSource = party.Members.Select(m => m.Name.TrimEnd()).ToList();
+        who.SelectedIndex = party.SelectedIndex;
 
-        var nothing = new RadioButton { Content = "Nothing", GroupName = "defaults" };
-        var fight = new RadioButton { Content = "Fight", GroupName = "defaults" };
-        var defend = new RadioButton { Content = "Defend", GroupName = "defaults" };
-        var buffer = new RadioButton { Content = "Buffer", GroupName = "defaults" };
+        RadioButton Option(string text) => new()
+        {
+            Content = text,
+            GroupName = "defaults",
+            Foreground = ThemeSelection.FormInk,
+        };
+        var nothing = Option("Nothing");
+        var fight = Option("Fight");
+        var defend = Option("Defend");
+        var buffer = Option("Buffer");
 
         // cmbBuffer, filled "For l003C = 0 To 9: cmbBuffer.AddItem CStr(l003C + 1)"
         // (FRMPINFO.BAS:35-37) - so it reads 1 to 10. The port had written 1..9 then 0 on the
@@ -48,6 +52,8 @@ internal static class PartyOptionsDialog
         var whichBuffer = new ComboBox
         {
             Width = 70,
+            Background = ThemeSelection.FormListSurface,
+            Foreground = ThemeSelection.FormInk,
             ItemsSource = Enumerable.Range(1, SpellBuffers.Count).Select(i => i.ToString()).ToList(),
         };
 
@@ -88,12 +94,15 @@ internal static class PartyOptionsDialog
             Content = "OK",
             IsDefault = true,
             Width = 96,
+            Background = ThemeSelection.FormFace,
+            Foreground = ThemeSelection.FormInk,
             HorizontalContentAlignment = Avalonia.Layout.HorizontalAlignment.Center,
         };
 
         var defaults = new Border
         {
-            BorderBrush = Brush.Parse("#444"),
+            Background = ThemeSelection.FormFace,
+            BorderBrush = ThemeSelection.FormBevel,
             BorderThickness = new Thickness(1),
             Padding = new Thickness(10, 6),
             Child = new StackPanel
@@ -101,7 +110,7 @@ internal static class PartyOptionsDialog
                 Spacing = 4,
                 Children =
                 {
-                    new TextBlock { Text = "Defaults", Foreground = Brushes.CornflowerBlue },
+                    new TextBlock { Text = "Defaults", Foreground = ThemeSelection.FormBlue },
                     nothing, fight, defend, buffer, whichBuffer,
                 },
             },
@@ -113,10 +122,11 @@ internal static class PartyOptionsDialog
         {
             Title = "Party Options",
             Width = 400, SizeToContent = SizeToContent.Height,
-            Background = Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border
             {
+                Background = ThemeSelection.FormFace,
                 Padding = new Thickness(12),
                 Child = new StackPanel
                 {
@@ -125,8 +135,8 @@ internal static class PartyOptionsDialog
                     {
                         new Grid
                         {
-                            ColumnDefinitions = new ColumnDefinitions("*,12,Auto"),
-                            Children = { who, new ContentControl { Content = defaults, [Grid.ColumnProperty] = 2 } },
+                            ColumnDefinitions = new ColumnDefinitions("Auto,12,Auto"),
+                            Children = { characterPage.Page, new ContentControl { Content = defaults, [Grid.ColumnProperty] = 2 } },
                         },
                         ok,
                     },
@@ -148,15 +158,15 @@ internal static class PartyOptionsDialog
 internal static class PartyRowColours
 {
     /// <summary>QBColor(0): every Name and Hits label before the switch colours one (MULTIMOD.BAS:613-616).</summary>
-    public static readonly IBrush Plain = Brushes.WhiteSmoke;
+    public static IBrush Plain => ThemeSelection.PartyPlainInk;
     /// <summary>QBColor(mc0116 = 2): the selected member's Name and Hits (MULTIMOD.BAS:640-641).</summary>
-    public static readonly IBrush Selected = Brushes.LightGreen;
+    public static IBrush Selected => ThemeSelection.PartySelectedInk;
     /// <summary>QBColor(mc014C = 1): lblStatus reading "OK" (FRMGROUP.BAS:446-448).</summary>
-    public static readonly IBrush Well = Brushes.CornflowerBlue;
+    public static IBrush Well => ThemeSelection.PartyWellInk;
     /// <summary>QBColor(mc014E = 4): lblStatus with Po/Di/Pa in it (FRMGROUP.BAS:449-450).</summary>
-    public static readonly IBrush Ailing = Brushes.IndianRed;
+    public static IBrush Ailing => ThemeSelection.PartyAilingInk;
     /// <summary>lblSpells and lblOption are never recoloured in code; they are blue in game_files/bm5.png.</summary>
-    public static readonly IBrush Fixed = Brushes.CornflowerBlue;
+    public static IBrush Fixed => ThemeSelection.PartyFixedInk;
 
     public static IBrush NameAndHits(bool selected) => selected ? Selected : Plain;
     /// <summary>Only lblName is made bold, "frmParty!lblName(p00FA).FontBold = True" (MULTIMOD.BAS:642).</summary>

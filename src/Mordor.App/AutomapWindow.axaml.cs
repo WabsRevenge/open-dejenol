@@ -64,7 +64,15 @@ public partial class AutomapWindow : Window
     /// <summary>The Control Panel's "Auto Change Lev.", Chars().M5914 (FRMAUTOM.BAS:310).</summary>
     private bool _autoChangeLevel = true;
 
-    public AutomapWindow() { InitializeComponent(); _floors = Array.Empty<Floor>(); _map = new SharedMap(); }
+    public AutomapWindow()
+    {
+        InitializeComponent();
+        ThemeSelection.ApplyWindowSurface(this);
+        LevelLabel.Foreground = InfoLabel.Foreground = ThemeSelection.FormNavy;
+        MapClip.Background = ThemeSelection.ContentSurface;
+        _floors = Array.Empty<Floor>();
+        _map = new SharedMap();
+    }
 
     /// <summary>
     /// Hands the map itself over to somebody else and leaves this window empty.
@@ -257,6 +265,9 @@ public partial class AutomapWindow : Window
                          (int x, int y)? square = null)
     {
         InitializeComponent();
+        ThemeSelection.ApplyWindowSurface(this);
+        LevelLabel.Foreground = InfoLabel.Foreground = ThemeSelection.FormNavy;
+        MapClip.Background = ThemeSelection.ContentSurface;
         _floors = floors;
         _map = map;
         _deepest = Math.Clamp(deepestReached <= 0 ? 1 : deepestReached, 1, Math.Max(1, floors.Count));
@@ -1080,7 +1091,7 @@ public partial class AutomapWindow : Window
     {
         Text = n.ToString(),
         FontWeight = FontWeight.Bold,
-        Foreground = new SolidColorBrush(Color.FromRgb(0x8f, 0xb0, 0xff)),
+        Foreground = ThemeSelection.FormNavy,
     };
 
     private static void Fill(int[] px, int bw, int bh, int x, int y, int w, int h, int colour)

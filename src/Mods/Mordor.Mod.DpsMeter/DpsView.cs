@@ -6,6 +6,7 @@ using Avalonia.Controls.Primitives;
 using Avalonia.Input;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Styling;
 using Avalonia.Threading;
 using Mordor.Core;
 using Mordor.Modding;
@@ -72,11 +73,7 @@ public static class DpsView
 
     private static Color Rgb((byte R, byte G, byte B) c, byte alpha = 255) => Color.FromArgb(alpha, c.R, c.G, c.B);
 
-    // the game's text colours, the Party window's (PartyRowColours): its plain white, its selected
-    // member's green, and the blue of its fixed captions
-    private static readonly IBrush Plain = Brushes.WhiteSmoke;
-    private static readonly IBrush Selected = Brushes.LightGreen;
-    private static readonly IBrush Caption = Brushes.CornflowerBlue;
+    // The total stays white over the coloured bars; all other text follows the active theme.
     private static readonly IBrush Track = new SolidColorBrush(Rgb(BarColours.Track));
     private static readonly IBrush Over = new SolidColorBrush(Rgb(BarColours.TextOver));
 
@@ -133,18 +130,30 @@ public static class DpsView
     public static Control Build(ModGame game, DpsTally tally, Action<string, Exception> report,
                                 Func<string?>? getMode = null, Action<string>? setMode = null)
     {
+        var plain = new SolidColorBrush(Colors.WhiteSmoke);
+        var selectedInk = new SolidColorBrush(Colors.LightGreen);
+        var captionInk = new SolidColorBrush(Colors.CornflowerBlue);
+        void ApplyTextTheme()
+        {
+            bool light = Application.Current?.ActualThemeVariant != ThemeVariant.Dark;
+            plain.Color = Color.Parse(light ? "#000000" : "#F5F5F5");
+            selectedInk.Color = Color.Parse(light ? "#008000" : "#90EE90");
+            captionInk.Color = Color.Parse(light ? "#000080" : "#6495ED");
+        }
+        ApplyTextTheme();
+
         void Safe(string what, Action act)
         {
             try { act(); }
             catch (Exception ex) { try { report("DPS Meter window: " + what, ex); } catch { } }
         }
 
-        var empty = new TextBlock { Foreground = Plain, TextWrapping = TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(8, 6, 8, 0) };
+        var empty = new TextBlock { Foreground = plain, TextWrapping = TextWrapping.Wrap, IsVisible = false, Margin = new Thickness(8, 6, 8, 0) };
         var rowsPanel = new StackPanel();
         // the names' and the kills' columns, each as wide as its widest cell in every row
         const string nameGroup = "DpsNames", killsGroup = "DpsKills";
 
-        var breakdown = new TextBlock { Tag = "Breakdown", Foreground = Plain, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
+        var breakdown = new TextBlock { Tag = "Breakdown", Foreground = captionInk, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center };
         var reset = new Button { Tag = "Reset", Content = "Reset", Focusable = false, VerticalAlignment = VerticalAlignment.Center };
 
         DpsMode mode = DpsMode.Damage;
@@ -204,8 +213,8 @@ public static class DpsView
             Height = height,
             Child = Line(
                 new TextBlock { Margin = new Thickness(0, 0, 8, 0) },
-                new TextBlock { Text = mode == DpsMode.Xp ? "Experience" : "Damage", Foreground = Caption, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center },
-                new TextBlock { Tag = "KillsHeader", Text = mode == DpsMode.Xp ? "" : "Kills", Foreground = Caption, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = mode == DpsMode.Xp ? new Thickness(0) : new Thickness(8, 0, 0, 0) }),
+                new TextBlock { Text = mode == DpsMode.Xp ? "Experience" : "Damage", Foreground = captionInk, FontWeight = FontWeight.Bold, VerticalAlignment = VerticalAlignment.Center },
+                new TextBlock { Tag = "KillsHeader", Text = mode == DpsMode.Xp ? "" : "Kills", Foreground = captionInk, FontWeight = FontWeight.Bold, HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center, Margin = mode == DpsMode.Xp ? new Thickness(0) : new Thickness(8, 0, 0, 0) }),
         };
 
         // a row: each kind's amount in its colour under the total, the top figure the full width
@@ -242,11 +251,11 @@ public static class DpsView
             var label = new TextBlock
             {
                 Tag = "Name", Text = name, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0, 0, 8, 0),
-                Foreground = isSelected ? Selected : Plain, FontWeight = isSelected ? FontWeight.Bold : FontWeight.Normal,
+                Foreground = isSelected ? selectedInk : plain, FontWeight = isSelected ? FontWeight.Bold : FontWeight.Normal,
             };
             var kills = new TextBlock
             {
-                Tag = "Kills", Text = mode == DpsMode.Xp ? "" : Number(r.Kills), Foreground = Plain,
+                Tag = "Kills", Text = mode == DpsMode.Xp ? "" : Number(r.Kills), Foreground = plain,
                 HorizontalAlignment = HorizontalAlignment.Right, VerticalAlignment = VerticalAlignment.Center,
                 Margin = mode == DpsMode.Xp ? new Thickness(0) : new Thickness(8, 0, 0, 0),
             };
@@ -323,13 +332,25 @@ public static class DpsView
         root.Children.Add(scroll);
 
         Action changed = () => Dispatcher.UIThread.Post(() => Safe("redrawing", () => Look(false)));
+        EventHandler themeChanged = (_, _) => ApplyTextTheme();
         root.AttachedToVisualTree += (_, _) => Safe("opening", () =>
         {
+            if (Application.Current is { } app)
+            {
+                app.ActualThemeVariantChanged -= themeChanged;
+                app.ActualThemeVariantChanged += themeChanged;
+                ApplyTextTheme();
+            }
             game.Changed -= changed; game.Changed += changed;
             tally.Changed -= changed; tally.Changed += changed;
             Look(true);
         });
-        root.DetachedFromVisualTree += (_, _) => { game.Changed -= changed; tally.Changed -= changed; };
+        root.DetachedFromVisualTree += (_, _) =>
+        {
+            game.Changed -= changed;
+            tally.Changed -= changed;
+            if (Application.Current is { } app) app.ActualThemeVariantChanged -= themeChanged;
+        };
         return root;
     }
 }

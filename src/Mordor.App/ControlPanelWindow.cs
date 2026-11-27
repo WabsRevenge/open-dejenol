@@ -67,7 +67,7 @@ public sealed class ControlPanelWindow : Window
         Title = "Control Panel";
         Width = 520;
         SizeToContent = SizeToContent.Height;
-        Background = Brush.Parse("#101018");
+        Background = ThemeSelection.WindowSurface;
         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
 
@@ -80,7 +80,7 @@ public sealed class ControlPanelWindow : Window
         _list = new ListBox
         {
             Height = 132,
-            Background = Brush.Parse("#0a0a10"),
+            Background = ThemeSelection.ContentSurface,
             FontSize = 12,
             ItemsSource = new[] { All }.Concat(_windows.Select(w => w.Child.Title)).ToList(),
             SelectedIndex = 0,
@@ -323,7 +323,7 @@ public sealed class ControlPanelWindow : Window
             Title = "Adjust Windows to Display",
             Width = 420,
             SizeToContent = SizeToContent.Height,
-            Background = Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             FontFamily = FontFamily,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
             Content = new Border

@@ -77,6 +77,7 @@ internal static class ModSlots
     /// </summary>
     private static void WidenWindowContents(Control header, double extra)
     {
+        WidenPartyRows(header, extra);
         if (header.FindLogicalAncestorOfType<ShrinkToFit>() is ShrinkToFit fit) { fit.ExtraWidth = extra; return; }
         // not in its window yet: once it is
         void Attached(object? s, Avalonia.LogicalTree.LogicalTreeAttachmentEventArgs e)
@@ -85,6 +86,17 @@ internal static class ModSlots
             if (header.FindLogicalAncestorOfType<ShrinkToFit>() is ShrinkToFit later) later.ExtraWidth = extra;
         }
         header.AttachedToLogicalTree += Attached;
+    }
+
+    private static void WidenPartyRows(Control header, double extra)
+    {
+        if (header.Parent is not Panel partyBox) return;
+        var rowsHost = partyBox.Children.OfType<Canvas>().FirstOrDefault(c => c.Name == "PartyRowsHost");
+        if (rowsHost is null) return;
+
+        double width = 4215 / FormPage.Twips * CityWindow.PartyGrowthX + extra;
+        rowsHost.Width = width;
+        foreach (var rows in rowsHost.Children.OfType<ListBox>()) rows.Width = width;
     }
 
     /// <summary>One member's cells in the mod columns, after the row's own.</summary>

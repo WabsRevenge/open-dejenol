@@ -25,8 +25,10 @@
         -->
         <app:Toolbar DockPanel.Dock="Top" x:Name="Tools"/>
 
-        <Panel>
-            <app:MdiHost x:Name="Host"/>
+        <Grid>
+            <Border x:Name="Backdrop">
+                <Panel>
+                    <app:MdiHost x:Name="Host"/>
 
             <!--
                 The Shed. Everything here is lifted out in the constructor and handed to a child
@@ -101,8 +103,8 @@
                         <TextBlock Grid.Column="3" Text="Status" FontWeight="Bold" Foreground="#888" HorizontalAlignment="Right" Margin="0,0,10,0"/>
                         <TextBlock Grid.Column="4" Text="Option" FontWeight="Bold" Foreground="#888" HorizontalAlignment="Right"/>
                     </Grid>
-                    <!-- rows at 15 + 210 + 45 twips, 13 pixels each -->
-                    <StackPanel x:Name="PartyRows" Canvas.Left="5" Canvas.Top="18"/>
+                    <!-- FormPage.List creates the themed rows within this form-positioned host. -->
+                    <Canvas x:Name="PartyRowsHost" Canvas.Left="5" Canvas.Top="18" Width="281" Height="56"/>
                     <!-- cmdCommand(0..2) (FRMGROUP.BAS:32-46), all always shown -->
                     <app:ElasticCanvas.Styles>
                         <Style Selector="Button">
@@ -114,11 +116,11 @@
                             <Setter Property="VerticalContentAlignment" Value="Center"/>
                         </Style>
                     </app:ElasticCanvas.Styles>
-                    <Button Canvas.Left="3" Canvas.Top="76" Focusable="False" Content="Switch To" Click="OnPartySwitchTo"/>
-                    <Button Canvas.Left="69" Canvas.Top="76" Focusable="False" Content="Options" Click="OnPartyOptions"/>
+                    <Button x:Name="PartySwitchBtn" Canvas.Left="3" Canvas.Top="76" Focusable="False" Content="Switch To" Click="OnPartySwitchTo"/>
+                    <Button x:Name="PartyOptionsBtn" Canvas.Left="69" Canvas.Top="76" Focusable="False" Content="Options" Click="OnPartyOptions"/>
                     <!-- 15 + 3345 + 945 = 4305 twips, 4 pixels in from the client's right: kept that far
                          from the right when a mod column widens the drawing -->
-                    <Button Canvas.Right="4" Canvas.Top="76" Focusable="False" Content="Leave" Click="OnPartyLeave"/>
+                    <Button x:Name="PartyLeaveBtn" Canvas.Right="4" Canvas.Top="76" Focusable="False" Content="Leave" Click="OnPartyLeave"/>
                 </app:ElasticCanvas>
 
                 <!-- ============================================ the Objects & Spells child -->
@@ -313,7 +315,7 @@
                     sub0760) - which is what the Viewbox's Fill does.
                 -->
                 <Viewbox x:Name="CityBox" Stretch="Fill">
-                    <Canvas x:Name="CityPanel" Width="480" Height="203" Background="#12121a"
+                    <Canvas x:Name="CityPanel" Width="480" Height="203" Background="Transparent"
                             app:UiFonts.Font="frmCityMain.lblSelection(0)">
                         <Canvas.Styles>
                             <Style Selector="Button.pic">
@@ -374,7 +376,9 @@
                     the rest, FRMCTYM.BAS:192-203), shown modeless, so several can be up at once.
                     Each gets a child window of its own, built in code (CityWindow.Services.cs).
                 -->
+                </Panel>
             </Panel>
-        </Panel>
-    </DockPanel>
+        </Border>
+    </Grid>
+            </DockPanel>
 </Window>

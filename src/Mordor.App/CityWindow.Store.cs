@@ -344,7 +344,7 @@ public partial class CityWindow
         // others are simply not bold (CurrentY = False, 1017-1023). Deviation at the user's request
         // (FIDELITY.md): they are also greyed, since bold alone is hard to tell apart in this font.
         FontWeight Weight(ShelfLine? r) => r is { Usable: true } ? FontWeight.Bold : FontWeight.Normal;
-        IBrush Ink(ShelfLine? r) => r is { Usable: true } ? Brushes.WhiteSmoke : Brushes.Gray;
+        IBrush Ink(ShelfLine? r) => r is { Usable: true } ? ThemeSelection.FormInk : ThemeSelection.StoreMutedInk;
         // A heading in its own font: Label9's Courier New for the form's two, the list's face for a mod's
         TextBlock Head(string text, DesignFont font) => UiFonts.Set(new TextBlock { Text = text, FontWeight = FontWeight.Bold }, pass, font);
         // a mod column's heading: in Label9's face too, set in as far as the column's cells (the

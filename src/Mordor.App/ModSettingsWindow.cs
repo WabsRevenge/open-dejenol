@@ -33,7 +33,7 @@ public sealed class ModSettingsWindow : Window
         var spec = mod.Manifest.SettingsWindow ?? new ModSettingsWindowSpec();
         Title = spec.Title == "" ? mod.Manifest.Name + " settings" : spec.Title;
         SizeToContent = SizeToContent.WidthAndHeight;
-        Background = Brush.Parse("#101018");
+        Background = ThemeSelection.WindowSurface;
         FontFamily = new FontFamily("Cascadia Mono, Consolas, monospace");
         WindowStartupLocation = WindowStartupLocation.CenterOwner;
         CanResize = false;

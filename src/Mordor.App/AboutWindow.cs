@@ -87,7 +87,7 @@ internal static class VbForm
     {
         Title = title, Width = width, Height = height, CanResize = false,
         WindowStartupLocation = WindowStartupLocation.CenterOwner, Background = back,
-        RequestedThemeVariant = Avalonia.Styling.ThemeVariant.Light, ShowInTaskbar = false,
+        ShowInTaskbar = false,
         FontFamily = Sans, Content = content,
     };
 }
@@ -108,12 +108,14 @@ public sealed class AboutWindow
     {
         var form = new Canvas { Width = 282, Height = 95 };
         form.Children.Add(new Image { Source = VbForm.Asset("about_icon.png"), Stretch = Stretch.None }.At(90, 105, 480, 480));
-        form.Children.Add(VbForm.Label("MORDOR (The Depths of Dejenol)", 13, VbForm.Maroon, bold: true).At(645, 90, 3570, 240));
+        var title = VbForm.Label("MORDOR (The Depths of Dejenol)", 13, ThemeSelection.AboutTitleInk, bold: true).At(645, 90, 3570, 240);
+        form.Children.Add(title);
         // Form_Load (FRMABOUT.BAS:23) writes it: "Version " + gc0186 + " (Last Edited " + gc0196 + ")".
         // The label is 180 twips high for an 8.25 point line, so the bottom of the text is cut off,
         // as it is in the original. gc0196 is the full MORDOR.EXE's "7/20/95", and the shareware
         // one's "7/6/95" in the limited build (LimitedVersion.LastEdited).
-        form.Children.Add(VbForm.Label("Version 1.1 (Last Edited " + LimitedVersion.LastEdited + ")", 11, VbForm.Navy).At(660, 375, 3195, 180));
+        var version = VbForm.Label("Version 1.1 (Last Edited " + LimitedVersion.LastEdited + ")", 11, ThemeSelection.AboutVersionInk).At(660, 375, 3195, 240);
+        form.Children.Add(version);
 
         var info = new Canvas();
         info.Children.Add(VbForm.Label("Mordor is © Copyright 1995, MakeItSo Software", 11, Brushes.Black,
@@ -133,6 +135,13 @@ public sealed class AboutWindow
         }
 
         _win = VbForm.Dialog("About MORDOR", 282, 95, VbForm.Grey, form);
+        void ApplyTheme()
+        {
+            version.FontWeight = ThemeSelection.IsLight ? FontWeight.Bold : FontWeight.Normal;
+        }
+        ApplyTheme();
+        ThemeSelection.ThemeChanged += ApplyTheme;
+        _win.Closed += (_, _) => ThemeSelection.ThemeChanged -= ApplyTheme;
         // cmdCredits_Click (FRMABOUT.BAS:10-12) and cmdOK_Click (FRMABOUT.BAS:18-20). Neither is the
         // form's default or cancel button: Enter presses whichever has the focus, and Escape nothing.
         credits.Click += async (_, _) => await new CreditsWindow().ShowDialog(_win);

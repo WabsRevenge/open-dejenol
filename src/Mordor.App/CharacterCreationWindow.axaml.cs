@@ -32,6 +32,7 @@ public partial class CharacterCreationWindow : Window
     {
         _gameDir = gameDir;
         InitializeComponent();
+        ThemeSelection.ApplyWindowSurface(this);
         RaceBox.ItemsSource = RaceData.All.Select(r => r.Name).ToList();
         SexBox.ItemsSource = new[] { "Male", "Female" };
         SexBox.SelectedIndex = 0;
@@ -149,7 +150,7 @@ public partial class CharacterCreationWindow : Window
         new Window
         {
             Title = title, Width = 820, Height = 420, WindowStartupLocation = WindowStartupLocation.CenterOwner,
-            Background = new SolidColorBrush(Color.FromRgb(0x12, 0x12, 0x1a)),
+            Background = ThemeSelection.WindowSurface,
             Content = new ScrollViewer { Content = body },
         }.ShowDialog(this);
 

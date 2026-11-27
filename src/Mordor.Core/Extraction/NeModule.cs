@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Text;
 
 namespace Mordor.Core.Extraction;
@@ -91,6 +92,12 @@ public sealed class NeModule
     /// </summary>
     public List<RgbaImage> FormPictures(string form)
     {
+        //Debug
+        foreach (var f in VbForms())
+        {
+            Debug.WriteLine(f.Form);
+        }
+        //end debug
         var (_, data) = VbForms().FirstOrDefault(f => f.Form.Equals(form, StringComparison.OrdinalIgnoreCase));
         var found = new List<RgbaImage>();
         if (data == null) return found;
@@ -107,5 +114,71 @@ public sealed class NeModule
             i += size - 1;
         }
         return found;
+    }
+
+    //Extract all image resources from the Executable. This will give the Frame Name and Index.
+    public void ExtractPictures(string outDir)
+    {
+        Directory.CreateDirectory(outDir);
+
+        foreach (var f in VbForms())
+        {
+            string formName = f.Form;
+
+            // Make form name safe for filenames
+            foreach (var c in Path.GetInvalidFileNameChars())
+                formName = formName.Replace(c, '_');
+
+            var pictures = FormPictures(f.Form);
+
+            for (int i = 0; i < pictures.Count; i++)
+            {
+                string filename = $"{formName}_{i:00}.bmp";
+                string path = Path.Combine(outDir, filename);
+
+                SaveBmp(pictures[i], path);
+            }
+
+            Debug.WriteLine($"{formName}: {pictures.Count} pictures extracted");
+        }
+    }
+
+    private static void SaveBmp(RgbaImage img, string path)
+    {
+        int rowSize = img.Width * 4;
+        int pixelSize = rowSize * img.Height;
+        int fileSize = 54 + pixelSize;
+
+        using var fs = new FileStream(path, FileMode.Create, FileAccess.Write);
+        using var bw = new BinaryWriter(fs);
+
+        // BMP file header
+        bw.Write((byte)'B');
+        bw.Write((byte)'M');
+        bw.Write(fileSize);
+        bw.Write(0);
+        bw.Write(54);
+
+        // BITMAPINFOHEADER
+        bw.Write(40);
+        bw.Write(img.Width);
+        bw.Write(-img.Height); // Top-down bitmap
+        bw.Write((short)1);
+        bw.Write((short)32);
+        bw.Write(0);           // BI_RGB
+        bw.Write(pixelSize);
+        bw.Write(2835);        // 72 DPI
+        bw.Write(2835);
+        bw.Write(0);
+        bw.Write(0);
+
+        // Pixel data (BGRA)
+        foreach (uint pixel in img.Pixels)
+        {
+            bw.Write((byte)(pixel & 0xFF));         // Blue
+            bw.Write((byte)((pixel >> 8) & 0xFF));  // Green
+            bw.Write((byte)((pixel >> 16) & 0xFF));// Red
+            bw.Write((byte)((pixel >> 24) & 0xFF));// Alpha
+        }
     }
 }

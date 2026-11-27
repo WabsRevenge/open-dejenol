@@ -107,7 +107,7 @@ internal static class Updates
         var box = new Window
         {
             Title = "OpenDejenol", Width = 420, SizeToContent = SizeToContent.Height, CanResize = false,
-            Background = Brush.Parse("#101018"), WindowStartupLocation = WindowStartupLocation.CenterOwner,
+            Background = ThemeSelection.WindowSurface, WindowStartupLocation = WindowStartupLocation.CenterOwner,
             ShowInTaskbar = false, Content = new Border { Padding = new Thickness(14), Child = line },
         };
         UiFonts.MessageBox(box);

@@ -35,9 +35,9 @@ public static class DirectoryDialog
         string current = start;
         string? answer = null;
 
-        var lblDirectory = new TextBlock { Foreground = Brushes.White, TextWrapping = TextWrapping.Wrap };
+        var lblDirectory = new TextBlock { Foreground = ThemeSelection.DialogText, TextWrapping = TextWrapping.Wrap };
         var lblInfo = new TextBlock { FontWeight = FontWeight.Bold };
-        var dirs = new ListBox { Height = 180, Background = Brush.Parse("#0e0e14") };
+        var dirs = new ListBox { Height = 180, Background = ThemeSelection.ContentSurface };
         var ok = new Button { Content = "OK", IsDefault = true, Width = 90, HorizontalContentAlignment = HorizontalAlignment.Center };
         var cancel = new Button { Content = "Cancel", IsCancel = true, Width = 90, HorizontalContentAlignment = HorizontalAlignment.Center };
 
@@ -45,7 +45,7 @@ public static class DirectoryDialog
         {
             Title = "Select " + tag + " Directory",
             Width = 420, SizeToContent = SizeToContent.Height, CanResize = false,
-            Background = Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             FontFamily = owner.FontFamily,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };

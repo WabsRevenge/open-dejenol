@@ -98,7 +98,7 @@ public sealed class MdiChild : Border
     public MdiChild(string title, Control content, double width, double height)
     {
         _title = title;
-        Background = Brush.Parse("#12121a");
+        Background = ThemeSelection.WindowSurface;
         BorderBrush = Brush.Parse("#3a3a4e");
         BorderThickness = new Thickness(1);
         Width = width;
@@ -468,7 +468,7 @@ public sealed class MdiHost : Canvas
 
     public MdiHost()
     {
-        Background = Brush.Parse("#0a0a10");
+        Background = ThemeSelection.ContentSurface;
         ClipToBounds = true;
         // the icons keep to the bottom row whatever the frame's size, and one parked before the
         // frame had a size at all is put there once it has one

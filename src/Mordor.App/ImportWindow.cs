@@ -135,7 +135,7 @@ public static class ImportWindow
             SizeToContent = SizeToContent.Height,
             MaxHeight = 720,
             CanResize = false,
-            Background = Brush.Parse("#101018"),
+            Background = ThemeSelection.WindowSurface,
             FontFamily = font,
             WindowStartupLocation = WindowStartupLocation.CenterOwner,
         };

@@ -141,7 +141,9 @@ public static partial class SelfCheckProbe
             var notes = GameArt.Extract(dir, outDir);
             Console.WriteLine($"  extracted {GameArt.Pictures.Count} pictures and the help in {watch.ElapsedMilliseconds} ms");
             Check("nothing missing or made up from this copy", string.Join("; ", notes), "");
-            Check("pictures the port loads", GameArt.Pictures.Count, BundledPixels.Count);
+            Check("pictures the port loads, including frmMain's background", GameArt.Pictures.Count, BundledPixels.Count + 1);
+            var mainBackground = Png.Decode(File.ReadAllBytes(Path.Combine(outDir, "main_background.png")));
+            Check("frmMain's background was extracted at its native size", mainBackground.Width > 0 && mainBackground.Height > 0, true);
             int same = 0, compared = 0, gitSame = 0;
             var odd = new List<string>();
             foreach (var p in GameArt.Pictures)
@@ -149,16 +151,20 @@ public static partial class SelfCheckProbe
                 string path = Path.Combine(outDir, p.Name);
                 if (!File.Exists(path)) { odd.Add(p.Name + " not written"); continue; }
                 var img = Png.Decode(File.ReadAllBytes(path));
-                if (img.Width != p.Width || img.Height != p.Height) odd.Add($"{p.Name} is {img.Width}x{img.Height}");
-                if (BundledPixels.TryGetValue(p.Name, out var want) && PixelHash(img) == want) same++;
-                else odd.Add(p.Name + " is not the bundled picture");
+                if (p.Width > 0 && (img.Width != p.Width || img.Height != p.Height)) odd.Add($"{p.Name} is {img.Width}x{img.Height}");
+                if (BundledPixels.TryGetValue(p.Name, out var want))
+                {
+                    if (PixelHash(img) == want) same++;
+                    else odd.Add(p.Name + " is not the bundled picture");
+                }
+                else if (p.Name != "main_background.png") odd.Add(p.Name + " has no picture check");
                 var old = GitShow(portDir, "Mordor.App/Assets/" + p.Name);
                 if (old == null) continue;
                 compared++;
                 if (img.SamePixels(Png.Decode(old), out string why)) gitSame++;
                 else odd.Add($"{p.Name} against {BundledArtCommit}: {why}");
             }
-            Check("pictures pixel for pixel the ones the port carried", $"{same}/{GameArt.Pictures.Count}", $"{BundledPixels.Count}/{BundledPixels.Count}");
+            Check("previously bundled pictures remain pixel for pixel", $"{same}/{BundledPixels.Count}", $"{BundledPixels.Count}/{BundledPixels.Count}");
             if (compared == 0) Console.WriteLine($"  note  git could not show {BundledArtCommit}: the pictures were checked by their hashes only");
             else Check($"and against the files in {BundledArtCommit}, decoded", $"{gitSame}/{compared}", $"{BundledPixels.Count}/{BundledPixels.Count}");
             Check("pictures wrong", string.Join("; ", odd), "");

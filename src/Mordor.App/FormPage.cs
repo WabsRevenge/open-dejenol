@@ -22,7 +22,7 @@ namespace Mordor.App;
 /// the form's, unless the form data gives it one of its own - lblWelcome's 12 points bold with
 /// its Tag ":12", the Guild's Courier New stats) put through the Options window's fonts as every
 /// service form puts it (<see cref="Pass"/>, <see cref="UiFonts"/>). The colours are the port's
-/// dark theme's stand-ins for the form's: its blue welcome, its maroon and navy captions.
+/// active theme's stand-ins for the form's blue welcome, maroon and navy captions, face, fields and bevels.
 ///
 /// See docs/FIDELITY.md, "The town's service windows are drawn to their forms' data".
 /// </summary>
@@ -77,22 +77,22 @@ internal sealed class FormPage
     /// <summary>A plain face's design font: MS Sans Serif 8.25, bold or not.</summary>
     private static DesignFont Sans(bool bold) => bold ? DesignFont.Default : DesignFont.Default.Plain;
 
-    /// <summary>The form's blue (lblWelcome's &amp;HFF0000), in the dark theme.</summary>
-    public static readonly IBrush Blue = Brushes.CornflowerBlue;
+    /// <summary>The form's blue (lblWelcome's &amp;HFF0000), adjusted for the active theme.</summary>
+    public static readonly IBrush Blue = ThemeSelection.FormBlue;
     /// <summary>The form's maroon captions (&amp;H80: the Guild's GuildMaster, the Bank's lblStatus).</summary>
-    public static readonly IBrush Maroon = Brushes.IndianRed;
+    public static readonly IBrush Maroon = ThemeSelection.FormMaroon;
     /// <summary>The form's navy captions (&amp;H800000: the Bank's lblLabel, the Seer's lblLabel).</summary>
-    public static readonly IBrush Navy = new SolidColorBrush(Color.FromRgb(0x8a, 0xa8, 0xe8));
-    /// <summary>A plain caption, the form's black.</summary>
-    public static readonly IBrush Ink = new SolidColorBrush(Color.FromRgb(0xd8, 0xd8, 0xe0));
+    public static readonly IBrush Navy = ThemeSelection.FormNavy;
+    /// <summary>A plain caption, black in Light and pale in Dark.</summary>
+    public static readonly IBrush Ink = ThemeSelection.FormInk;
     /// <summary>A tan-yellow field you type into (the help's "tan-yellow fields take input").</summary>
     public static readonly IBrush InputField = new SolidColorBrush(Color.FromRgb(0xd8, 0xc8, 0x8a));
-    /// <summary>A dark-grey field that only shows something (a label with BorderStyle 1).</summary>
-    public static readonly IBrush DisplayField = new SolidColorBrush(Color.FromRgb(0x33, 0x33, 0x3a));
-    /// <summary>The form's own ground, the port's dark face (a form's BackColor, &amp;HC0C0C0).</summary>
-    public static readonly IBrush Face = new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x20));
-    /// <summary>An Elastic's bevelled line, in the dark theme (the character window's Stats page draws its two too).</summary>
-    public static readonly IBrush Bevel =new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x66));
+    /// <summary>A display-only field; white in Light and dark grey in Dark.</summary>
+    public static readonly IBrush DisplayField = ThemeSelection.FormDisplayField;
+    /// <summary>The form's own ground, adapting from VB's BackColor (&amp;HC0C0C0) in Light.</summary>
+    public static readonly IBrush Face = ThemeSelection.FormFace;
+    /// <summary>An Elastic's bevelled line, adapted for the active theme.</summary>
+    public static readonly IBrush Bevel = ThemeSelection.FormBevel;
 
     /// <summary>The client area, in pixels: the size the service window's inside is made.</summary>
     public Size Client { get; }
@@ -295,16 +295,16 @@ internal sealed class FormPage
     /// default 11-pixel face, where VB's are the line's 13): the theme's roomy item padding is
     /// taken off, and a larger Options font makes taller rows rather than clipped ones.
     /// </summary>
-    public static ListBox List(Canvas into, FormRect r, bool bold = false)
+    public static ListBox List(Canvas into, FormRect r, bool bold = false, double? rowHeight = null)
     {
         var l = UiFonts.Set(new ListBox
         {
             Padding = new Thickness(0),
             FontWeight = bold ? FontWeight.Bold : FontWeight.Normal,
-            Background = new SolidColorBrush(Color.FromRgb(0x0a, 0x0a, 0x10)),
+            Background = ThemeSelection.FormListSurface,
             BorderBrush = Bevel, BorderThickness = new Thickness(1),
         }, Pass, Sans(bold));
-        TightRows(l, UiFonts.RowHeight(Pass, 0, Sans(bold)));
+        TightRows(l, rowHeight ?? UiFonts.RowHeight(Pass, 0, Sans(bold)));
         return Place(into, l, r);
     }
 
@@ -367,7 +367,7 @@ internal sealed class FormPage
                     new Avalonia.Controls.Shapes.Ellipse
                     {
                         Width = 12, Height = 12, Stroke = Bevel, StrokeThickness = 1,
-                        Fill = new SolidColorBrush(Color.FromRgb(0x0a, 0x0a, 0x10)),
+                        Fill = ThemeSelection.FormListSurface,
                     },
                     dot,
                 },
@@ -407,7 +407,7 @@ internal sealed class FormPage
             {
                 Width = 12, Height = 12, VerticalAlignment = VerticalAlignment.Center,
                 BorderBrush = Bevel, BorderThickness = new Thickness(1),
-                Background = new SolidColorBrush(Color.FromRgb(0x0a, 0x0a, 0x10)), Child = tick,
+                Background = ThemeSelection.FormListSurface, Child = tick,
             };
             Grid.SetColumn(presenter, 1);
             // a transparent ground, so the caption takes the click as well as the square

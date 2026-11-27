@@ -52,6 +52,10 @@ already installed some other way can be chosen with **Locate Mordor...** instead
 remembered in `%APPDATA%\OpenDejenol`. When a newer version is out, it offers the
 update on the main menu. To build it yourself instead, see [Building from source](#building-from-source).
 
+On Windows, open a window's system menu with **Alt+Space**, then choose **Theme Selection** to use
+Windows (system), Light, or Dark appearance. The selection is remembered between runs and applies to
+window and dialog surfaces as well as the controls.
+
 For `M1FULL.zip`, select the original ZIP directly. There is no need to extract it or select its
 `SETUP.EXE` or `.WIP` files; OpenDejenol reads the game and audio from the package itself.
 
