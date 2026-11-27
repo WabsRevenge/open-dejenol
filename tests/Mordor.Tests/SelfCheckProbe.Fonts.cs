@@ -192,8 +192,8 @@ public static partial class SelfCheckProbe
             Check($"{o.File} still has its allowed font ({o.Why})",
                   files.Any(p => System.IO.Path.GetFileName(p) == o.File && System.IO.File.ReadAllText(p).Contains(o.Text)), true);
         // the MsgBox stand-ins are in Windows' message font, not their frame's Cascadia Mono: the
-        // town's and the dungeon's Tell and Confirm, and OriginalBox
-        foreach (var (file, boxes) in new[] { ("CityWindow.axaml.cs", 2), ("DungeonWindow.axaml.cs", 2), ("OriginalBox.cs", 1) })
+        // town's and the dungeon's Tell and Confirm, and OriginalBox's two (Tell, and Choose for a mod's questions)
+        foreach (var (file, boxes) in new[] { ("CityWindow.axaml.cs", 2), ("DungeonWindow.axaml.cs", 2), ("OriginalBox.cs", 2) })
             Check($"{file}: its {boxes} MsgBox stand-in(s) take UiFonts.MessageBox",
                   Regex.Matches(PortSource("src/Mordor.App", file), @"UiFonts\.MessageBox\(win\)").Count, boxes);
 

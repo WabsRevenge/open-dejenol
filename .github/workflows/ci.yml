@@ -1,4 +1,5 @@
-# Build and test every push and pull request, on Windows and on macOS (docs/RELEASING.md).
+# Build and test every push and pull request, on Windows and Linux (x64 and ARM) and on macOS
+# (docs/RELEASING.md).
 #
 # There is no copy of Mordor here, and none may be put here: the suites under `dotnet test`
 # (tests/Mordor.Tests.Runner) all read the game's own files and skip themselves without
@@ -25,7 +26,14 @@ env:
 
 jobs:
   build:
-    runs-on: windows-latest
+    # each system and processor the releases are for, and Linux on ARM for those who build there,
+    # built and run natively; the packages are made once, on Windows x64, where tools/pack-release.sh
+    # packs all three released runtimes (win-x64, win-arm64, linux-x64)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, windows-11-arm, ubuntu-latest, ubuntu-24.04-arm]
+    runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -37,6 +45,7 @@ jobs:
 
       # the runner has newer SDKs too; build with the .NET 8 one just installed, as the project does
       - name: Pin the .NET 8 SDK
+        shell: bash
         run: dotnet new globaljson --sdk-version "${{ steps.dotnet.outputs.dotnet-version }}" --force
 
       - name: Restore
@@ -51,6 +60,7 @@ jobs:
 
       # what a release would hold, checked and packed, and thrown away (tools/pack-release.sh)
       - name: Package (not uploaded)
+        if: matrix.os == 'windows-latest'
         shell: bash
         run: sh tools/pack-release.sh "$RUNNER_TEMP/release"
 

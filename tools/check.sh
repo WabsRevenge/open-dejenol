@@ -121,6 +121,26 @@ if [ "$UI_RC" -ne 0 ]; then
     UI=1
 elif timeout 120 "$UI_EXE" "$GAME"; then UI=0; else UI=1; fi
 
+# and a short game played through those windows - two characters made, a guild joined, gear
+# bought, two fights, two levels, a spell set as a Combat Setting and cast - on the invented test
+# fixture (FixtureGame), never on the Mordor folder: it writes characters, into a scratch saves
+# folder of its own. The fixture goes to a scratch folder too, removed after.
+if [ "$UI_RC" -eq 0 ]; then
+    echo
+    echo "== a scripted playthrough on the test fixture, headless (Mordor.UiCheck --playthrough) =="
+    PLAY_DIR=$(mktemp -d "${TMPDIR:-/tmp}/mordor-playthrough.XXXXXX")
+    if [ -z "$PLAY_DIR" ] || [ ! -d "$PLAY_DIR" ]; then
+        echo "  FAIL  no scratch folder for the fixture"
+        UI=1
+    elif ! "$UI_EXE" --make-fixture "$PLAY_DIR/fixture" > /dev/null; then
+        echo "  FAIL  the fixture could not be written to $PLAY_DIR/fixture"
+        UI=1
+    elif ! timeout 300 "$UI_EXE" "$PLAY_DIR/fixture" --playthrough; then
+        UI=1
+    fi
+    [ -n "$PLAY_DIR" ] && case "$PLAY_DIR" in *mordor-playthrough.*) rm -rf "$PLAY_DIR" ;; esac
+fi
+
 echo
 echo "== every tool, for a crash (Mordor.Tools, docs/TOOLS.md) =="
 # the tools' own table names them (Mordor.Tools --sweep-list): every tool but the ones that write

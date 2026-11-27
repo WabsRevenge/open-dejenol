@@ -29,11 +29,6 @@ game_files/
 [Ff][Hh]_[Bb][Mm][Pp].[Dd][Ll][Ll]
 [Mm][Mm][Ss][Yy][Ss][Tt][Ee][Mm].[Dd][Ll][Ll]
 [Mm]ordor*[Ss]etup*.[Ee][Xx][Ee]
-# the decompiled original and the saved dejenol.com pages are not in the public tree (tools/check.sh)
-decompiled/
-decompiled-named/
-docs/dejenol-formulas/
-
 # dotnet's own state, kept in the tree by the Makefile so builds need nothing outside it
 .dotnet-home/
 .nuget/

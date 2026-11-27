@@ -65,7 +65,7 @@ public static partial class SelfCheckProbe
 
             var monsters = MdrLoader.LoadMonsters(D("MDATA5.MDR"));
             SameRecords("MDATA5 monsters read back", FixtureGame.Monsters(), monsters, m => m.Name);
-            Check("monsters found on levels 1, 2, 3", string.Join(" ", Enumerable.Range(1, 3).Select(l => monsters.Count(m => m.LevelFound == l))), "4 4 3");
+            Check("monsters found on levels 1, 2, 3", string.Join(" ", Enumerable.Range(1, 3).Select(l => monsters.Count(m => m.LevelFound == l))), "6 4 3");
             Check("every monster's Ref is its place in the table", monsters.Select((m, i) => m.Ref == i).All(x => x), true);
             Check("Fixture Wolf: class, level, hits", monsters.FirstOrDefault(m => m.Name == "Fixture Wolf") is Monster w ? $"{w.Type} {w.LevelFound} {w.Hits}" : "", "2 3 18");
             // the encounter roll has no way out, as the original's has none: on level 1 below area 18
@@ -86,8 +86,8 @@ public static partial class SelfCheckProbe
             string Squares(Floor f, int bit) => string.Join("", Enumerable.Range(0, f.Height).SelectMany(y => Enumerable.Range(0, f.Width).Where(x => f.Has(x, y, bit)).Select(x => $"({x},{y})")));
             Check("stairs up on each level", string.Join(" ", dungeon.Select(f => Squares(f, Floor.STAIRS_UP))), "(2,2) (14,15) (2,17)");
             Check("stairs down on each level", string.Join(" ", dungeon.Select(f => Squares(f, Floor.STAIRS_DOWN) is { Length: > 0 } s ? s : "-")), "(14,15) (2,17) -");
-            Check("doors on each level, plain and secret", string.Join(" ", dungeon.Select(f => $"{f.Fields.Count(c => (c.Flags & ((1L << Floor.DOOR_EAST) | (1L << Floor.DOOR_NORTH))) != 0)}/{f.Fields.Count(c => (c.Flags & ((1L << Floor.SECRET_DOOR_EAST) | (1L << Floor.SECRET_DOOR_NORTH))) != 0)}")), "4/0 2/0 1/1");
-            Check("areas in the header and in use", string.Join(" ", dungeon.Select(f => $"{f.HeaderAreaCount}/{f.AreasInUse}")), "5/5 3/3 3/3");
+            Check("doors on each level, plain and secret", string.Join(" ", dungeon.Select(f => $"{f.Fields.Count(c => (c.Flags & ((1L << Floor.DOOR_EAST) | (1L << Floor.DOOR_NORTH))) != 0)}/{f.Fields.Count(c => (c.Flags & ((1L << Floor.SECRET_DOOR_EAST) | (1L << Floor.SECRET_DOOR_NORTH))) != 0)}")), "6/0 2/0 1/1");
+            Check("areas in the header and in use", string.Join(" ", dungeon.Select(f => $"{f.HeaderAreaCount}/{f.AreasInUse}")), "7/7 3/3 3/3");
             var two = dungeon.Count > 1 ? dungeon[1] : null;
             Check("level 2's teleporter and chute records", two == null ? "" : string.Join(" ", two.Teleporters.Select(t => $"T{t.X},{t.Y}>{t.X2},{t.Y2},{t.Z2}").Concat(two.Chutes.Select(c => $"C{c.X},{c.Y}+{c.Depth}"))), "T9,17>15,14,2 C4,16+1");
             Check("the chute lands on open floor a level down", dungeon.Count > 2 && !dungeon[2].Has(3, 15, Floor.ROCK), true);
@@ -106,10 +106,12 @@ public static partial class SelfCheckProbe
             SameRecords("MDATA1 guilds read back (GuildData.LoadFrom)", want.Guilds, GuildData.All, g => g.Name);
             Check("the races", string.Join(", ", RaceData.All.Select(r => r.Name)), "Plainfolk, Tallkin, Stoutling");
             Check("the guilds, the Nomad first", string.Join(", ", GuildData.All.Select(g => g.Name)), "Nomad, Brawler, Chanter");
-            Check("Mdata1.LoadFrom: 35 item types, 4 monster classes", $"{Mdata1.ItemTypes.Count} {Mdata1.MonsterClasses.Count} {Mdata1.Loaded}", "35 4 True");
+            Check("Mdata1.LoadFrom: 35 item types, 5 monster classes", $"{Mdata1.ItemTypes.Count} {Mdata1.MonsterClasses.Count} {Mdata1.Loaded}", "35 5 True");
             Check("Brawler: hits, race mask, gold factor, A/D every", GuildData.All.FirstOrDefault(g => g.Name == "Brawler") is GuildDef br ? $"{br.AvgHits} {br.RaceMask} {br.GoldFactor} {br.AdEvery}" : "", "6 3 1 3");
             Check("a crest is guild issued with three guilds loaded", crest != null && ItemUse.IsGuildIssued(crest), true);
             Check("Tallkin: size, maximum strength", RaceData.All.FirstOrDefault(r => r.Name == "Tallkin") is Race tk ? $"{tk.Size} {tk.Max[0]}" : "", "Big 22");
+
+            PlaythroughData(spells, items, monsters, dungeon);
         }
         catch (Exception ex) when (ex is IOException or InvalidDataException or InvalidOperationException or UnauthorizedAccessException)
         {
@@ -124,6 +126,85 @@ public static partial class SelfCheckProbe
         }
 
         RealFilesRewritten(dir);
+    }
+
+    /// <summary>
+    /// What the scripted playthrough (Mordor.UiCheck --playthrough) counts on the fixture's data
+    /// for, held here where it is quick to see which piece moved: the gear on the Store's shelf and
+    /// usable at level 1, the spell learned at Chanter level 2 and castable there, and the two lairs
+    /// off the entrance always holding their own monster, which cannot hurt anyone, always attacks,
+    /// leaves no chest, and (the Sparring Post) pays a level for one blow. The tables are the
+    /// fixture's, loaded by the caller.
+    /// </summary>
+    private static void PlaythroughData(List<Spell> spells, List<Item> items, List<Monster> monsters, List<Floor> dungeon)
+    {
+        var shelf = StoreStock.CreateInitial(items);
+        foreach (string name in new[] { FixtureGame.PlaythroughWeapon, FixtureGame.PlaythroughArmour })
+        {
+            var it = items.FirstOrDefault(i => i.Name == name);
+            var nomad = new Character { Race = "Plainfolk", Stats = new[] { 10, 10, 10, 10, 10, 10 },
+                                        Guilds = { new GuildMembership { Guild = GuildData.StartingGuild, Level = 1 } } };
+            var chanter = new Character { Race = "Plainfolk", Stats = new[] { 10, 12, 12, 10, 10, 10 },
+                                          Guilds = { new GuildMembership { Guild = FixtureGame.PlaythroughGuild, Level = 1 },
+                                                     new GuildMembership { Guild = GuildData.StartingGuild, Level = 1 } } };
+            Check($"playthrough: {name} on the Store's own shelf, at its list price, usable by a level-1 Nomad and Chanter",
+                  it == null ? "" : $"{shelf.Count(it.Id, ItemAlignment.Unaligned)} {shelf.PriceOf(it, ItemAlignment.Unaligned) == it.Price} {nomad.EquipProblem(it) ?? "ok"} {chanter.EquipProblem(it) ?? "ok"}",
+                  "99 True ok ok");
+        }
+
+        var spark = spells.FirstOrDefault(s => s.Name == FixtureGame.PlaythroughSpell);
+        var guild = GuildData.ByName(FixtureGame.PlaythroughGuild);
+        Character Caster(int level) => new()
+        {
+            Name = "Caster", Race = "Plainfolk", Stats = new[] { 12, 12, 12, 10, 10, 10 },
+            Guilds = { new GuildMembership { Guild = FixtureGame.PlaythroughGuild, Level = level },
+                       new GuildMembership { Guild = GuildData.StartingGuild, Level = 1 } },
+        };
+        Check("playthrough: Fixture Spark is learned at Chanter level 2 and not at 1",
+              spark == null ? "" : $"{guild.CanCast(spark.Category, spark.Level, 1)} {guild.CanCast(spark.Category, spark.Level, 2)}", "False True");
+        Check("playthrough: and may be cast at Chanter level 2 (CastGate.Unfit)",
+              spark == null ? "no spell" : CastGate.Unfit(Caster(2), spark, 0, true, _ => null)?.Text ?? "ok", "ok");
+
+        var level1 = dungeon[0];
+        var rng = new Random(11);
+        foreach (var (room, lair, groups) in new[] { (FixtureGame.SparringRoom, FixtureGame.SparringMonster, "1 2"),
+                                                     (FixtureGame.TargetRoom, FixtureGame.TargetMonster, "1") })
+        {
+            var mon = monsters.FirstOrDefault(m => m.Name == lair);
+            if (mon == null) { Check($"playthrough: {lair} is in the monsters", false, true); continue; }
+            var area = level1.Areas[level1.AreaIdAt(room.X, room.Y)];
+            Check($"playthrough: the room at ({room.X},{room.Y}) is {lair}'s lair, area below 18, spawning only the Construct class",
+                  $"{area.LairId == mon.Id} {level1.AreaIdAt(room.X, room.Y) < 18} {area.SpawnMask}", "True True 16");
+            var seen = new SortedSet<int>();
+            bool always = true;
+            var drawn = System.Threading.Tasks.Task.Run(() =>
+            {
+                for (int i = 0; i < 500; i++)
+                {
+                    var e = EncounterGenerator.Generate(monsters, 1, rng, level1, room.X, room.Y);
+                    var standing = e.Foes.Where(f => f.GroupCount > 0).ToList();
+                    seen.Add(standing.Count);
+                    always &= e.LeadMonster == mon && standing.All(f => f.Ref == mon.Id && f.GroupCount == 1)
+                              && e.TreasureClass == 0 && e.Count > 0 && e.All(m => m.Hostile);
+                }
+            });
+            Check($"playthrough: 500 encounters in {lair}'s room end (within 20 seconds)", drawn.Wait(TimeSpan.FromSeconds(20)), true);
+            Check($"playthrough: each is {lair} alone in its groups, hostile, with no chest", always, true);
+            Check($"playthrough: {lair}'s groups seen", string.Join(" ", seen), groups);
+            // sub0E85's modifier (MonsterAttack.GroupAttacks): its DamageMod, which a size can only
+            // lower here (no race is smaller than Size 0), and fn0DEE's floor of .1 for one at or under 0
+            int hurt = 0;
+            foreach (double damMod in new[] { mon.DamageMod, 0.1 })
+                foreach (int def in new[] { 0, 5, 30 })
+                    for (int i = 0; i < 2000; i++)
+                        hurt += Rules.MonsterBlow(rng, mon.Att, def, mon.GuildLevel, mon.Stats[0], damMod) > 0 ? 1 : 0;
+            Check($"playthrough: {lair}'s blows do nothing (12000 drawn), it is no bigger than any race, and it has no spell or special attack",
+                  $"{hurt} {mon.Size <= RaceData.All.Min(r => (int)r.Size)} {mon.SpellFlags} {mon.SpecialAttackFlags} {mon.SpecialPropertyFlags}", "0 True 0 0 0");
+        }
+        var post = monsters.FirstOrDefault(m => m.Name == FixtureGame.SparringMonster);
+        long need = GuildData.All.Max(g => RaceData.All.Max(r => Rules.Fn12A1(1, g.ExpFactor, r.ExpFactor)));
+        Check("playthrough: one blow of 1 on the Sparring Post, in a party of two, pays a level-1 character a level in any guild",
+              post != null && Rules.ExpAwarded(1, post.GuildLevel, 1, false, 2) >= need, true);
     }
 
     private static bool RefusesGame()

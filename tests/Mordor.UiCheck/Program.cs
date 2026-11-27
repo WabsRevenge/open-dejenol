@@ -24,6 +24,7 @@ using Mordor.Core;
 //
 //   Mordor.UiCheck <gamedir>        exit code 1 if anything failed
 //   add --body-recovery-only for the fatal-step/pickup regression alone
+//   Mordor.UiCheck <fixture dir> --playthrough   a scripted game on the fixture alone (PlaythroughCheck)
 
 // --make-fixture <dir>: write the port's invented test game there (FixtureGame) and stop, for CI's
 // pictures of the windows where none of Mordor's files may be (.github/workflows/screenshots.yml)
@@ -37,6 +38,13 @@ if (args.Length == 2 && args[0] == "--make-fixture")
 string game = args.Length > 0 ? args[0] : Path.Combine("..", "game_files");
 string mdr = Path.Combine(game, "MDATA11.MDR");
 if (!File.Exists(mdr)) { Console.WriteLine($"  FAIL  no dungeon file at {mdr}"); return 1; }
+// --playthrough: a short game played through the windows (PlaythroughCheck). It makes characters and
+// plays them, so it runs on the invented fixture only, never on a player's Mordor
+if (args.Skip(1).Contains("--playthrough") && !GameFiles.IsFixture(game))
+{
+    Console.WriteLine($"  FAIL  --playthrough runs only on the test fixture (--make-fixture), and {game} is not it");
+    return 1;
+}
 
 AppBuilder.Configure<App>()
     .UseSkia()
@@ -51,11 +59,12 @@ Environment.SetEnvironmentVariable("MORDOR_ART_CACHE", artRoot);
 string? artError = Art.Prepare(game);
 if (artError != null) { Console.WriteLine($"  FAIL  the game's art could not be read: {artError}"); return 1; }
 
-if (args.Skip(1).Any(a => a is "--uncurse-only" or "--m1full-only" or "--body-recovery-only" or "--store-exit-only" or "--contrast-only" or "--themes-only"))
+if (args.Skip(1).Any(a => a is "--uncurse-only" or "--m1full-only" or "--body-recovery-only" or "--store-exit-only" or "--contrast-only" or "--themes-only" or "--playthrough"))
 {
     try
     {
-        return args.Contains("--themes-only") ? ThemeRegressionCheck.Run(game)
+        return args.Contains("--playthrough") ? (PlaythroughCheck.Run(game) == 0 ? 0 : 1)
+            : args.Contains("--themes-only") ? ThemeRegressionCheck.Run(game)
             : args.Contains("--contrast-only") ? ContrastCheck.Run(game)
             : args.Contains("--store-exit-only") ? StoreExitCheck.Run(game)
             : args.Contains("--m1full-only") ? LegacyInstallerCheck.Run(game)

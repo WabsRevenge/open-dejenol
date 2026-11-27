@@ -1,12 +1,20 @@
-# Pictures of the game's windows on Windows and Linux, every push and pull request.
+# Pictures of the game's windows, and a short scripted game, on Windows, Linux and macOS, on x64 and
+# ARM, every push and pull request.
 #
 # There is no copy of Mordor here, and none may be put here (ci.yml), so the windows are drawn from the
 # port's own test fixture: a small invented game whose data files the port writes (FixtureGame), with
-# placeholder pictures and help in place of Mordor's (GameArt). The UI checks' readability pass opens
-# every window it knows - the main menu, Options, Help, About, the town with each character tab and
-# service, the dungeon, the menu's boxes - in the Light and the Dark theme, fails the job on text too
-# faint to read, and saves each window as drawn (MORDOR_SNAPSHOT_DIR). The pictures are the run's
-# artifacts, one set per system: the same windows, drawn by each system's fonts and text engine.
+# placeholder pictures and help in place of Mordor's (GameArt). Two passes run on it:
+#   - the UI checks' readability pass opens every window it knows - the main menu, Options, Help, About,
+#     the town with each character tab and service, the dungeon, the menu's boxes - in the Light and
+#     the Dark theme, fails the job on text too faint to read, and saves each window as drawn;
+#   - the playthrough plays a short game through the real windows: two characters made, one joins a
+#     second guild, both buy and equip gear, form a party, go down, win a fight, level up in town, one
+#     learns a spell, buffers it as their Combat Setting and casts it in a second fight. Each step is
+#     checked and pictured (playthrough/). Its outcomes are made certain by the fixture's data, not by
+#     fixing the dice: the game's own rules run as they do for a player.
+# The pictures are the run's artifacts, one set per machine: the same windows, drawn by each system's
+# fonts and text engine. The ARM machines are there for the native ARM64 builds (Windows, Linux, and
+# macOS on Apple Silicon, which is the only Mac GitHub offers).
 name: Screenshots
 
 on:
@@ -33,7 +41,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, ubuntu-latest]
+        os: [windows-latest, windows-11-arm, ubuntu-latest, ubuntu-24.04-arm, macos-latest]
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -54,6 +62,7 @@ jobs:
         run: dotnet build tests/Mordor.UiCheck -c Release
 
       - name: Make the test fixture (an invented game, no Mordor files)
+        id: fixture
         shell: bash
         run: dotnet run --project tests/Mordor.UiCheck -c Release --no-build -- --make-fixture "$RUNNER_TEMP/fixture"
 
@@ -63,10 +72,18 @@ jobs:
           MORDOR_SNAPSHOT_DIR: ${{ runner.temp }}/screenshots
         run: dotnet run --project tests/Mordor.UiCheck -c Release --no-build -- "$RUNNER_TEMP/fixture" --contrast-only
 
+      # run whatever the readability pass said, so a faint label does not hide a broken game
+      - name: Play a short game through the windows
+        if: ${{ !cancelled() && steps.fixture.outcome == 'success' }}
+        shell: bash
+        env:
+          MORDOR_SNAPSHOT_DIR: ${{ runner.temp }}/screenshots
+        run: dotnet run --project tests/Mordor.UiCheck -c Release --no-build -- "$RUNNER_TEMP/fixture" --playthrough
+
       - name: Keep the pictures
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: screenshots-${{ runner.os }}
+          name: screenshots-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/screenshots
           if-no-files-found: warn

@@ -3,9 +3,17 @@ namespace Mordor.Core;
 /// <summary>
 /// A tiny invented game, written by our own code, for the checks that need a game folder where
 /// there is no copy of Mordor (CI). Every name and number in it is made up here: three races, three
-/// guilds, six spells, fifteen items, eleven monsters and a three-level dungeon. None of it is the
+/// guilds, six spells, sixteen items, thirteen monsters and a three-level dungeon. None of it is the
 /// original's data and none is meant to play like it; it only has to be read by the port the way a
 /// real folder is, through <see cref="MdrLoader"/> and <see cref="Mdata1"/>.
+///
+/// A few pieces of it are set so that a scripted playthrough (Mordor.UiCheck --playthrough) comes
+/// out the same every time while the game's dice stay as they are: certainty comes from the data,
+/// never from a seed or a hook. Those are the gear (<see cref="PlaythroughWeapon"/>,
+/// <see cref="PlaythroughArmour"/>), the Chanter's Fire rate (<see cref="Guilds"/>), the Construct
+/// class and its two monsters (<see cref="AddScripted"/>), the entrance room left empty and the
+/// two lairs off it (<see cref="SparringRoom"/>, <see cref="TargetRoom"/>). The rest is varied
+/// on purpose, for the pictures of the windows CI draws from it.
 ///
 /// What is kept from the game is only what the port's own code takes as a rule rather than reads
 /// from the data: the first guild is the Nomad (<see cref="GuildData.StartingGuild"/>, and
@@ -89,7 +97,13 @@ public static class FixtureGame
         // categories as Spellbook numbers them: 0 Fire, 1 Cold, 9 Heal, 15 Opening, 16 Location, 17 Protection
         var nomad = SpellTable((15, 4, 1), (16, 1, 1));
         var brawler = SpellTable((16, 1, 1));
-        var chanter = SpellTable((0, 1, 15), (1, 1, 15), (9, 1, 15), (16, 1, 15), (17, 2, 6));
+        // Fire at 1.25 guild levels a spell level, so the level-1 Fixture Spark is learned at Chanter
+        // level 2 and not at 1, which the playthrough needs: the guild's learning gate is
+        // Level * rate <= guildLevel / 2 + .5 (1.25 > 1 at level 1, 1.25 <= 1.5 at level 2), and the
+        // cast check rounds Level * rate into an Integer first (CastGate.Unfit: 1 <= Int(2 / 2 + .5)),
+        // so it may be cast at level 2 as well. 1.5 would be learned at 2 and refused there: 1.5
+        // rounds half to even to 2.
+        var chanter = SpellTable((0, 1.25f, 15), (1, 1, 15), (9, 1, 15), (16, 1, 15), (17, 2, 6));
         return new()
         {
             new GuildDef { Name = GuildData.StartingGuild, AvgHits = 4, HitsCapLevel = 25, LateHits = 1, ExpFactor = 10,
@@ -130,8 +144,11 @@ public static class FixtureGame
         MonsterClasses: MonsterClassNames.Select((name, i) => new NamedIndex(name, i)).ToList(),
         MonsterGroups: MonsterClassNames.Select(name => new NamedIndex(name + " Kin", 0)).ToList());
 
-    /// <summary>The four monster classes, Type 0 to 3; each its own group.</summary>
-    private static readonly string[] MonsterClassNames = { "Biped", "Ooze", "Critter", "Spook" };
+    /// <summary>
+    /// The five monster classes, Type 0 to 4; each its own group. The Construct class holds only
+    /// the playthrough's two harmless monsters, and only the playthrough's two rooms spawn it.
+    /// </summary>
+    private static readonly string[] MonsterClassNames = { "Biped", "Ooze", "Critter", "Spook", "Construct" };
 
     // ---- MDATA2: spells ----
 
@@ -168,24 +185,30 @@ public static class FixtureGame
             Guilds = guilds, AlignmentFlags = align, NHands = hands, Swings = swings, LevelScale = scale, DamageMod = dmg,
             StatsRequired = req ?? new short[7], StatsMod = mod ?? new short[7], Cursed = cursed, ClassRestricted = -1,
         };
+        // The Shortsword and the Jerkin are the playthrough's gear (PlaythroughWeapon, PlaythroughArmour):
+        // floor 0 and unaligned, so the Store always has them at their list price (StoreStock), every
+        // guild may use them, and a LevelScale of 0 makes their use level 1 for any guild
+        // (Character.UseLevel), so a new character can wear them. The Dagger and the Cap keep a scale
+        // of 1, which asks a level of 4 or more, so the Store still shows some goods not yet usable.
         var items = new List<Item>
         {
             Make(0, "Fixture Fists", 0, 0, 0, 0, 0, 0, all, unaligned, hands: 2, swings: 1, scale: 0),
             Make(1, "Test Dagger", 1, 4, 0, 150, 0, 30, all, unaligned, hands: 1, swings: 2, req: new short[] { 6, 0, 0, 0, 0, 6, 0 }),
-            Make(2, "Test Sword", 3, 8, 0, 900, 1, 40, fighters, anyAlign, hands: 1, swings: 1, scale: 2, dmg: 1.1f, req: new short[] { 10, 0, 0, 0, 0, 0, 0 }),
-            Make(3, "Test Mace", 5, 6, 1, 2500, 2, 30, all, anyAlign, hands: 1, swings: 1, scale: 3),
-            Make(4, "Test Jerkin", 8, 0, 4, 300, 0, 30, all, unaligned, hands: 0),
-            Make(5, "Test Hauberk", 9, 0, 8, 4000, 2, 20, fighters, anyAlign, hands: 0, scale: 3, req: new short[] { 12, 0, 0, 0, 0, 0, 0 }),
-            Make(6, "Test Buckler", 11, 0, 3, 500, 1, 30, fighters, anyAlign, hands: 1, scale: 2),
-            Make(7, "Test Cap", 12, 0, 2, 120, 0, 30, all, unaligned, hands: 0),
-            Make(8, "Test Boots", 20, 0, 1, 250, 1, 30, all, anyAlign, hands: 0),
-            Make(9, "Test Ring", 21, 0, 0, 8000, 3, 10, all, anyAlign, hands: 0, scale: 4, mod: new short[] { 1, 0, 0, 0, 0, 0, 0 }),
+            Make(2, PlaythroughWeapon, 3, 5, 0, 400, 0, 30, all, unaligned, hands: 1, swings: 1, scale: 0),
+            Make(3, "Test Sword", 3, 8, 0, 900, 1, 40, fighters, anyAlign, hands: 1, swings: 1, scale: 2, dmg: 1.1f, req: new short[] { 10, 0, 0, 0, 0, 0, 0 }),
+            Make(4, "Test Mace", 5, 6, 1, 2500, 2, 30, all, anyAlign, hands: 1, swings: 1, scale: 3),
+            Make(5, PlaythroughArmour, 8, 0, 4, 300, 0, 30, all, unaligned, hands: 0, scale: 0),
+            Make(6, "Test Hauberk", 9, 0, 8, 4000, 2, 20, fighters, anyAlign, hands: 0, scale: 3, req: new short[] { 12, 0, 0, 0, 0, 0, 0 }),
+            Make(7, "Test Buckler", 11, 0, 3, 500, 1, 30, fighters, anyAlign, hands: 1, scale: 2),
+            Make(8, "Test Cap", 12, 0, 2, 120, 0, 30, all, unaligned, hands: 0),
+            Make(9, "Test Boots", 20, 0, 1, 250, 1, 30, all, anyAlign, hands: 0),
+            Make(10, "Test Ring", 21, 0, 0, 8000, 3, 10, all, anyAlign, hands: 0, scale: 4, mod: new short[] { 1, 0, 0, 0, 0, 0, 0 }),
         };
         // a potion of the mending spell: SpellIndex counts from 1 (ItemUse.SpellOf)
-        var tonic = Make(10, "Test Tonic", 23, 0, 0, 200, 1, 30, all, unaligned, hands: 0);
+        var tonic = Make(11, "Test Tonic", 23, 0, 0, 200, 1, 30, all, unaligned, hands: 0);
         tonic.SpellIndex = 3; tonic.SpellId = 2; tonic.SpellLvl = 1; tonic.Charges = 1;
         items.Add(tonic);
-        items.Add(Make(11, "Test Shackle", 33, 0, -2, 400, 1, 10, all, unaligned, hands: 0, cursed: 1));
+        items.Add(Make(12, "Test Shackle", 33, 0, -2, 400, 1, 10, all, unaligned, hands: 0, cursed: 1));
         // a crest for each guild: item 299 + guild, special type 500 + guild, that guild's bit only
         var guilds = Guilds();
         for (int g = 0; g < guilds.Count; g++)
@@ -229,7 +252,53 @@ public static class FixtureGame
         Add("Fixture Wolf", 2, 3, 40, 18, 18, 2, 16, 25);
         Add("Fixture Wisp", 3, 2, 30, 20, 10, 1, 25, 20);
         Add("Fixture Ghost", 3, 3, 45, 30, 20, 1, 30, 15);
+        AddScripted(list, SparringMonster, hits: 40, groups: 2, pic: 3, guildLevel: 2500);
+        AddScripted(list, TargetMonster, hits: 6, groups: 1, pic: 4, guildLevel: 3);
         return list;
+    }
+
+    /// <summary>The Sparring Post: the playthrough's first fight, two groups of one in <see cref="SparringRoom"/>.</summary>
+    public const string SparringMonster = "Fixture Sparring Post";
+
+    /// <summary>The Straw Target: the playthrough's second fight, one of it in <see cref="TargetRoom"/>.</summary>
+    public const string TargetMonster = "Fixture Straw Target";
+
+    /// <summary>
+    /// One of the playthrough's monsters, class 4 (Construct), found on level 1. Every number that
+    /// decides the fight is set so that it comes out one way whatever the dice say:
+    /// <list type="bullet">
+    /// <item>it cannot hurt anyone: Att 0, STR 0, DamageMod 0.01 and Size 0 leave fn0DEE's damage
+    /// below 1 before the defence term, which then takes at least 1 more off (Rules.Fn0DEE), so
+    /// every blow is 0; and it has no spells, breath, acid or other special attack or property;</item>
+    /// <item>it always attacks: AlignmentValue 2 makes fn0D4D set Foes(0).Engaged = 1 whoever meets
+    /// it, so the party walks straight into the fight;</item>
+    /// <item>one to a group (InGroup 1: 1 - CInt(Rnd * .5) is always 1), and a second group of the
+    /// same monster when it has two (CompanionSpawnMode 3);</item>
+    /// <item>no chest (every BoxChance 0), no trap and no lock, so nothing waits to be opened after;</item>
+    /// <item>a subtype of its own, so it is never taken for another monster (KnownAsIndex);</item>
+    /// <item>a guild level above 2, so the newbie guard throws it back whenever the ordinary pick
+    /// draws it on level 1 below area 18 (EncounterGenerator.Generate) and it comes only as a lair's
+    /// own monster - which is the whole of the certainty about which monster stands in each room.</item>
+    /// </list>
+    /// The Sparring Post's guild level of 2500 is what pays: Rules.ExpAwarded gives even a blow of 1
+    /// over 400 experience at it, more than a level-1 Nomad or Chanter needs for level 2, so any
+    /// character who lands a blow on it can make a level. Its 40 hits (30 to 50 as rolled) keep it
+    /// standing for several blows. The Straw Target's 6 (4 to 8) let a spell and a blow or two end it.
+    /// </summary>
+    private static void AddScripted(List<Monster> list, string name, short hits, short groups, short pic, short guildLevel)
+    {
+        short i = (short)list.Count;
+        list.Add(new Monster
+        {
+            Name = name, Id = i, Type = 4, LevelFound = 1, Att = 0, Def = 0, Hits = hits,
+            NumGroups = groups, PicId = pic, Chance = 10, LockedChance = 0,
+            Resistances = new short[12], BoxChance = new short[] { 0, 0, 0, 0 },
+            AlignmentValue = 2, InGroup = 1, GoldFactor = 1, TrapFlags = 0, GuildLevel = guildLevel,
+            Stats = new short[7], DamageMod = 0.01f,
+            CompanionType = 4, CompanionSpawnMode = 3,
+            Items = new short[11], Subtype = (short)(100 + i), CompanionSubtype = 0, Size = 0,
+            ItemDropLevel = 1, ItemChance = 0,
+        });
     }
 
     // ---- MDATA11: the dungeon ----
@@ -314,12 +383,33 @@ public static class FixtureGame
     public static readonly (int X, int Y) Entrance = (2, 2);
 
     /// <summary>
+    /// The playthrough's two rooms on level 1, each entered from the entrance room through a door in
+    /// its north wall; the square given is the first one inside. Both are lairs whose spawn mask
+    /// names only the Construct class, area ids 6 and 7, so below 18: the ordinary pick can only
+    /// draw a Construct, the newbie guard throws every one back (guild levels above 2), and only
+    /// the lair's own 75% roll ever stands - so the room always holds its lair monster
+    /// (EncounterGenerator.Generate, MONSMOD.BAS:1454-1463 and 1646). The Sparring Room holds the
+    /// Sparring Post, in two groups seven times in eight and one group otherwise (fn0D4D's group
+    /// count, 1704-1712, has no setting that makes two certain); the Target Room one Straw Target.
+    /// </summary>
+    public static readonly (int X, int Y) SparringRoom = (2, 7), TargetRoom = (5, 7);
+
+    /// <summary>The guild the playthrough's first character joins, and the spell it learns there at level 2.</summary>
+    public const string PlaythroughGuild = "Chanter", PlaythroughSpell = "Fixture Spark";
+
+    /// <summary>The gear the playthrough buys: always on the Store's shelf, and usable by every guild at level 1.</summary>
+    public const string PlaythroughWeapon = "Test Shortsword", PlaythroughArmour = "Test Jerkin";
+
+    /// <summary>
     /// Three levels. Stairs keep their square from level to level (a stair down at (x, y) lands on
     /// the stair up at (x, y) below), and the chute on level 2 lands in a room on level 3.
     /// <code>
-    ///   level 1: room (1,1)-(6,6) with the town stairs up at (2,2), a door east to a corridor along
+    ///   level 1: room (1,1)-(6,6) with the town stairs up at (2,2) and no monsters (spawn mask 0),
+    ///            so the party is never met at the foot of the stairs; a door east to a corridor along
     ///            y 4, a door into a room (11,2)-(16,7) (a Fixture Rat lair), a door north into a
-    ///            corridor up x 13, a door into a room (10,12)-(16,17) with the stairs down at (14,15)
+    ///            corridor up x 13, a door into a room (10,12)-(16,17) with the stairs down at (14,15);
+    ///            and two doors north, at (2,6) and (5,6), into the playthrough's rooms (1,7)-(3,9)
+    ///            (area 6, the Sparring Post's lair) and (4,7)-(6,9) (area 7, the Straw Target's)
     ///   level 2: room (12,13)-(17,18) with the stairs up at (14,15); a door west to a corridor along
     ///            y 16 with a teleporter at (8,16) back to (14,13); a door into a room (1,14)-(4,19)
     ///            (a Fixture Sludge lair) with a chute at (3,15) and the stairs down at (2,17)
@@ -330,13 +420,18 @@ public static class FixtureGame
     /// </summary>
     public static List<Floor> Dungeon()
     {
+        short Lair(string name) => Monsters().First(m => m.Name == name).Id;
+        const int construct = 1 << 4;
         var one = new Plan();
-        one.Room(1, 1, 1, 6, 6, 0x5);
+        one.Room(1, 1, 1, 6, 6, 0);
         one.Room(2, 7, 4, 10, 4, 0x4);
         one.Room(3, 11, 2, 16, 7, 0x7, lair: 6);
         one.Room(4, 13, 8, 13, 11, 0x6);
         one.Room(5, 10, 12, 16, 17, 0xF);
+        one.Room(6, 1, 7, 3, 9, construct, lair: Lair(SparringMonster));
+        one.Room(7, 4, 7, 6, 9, construct, lair: Lair(TargetMonster));
         one.DoorEast(6, 4); one.DoorEast(10, 4); one.DoorNorth(13, 7); one.DoorNorth(13, 11);
+        one.DoorNorth(SparringRoom.X, SparringRoom.Y - 1); one.DoorNorth(TargetRoom.X, TargetRoom.Y - 1);
         one.Mark(Entrance.X, Entrance.Y, Floor.STAIRS_UP);
         one.Mark(14, 15, Floor.STAIRS_DOWN);
 
