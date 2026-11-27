@@ -372,7 +372,7 @@ public static partial class ModProbe
             Check("Patchy loaded", patchy?.Faulted, false);
             Check("Patchy's patch logged", log.Any(l => l.Contains("mod Patchy: Harmony patch Mordor.Core.Loot.IdentifyDifficulty")), true);
             Check("Patchy's patch in effect", Difficulty(), 4242);
-            new HarmonyLib.Harmony("Patchy").UnpatchAll("Patchy");
+            foreach (var m in HarmonyLib.Harmony.GetAllPatchedMethods().ToList()) new HarmonyLib.Harmony("Patchy").Unpatch(m, HarmonyLib.HarmonyPatchType.All, "Patchy");
             Check("unpatched again", Difficulty(), before);
             var flaky = thrown?.Loaded.FirstOrDefault(l => l.Id == "Flaky");
             Check("Flaky loaded", flaky?.Faulted, false);

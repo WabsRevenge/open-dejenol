@@ -65,8 +65,13 @@ public sealed record SyncStatus(SyncKind Kind, LocalWorld Local, IReadOnlyList<C
     public CloudEntry? NewestReady => Cloud.Where(e => e.State == EntryState.Ready).OrderByDescending(e => e.CreatedUtc).FirstOrDefault();
 }
 
-/// <summary>What an upload or a restore did: whether it happened, a line for the player, and (for a restore) the backup made first.</summary>
-public sealed record SyncResult(bool Done, string Message, string? Snapshot = null, string? BackupDir = null);
+/// <summary>
+/// What an upload or a restore did: whether it happened, a line for the player, and (for a restore) the
+/// backup made first. <see cref="CanRetry"/>: a restore that did not happen but might another time
+/// (the snapshot not downloaded yet, the backup or the writing failed); false for one that never will
+/// (the snapshot gone from iCloud Drive, unreadable, or failing its check).
+/// </summary>
+public sealed record SyncResult(bool Done, string Message, string? Snapshot = null, string? BackupDir = null, bool CanRetry = false);
 
 /// <summary>
 /// This Mac's record of the last sync, kept in the saves folder as <c>icloudsaves.json</c> and never
@@ -345,10 +350,39 @@ public sealed class CloudSync
             return new SyncStatus(localChanged ? SyncKind.LocalNewer : SyncKind.InSync, local, cloud, null, state);
         // a snapshot that did not grow from the world this Mac last synced is a fork - another Mac
         // that never saw this one's upload - and so a conflict even with nothing changed here
-        bool fork = candidate.State == EntryState.Ready && state != null && candidate.ParentWorldHash != state.WorldHash;
+        bool fork = candidate.State == EntryState.Ready && state != null && !GrewFrom(candidate, state.WorldHash, cloud, seen);
         if (!localChanged && !fork)
             return new SyncStatus(candidate.State == EntryState.Ready ? SyncKind.CloudNewer : SyncKind.CloudNotDownloaded, local, cloud, candidate, state);
         return new SyncStatus(SyncKind.Conflict, local, cloud, candidate, state);
+    }
+
+    /// <summary>
+    /// Whether <paramref name="candidate"/> grew from <paramref name="synced"/>, the world this Mac
+    /// last synced: its parent is that world, or its parent is another snapshot this Mac has not seen
+    /// whose own parent leads back to it, and so on. Another Mac uploads at every return to town, so
+    /// by the time this one looks there may be several of its snapshots in a row, each the parent of
+    /// the next; only the oldest grew from this Mac's world directly.
+    ///
+    /// Each link is followed only through a snapshot that can be read here (its world hash is known
+    /// only then) and that this Mac has not accounted for. A link that cannot be followed - a parent
+    /// world no unseen snapshot holds (a real fork), one not downloaded yet, an unreadable one, no
+    /// parent recorded - is no proof, and the answer is no: a conflict, which asks the player, never
+    /// a newer world that a restore would put over this Mac's.
+    /// </summary>
+    private static bool GrewFrom(CloudEntry candidate, string? synced, IReadOnlyList<CloudEntry> cloud, HashSet<string> seen)
+    {
+        if (synced == null) return false;
+        var unseen = cloud.Where(e => !seen.Contains(e.FileName)).ToList();
+        var walked = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var at = candidate;
+        while (at is { State: EntryState.Ready, ParentWorldHash: { } parent } && walked.Add(at.FileName))
+        {
+            if (parent == synced) return true;
+            // the snapshot holding the parent world, among the unseen ones; were there two holding the
+            // same world, either leads on the same way (the link is by world, not by snapshot)
+            at = unseen.FirstOrDefault(e => e.State == EntryState.Ready && e.WorldHash == parent && !walked.Contains(e.FileName));
+        }
+        return false;
     }
 
     /// <summary>
@@ -383,7 +417,7 @@ public sealed class CloudSync
             return new SyncResult(false, "Not uploaded: after an interrupted restore the saves were kept as they were, and they may be part one world, part another. "
                                        + "Once you are sure they are right, Upload now in the iCloud Saves window sends them up.");
         if (st.State?.PendingRestore is { } pending)
-            return new SyncResult(false, $"Not uploaded: a restore of {pending} is waiting for the next start.");
+            return new SyncResult(false, $"Not uploaded: a restore of {pending} is waiting for the next start. Cancel the restore in the iCloud Saves window to upload as usual.");
         switch (st.Kind)
         {
             case SyncKind.LocalNewer when st.UnreadableNews:
@@ -566,7 +600,7 @@ public sealed class CloudSync
         if (entry == null) return new SyncResult(false, $"{fileName} is not in iCloud Drive any more. Nothing was changed.");
         if (entry.State == EntryState.NotDownloaded)
             return new SyncResult(false, $"{fileName} is not downloaded to this Mac yet, so it cannot be checked or restored. Nothing was changed. "
-                                       + "In Finder, open iCloud Drive > OpenDejenol > Snapshots and choose Download Now, then try again.");
+                                       + "In Finder, open iCloud Drive > OpenDejenol > Snapshots and choose Download Now, then try again.", fileName, CanRetry: true);
         if (entry.State == EntryState.Unreadable)
             return new SyncResult(false, $"{fileName} cannot be restored: {entry.Problem}. Nothing was changed.");
 
@@ -576,7 +610,7 @@ public sealed class CloudSync
 
         string backup;
         try { backup = Backup(); }
-        catch (Exception ex) { return new SyncResult(false, $"The saves could not be backed up first ({ex.Message}), so nothing was restored or changed."); }
+        catch (Exception ex) { return new SyncResult(false, $"The saves could not be backed up first ({ex.Message}), so nothing was restored or changed.", fileName, CanRetry: true); }
 
         // marked before the first write, so a program stopped part-way is caught at the next start
         var marked = LoadState() ?? new SyncState();
@@ -593,7 +627,7 @@ public sealed class CloudSync
             bool back = RollBack(backup);
             if (back) { var undo = LoadState() ?? new SyncState(); undo.RestoreInProgress = null; SaveState(undo); }
             string rolled = back ? "The saves were put back as they were." : $"Putting the saves back failed too: copy them back by hand from {backup}.";
-            return new SyncResult(false, $"Restoring {fileName} failed ({ex.Message}). {rolled}", fileName, backup);
+            return new SyncResult(false, $"Restoring {fileName} failed ({ex.Message}). {rolled}", fileName, backup, CanRetry: back);
         }
 
         var s = LoadState() ?? new SyncState();

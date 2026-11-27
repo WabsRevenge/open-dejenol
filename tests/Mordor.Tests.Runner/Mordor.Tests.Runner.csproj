@@ -9,7 +9,7 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
@@ -32,8 +32,8 @@
     <ProjectReference Include="..\Mordor.UiCheck\Mordor.UiCheck.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
   <ItemGroup>
-    <AssemblyMetadata Include="Mordor.Tests.Dir" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Mordor.Tests\bin\$(Configuration)\net8.0'))" />
-    <AssemblyMetadata Include="Mordor.UiCheck.Dir" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Mordor.UiCheck\bin\$(Configuration)\net8.0'))" />
+    <AssemblyMetadata Include="Mordor.Tests.Dir" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Mordor.Tests\bin\$(Configuration)\net10.0'))" />
+    <AssemblyMetadata Include="Mordor.UiCheck.Dir" Value="$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\Mordor.UiCheck\bin\$(Configuration)\net10.0'))" />
   </ItemGroup>
 
 </Project>

@@ -89,7 +89,7 @@ Alongside: hosting set up, telemetry once the Cloudflare account exists, and Dec
 
 | Area | State | Mobile impact |
 |---|---|---|
-| Rules (`Mordor.Core`) | .NET 8, no UI, one Windows call (`lstrcmpiW` in LibrarySearch, which already has a managed fallback) | Runs as-is on Android/iOS |
+| Rules (`Mordor.Core`) | .NET 10, no UI, one Windows call (`lstrcmpiW` in LibrarySearch, which already has a managed fallback) | Runs as-is on Android/iOS |
 | UI framework | Avalonia 11.2.3 | Avalonia has Android and iOS targets; the same XAML/C# compiles |
 | Window model | Already one top-level window with an MDI frame inside (`MdiFrame`) | Good: mobile apps have one view. But many dialogs are separate `Window`s (OriginalBox, NamePicker, PasswordBox, Options, Help, Exchange, Hall, Mods, a mod's settings window) and must become in-view overlays |
 | Code structure | `CityWindow` / `DungeonWindow` are large code-behind classes mixing layout, input and game flow | The main cost: a phone layout needs the flow separated from the desktop layout |
@@ -209,7 +209,7 @@ What GameKit (achievements, leaderboards, the access point) would take for the m
   completion handlers (workable for a handful of calls, fiddly for blocks); (b) a **small native shim** - a few Swift
   or Objective-C functions with C entry points (`gc_authenticate`, `gc_report_achievement(id, percent)`,
   `gc_submit_score(board, value)`, `gc_show_access_point(bool)`) built as a dylib inside the app bundle and
-  P/Invoked, which is the least code and the easiest to keep working; or (c) the .NET macOS workload (`net8.0-macos`,
+  P/Invoked, which is the least code and the easiest to keep working; or (c) the .NET macOS workload (`net10.0-macos`,
   Microsoft's Apple bindings, GameKit included), which would mean moving the macOS head of the app to that target
   framework - a large change for this alone. (b) is the one to choose.
 - **Authentication and UI**: the player signs in with their Apple Account in the system's Game Center sheet, which

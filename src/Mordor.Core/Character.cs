@@ -701,6 +701,35 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
         }
     }
 
+    /// <summary>
+    /// Everything worn, slot 0 included: the Hands go on like any weapon when you fight bare-handed,
+    /// and then count in the running totals sub0F74 keeps - the hands in use (<c>M5700</c>), how
+    /// many of the class are on (<c>M586D</c>), the weapon hands (<c>M5997</c>) - as any worn item
+    /// does (MAINMOD2.BAS:1838-1848). <see cref="Inventory"/> leaves slot 0 out, so the sums read this.
+    /// </summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public IEnumerable<InventorySlot> Worn
+    {
+        get
+        {
+            for (int i = 0; i < PackSize; i++)
+                if (_pack[i] is InventorySlot s && s.Equipped && (i == 0 || s.ItemId != 0)) yield return s;
+        }
+    }
+
+    /// <summary>
+    /// The slot Equip acts on, or null when it does nothing. <c>sub0F74</c> leaves only on
+    /// <c>If Pack(p).Ref &lt; 1 And p &gt; 0</c> (MAINMOD2.BAS:1725): an empty slot, but never slot 0,
+    /// whose Ref of 0 is Items(0), the Hands - so they can be put on, and taken off, as any weapon.
+    /// </summary>
+    public InventorySlot? SlotToEquip(int i)
+    {
+        if (i < 0 || i >= PackSize) return null;   // "If p02F6 < 0 Or p02F6 > mc0190 - 1 Then Exit Sub" (1722)
+        var slot = _pack[i];
+        if (i == 0) return slot;
+        return slot == null || slot.ItemId < 1 ? null : slot;
+    }
+
     /// <summary>Which slot this is in, or -1.</summary>
     public int SlotOf(InventorySlot slot)
     {
@@ -1014,7 +1043,7 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
     public int EffectiveStat(int i, Func<short, Item?> item)
     {
         int v = Stats[i];
-        foreach (var s in Inventory.Where(s => s.Equipped))
+        foreach (var s in Worn)
             if (item(s.ItemId) is Item it && i < it.StatsMod.Length)
                 v += ItemAlignments.StatModWorth(it.StatsMod[i], ItemAlignments.FitFor(s.Alignment, Alignment));
         return Math.Max(1, v);
@@ -1084,12 +1113,12 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
 
     /// <summary>Hands already occupied by what is equipped - the original's running <c>M5700</c>.</summary>
     public int HandsUsed(Func<short, Item?> item) =>
-        Inventory.Where(s => s.Equipped).Select(s => item(s.ItemId))
+        Worn.Select(s => item(s.ItemId))
                  .Where(i => i != null).Sum(i => (int)i!.NHands);
 
     /// <summary>How many of that wear class are on already - the original's running <c>M586D()</c>.</summary>
     public int WornOfClass(int wearClass, Func<short, Item?> item) =>
-        Inventory.Where(s => s.Equipped).Select(s => item(s.ItemId))
+        Worn.Select(s => item(s.ItemId))
                  .Count(i => i != null && WearClassOf(i) == wearClass);
 
     /// <summary>
@@ -1154,7 +1183,7 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
     public int StatWithMods(int i, Func<short, Item?> item)
     {
         int v = Stats[i];
-        foreach (var s in Inventory.Where(s => s.Equipped))
+        foreach (var s in Worn)
             if (item(s.ItemId) is Item it && i < it.StatsMod.Length)
                 v += ItemAlignments.StatModWorth(it.StatsMod[i], ItemAlignments.FitFor(s.Alignment, Alignment));
         return v;
@@ -1253,7 +1282,7 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
     /// </summary>
     public void SyncSlotCurses(Func<short, Item?> lookup)
     {
-        foreach (var s in Inventory.Where(s => s.Equipped)) ApplyEquipCurse(s, lookup(s.ItemId));
+        foreach (var s in Worn) ApplyEquipCurse(s, lookup(s.ItemId));
     }
 
     /// <summary>Stats raised by the last LevelUp, for the message.</summary>
@@ -1447,7 +1476,7 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
     /// </summary>
     public string? ForfeitRefusal(Func<short, Item?> lookup)
     {
-        foreach (var s in Inventory.Where(s => s.Equipped))
+        foreach (var s in Worn)
             if (s.SlotCursed)
                 return "Your Aura is Tainted!\nCnanot forfeit quest until cursed items are removed.";
         return null;
@@ -1484,7 +1513,7 @@ public sealed class Character : System.Text.Json.Serialization.IJsonOnDeserializ
         Guild.QuestType = 0; Guild.QuestTarget = 0; Guild.QuestDone = false;
 
         var removed = new List<InventorySlot>();
-        foreach (var slot in Inventory.Where(s => s.Equipped).ToList())
+        foreach (var slot in Worn.ToList())
         {
             var it = lookup(slot.ItemId);
             if (it == null) continue;

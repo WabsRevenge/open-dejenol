@@ -31,7 +31,7 @@ public static class AudioProbe
         }
         foreach (var f in Directory.GetFiles(dir, "*.WAV").OrderBy(f => f))
         {
-            using var s = File.OpenRead(f); var h = new byte[12]; s.Read(h, 0, 12);
+            using var s = File.OpenRead(f); var h = new byte[12]; s.ReadAtLeast(h, 12, throwOnEndOfStream: false);
             bool riff = System.Text.Encoding.ASCII.GetString(h, 0, 4) == "RIFF" && System.Text.Encoding.ASCII.GetString(h, 8, 4) == "WAVE";
             if (riff) ok++; else { bad++; Console.WriteLine($"WAV FAIL {Path.GetFileName(f)}"); }
         }

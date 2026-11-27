@@ -72,8 +72,8 @@ For `M1FULL.zip`, select the original ZIP directly. There is no need to extract 
 
 ### Windows
 
-- Requires the .NET 8 SDK.
-- `dotnet build src/Mordor.App -c Release` builds `src/Mordor.App/bin/Release/net8.0/OpenDejenol.exe`.
+- Requires the .NET 10 SDK.
+- `dotnet build src/Mordor.App -c Release` builds `src/Mordor.App/bin/Release/net10.0/OpenDejenol.exe`.
 - `dotnet run --project src/Mordor.App` builds the Debug configuration and starts it.
 - `MORDOR_GAMEDIR=<path to your Mordor folder> dotnet test` runs the test suites under standard
   test tooling (see `docs/TOOLS.md`).
@@ -83,7 +83,7 @@ For `M1FULL.zip`, select the original ZIP directly. There is no need to extract 
 
 ### macOS
 
-- Requires the .NET 8 SDK and Xcode's command line tools (`codesign`, `iconutil`).
+- Requires the .NET 10 SDK and Xcode's command line tools (`codesign`, `iconutil`).
 - `make mac-app` builds `dist/macos/OpenDejenol.app` for Apple Silicon, self-contained and signed
   ad hoc: it runs on the Mac that built it. Another Mac's Gatekeeper refuses an ad-hoc app, so it
   is not something to hand out; a release for others would need a Developer ID and notarisation,

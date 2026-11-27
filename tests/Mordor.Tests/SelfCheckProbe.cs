@@ -5211,6 +5211,8 @@ public static partial class SelfCheckProbe
         Section(() => TownBatchChecks(dir));
         Section(() => Town2Checks(dir));
         Section(() => Fid2Checks(dir));
+        Section(() => HandsEquipChecks(dir));
+        Section(() => FogEdgeChecks(dir));
         Section(() => PartyUpdateChecks());
         Section(() => WaveMixChecks(dir));
         Section(() => GameFilesChecks(dir));

@@ -189,11 +189,12 @@ public partial class CityWindow : Window
         {
             // a session ended while the party is below: the dungeon is left first, which saves
             // the trip and the layout its children are in; the town's own are not on the frame
-            if (_below != null) { _below.Close(); Save(); }
-            else { SaveWindowLayout(); Save(); }
+            bool saved;
+            if (_below != null) { _below.Close(); saved = Save(); }
+            else { SaveWindowLayout(); saved = Save(); }
             // a mod hears that the game's saves are all on disk (docs/MODDING.md, Saved; API
-            // version 17); with none listening, nothing
-            Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.GameEnded);
+            // version 17), only when they are; with none listening, nothing
+            if (saved) Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.GameEnded);
         };
 
         Audio.Init(gameDir);
@@ -1133,13 +1134,17 @@ public partial class CityWindow : Window
         if (DeadScreenOwed) ShowDead();
     }
 
-    private void Save()
+    /// <summary>
+    /// The party saved, and whether every member was written. A failure is not fatal - play goes on,
+    /// as ever - but it is no save point: a mod is told <c>Saved</c> only after one that worked.
+    /// </summary>
+    private bool Save()
     {
         try
         {
-            _party.SaveAll(Saves.DirFor(_gameDir));
+            return _party.TrySaveAll(Saves.DirFor(_gameDir));
         }
-        catch { /* non-fatal */ }
+        catch { return false; /* non-fatal */ }
     }
 
     /// <summary>
@@ -3005,9 +3010,10 @@ public partial class CityWindow : Window
         // a mod may have the town do the Bank's Party Deposit or Party Pool as the party walks in (docs/MODDING.md);
         // with none, nothing is asked and nothing moves
         var (deposited, depositLine) = Mordor.Modding.ModHost.Active.ArrivedInTown(_party, _ch, Mordor.Modding.TownArrivalKind.Walked);
-        RefreshSummary(); Save();
-        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 17)
-        Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);
+        RefreshSummary(); bool saved = Save();
+        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 17) -
+        // only when the save worked: a mod told otherwise would act on saves that are not there
+        if (saved) Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);
         if (_ch.CanLevelUp()) ShowGuild(null, null!);
         foreach (var line in rested) Log(line);
         if (depositLine != null) Log(depositLine);

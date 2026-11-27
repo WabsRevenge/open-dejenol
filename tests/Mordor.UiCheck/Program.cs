@@ -25,6 +25,8 @@ using Mordor.Core;
 //   Mordor.UiCheck <gamedir>        exit code 1 if anything failed
 //   add --body-recovery-only for the fatal-step/pickup regression alone
 //   Mordor.UiCheck <fixture dir> --playthrough   a scripted game on the fixture alone (PlaythroughCheck)
+//   Mordor.UiCheck --compare <baseline dir> <current dir> <out dir>   CI: two runs' pictures (PictureTools)
+//   Mordor.UiCheck --gallery <artifacts root> <out dir>               CI: every machine's pictures in one page
 
 // --make-fixture <dir>: write the port's invented test game there (FixtureGame) and stop, for CI's
 // pictures of the windows where none of Mordor's files may be (.github/workflows/screenshots.yml)
@@ -34,6 +36,10 @@ if (args.Length == 2 && args[0] == "--make-fixture")
     Console.WriteLine($"the test fixture written to {Path.GetFullPath(args[1])}");
     return 0;
 }
+// --compare <baseline> <current> <out> and --gallery <artifacts root> <out>: CI's picture tools
+// (PictureTools). They read and write PNGs only, with no game folder and no window
+if (args.Length > 0 && args[0] == "--compare") return PictureTools.CompareMain(args);
+if (args.Length > 0 && args[0] == "--gallery") return PictureTools.GalleryMain(args);
 
 string game = args.Length > 0 ? args[0] : Path.Combine("..", "game_files");
 string mdr = Path.Combine(game, "MDATA11.MDR");
@@ -46,10 +52,19 @@ if (args.Skip(1).Contains("--playthrough") && !GameFiles.IsFixture(game))
     return 1;
 }
 
-AppBuilder.Configure<App>()
+// The fonts as the app sets them up (Mordor.App's Program.BuildAvaloniaApp), so the windows here are
+// drawn - and their text weighed by the layout checks (LayoutCheck) - in the faces a player sees:
+// Inter, the Fluent theme's face (only the first-run window draws in it); and away from Windows,
+// Liberation Sans built in (PortFonts) for any face the game names that is not installed. On
+// Windows that second step is skipped, as in the app
+var builder = AppBuilder.Configure<App>()
     .UseSkia()
     .UseHeadless(new AvaloniaHeadlessPlatformOptions { UseHeadlessDrawing = false })
-    .SetupWithoutStarting();
+    .WithInterFont();
+if (!OperatingSystem.IsWindows()
+    && typeof(App).Assembly.GetType("Mordor.App.PortFonts")?.GetField("Sans")?.GetRawConstantValue() is string portSans)
+    builder = builder.With(new Avalonia.Media.FontManagerOptions { DefaultFamilyName = portSans });
+builder.SetupWithoutStarting();
 
 // The game's pictures and help come out of the game folder, as at the app's start (Art): into a
 // scratch cache of this run's own, removed at the end, never the player's.
@@ -450,7 +465,7 @@ Console.WriteLine("\nthe Cartographer mod on the Automap (API versions 13 and 14
         string? root = AppContext.BaseDirectory;
         while (root != null && !File.Exists(Path.Combine(root, "Mordor.sln"))) root = Path.GetDirectoryName(root.TrimEnd(Path.DirectorySeparatorChar));
         string? modsDir = root == null ? null : new[] { "Release", "Debug" }
-            .Select(c => Path.Combine(root, "src/Mordor.App", "bin", c, "net8.0", "mods"))
+            .Select(c => Path.Combine(root, "src/Mordor.App", "bin", c, "net10.0", "mods"))
             .FirstOrDefault(d => Directory.Exists(Path.Combine(d, "Cartographer")));
         if (modsDir == null) throw new DirectoryNotFoundException("no build of Mordor.App with the Cartographer mod in its mods folder");
 
@@ -1279,7 +1294,7 @@ Console.WriteLine("\nmods switched on the main menu, and the in-game Mods page:"
         string? root = AppContext.BaseDirectory;
         while (root != null && !File.Exists(Path.Combine(root, "Mordor.sln"))) root = Path.GetDirectoryName(root.TrimEnd(Path.DirectorySeparatorChar));
         string? modsDir = root == null ? null : new[] { "Release", "Debug" }
-            .Select(c => Path.Combine(root, "src/Mordor.App", "bin", c, "net8.0", "mods"))
+            .Select(c => Path.Combine(root, "src/Mordor.App", "bin", c, "net10.0", "mods"))
             .FirstOrDefault(d => Directory.Exists(Path.Combine(d, "QoL")));
         if (modsDir == null) throw new DirectoryNotFoundException("no build of Mordor.App with its mods folder");
         var modHost = new Mordor.Modding.ModHost(new Mordor.Modding.ModSettingsStore(Path.Combine(scratch, "settings.ini")), _ => { });
@@ -1575,7 +1590,7 @@ Console.WriteLine("\nthe mods' windows, children of the game's frame:");
         string? root = AppContext.BaseDirectory;
         while (root != null && !File.Exists(Path.Combine(root, "Mordor.sln"))) root = Path.GetDirectoryName(root.TrimEnd(Path.DirectorySeparatorChar));
         string? modsDir = root == null ? null : new[] { "Release", "Debug" }
-            .Select(c => Path.Combine(root, "src/Mordor.App", "bin", c, "net8.0", "mods"))
+            .Select(c => Path.Combine(root, "src/Mordor.App", "bin", c, "net10.0", "mods"))
             .FirstOrDefault(d => Directory.Exists(Path.Combine(d, "QoL")));
         if (modsDir == null) throw new DirectoryNotFoundException("no build of Mordor.App with its mods folder");
         var modHost = new Mordor.Modding.ModHost(new Mordor.Modding.ModSettingsStore(Path.Combine(scratch, "settings.ini")), _ => { });
@@ -2619,7 +2634,7 @@ Console.WriteLine("\nthe Auto-combat window's Fight by the rules:");
         string? root = AppContext.BaseDirectory;
         while (root != null && !File.Exists(Path.Combine(root, "Mordor.sln"))) root = Path.GetDirectoryName(root.TrimEnd(Path.DirectorySeparatorChar));
         string? modsDir = root == null ? null : new[] { "Release", "Debug" }
-            .Select(c => Path.Combine(root, "src/Mordor.App", "bin", c, "net8.0", "mods"))
+            .Select(c => Path.Combine(root, "src/Mordor.App", "bin", c, "net10.0", "mods"))
             .FirstOrDefault(d => Directory.Exists(Path.Combine(d, "AutoCombat")));
         if (modsDir == null) throw new DirectoryNotFoundException("no build of Mordor.App with the Auto-combat mod");
         var store = new Mordor.Modding.ModSettingsStore(Path.Combine(scratch, "settings.ini"));
@@ -2847,8 +2862,11 @@ failed += StoreUncurseCheck.Run(game);
 failed += StoreExitCheck.Run(game);
 failed += LegacyInstallerCheck.Run(game);
 failed += BodyRecoveryCheck.Run(game);
+failed += FogEdgeCheck.Run(game);
+failed += StatItemSaveCheck.Run(game);
 failed += ContrastCheck.Run(game);
 failed += ThemeRegressionCheck.Run(game);
+failed += PictureTools.SelfTest();
 
 Environment.SetEnvironmentVariable("MORDOR_ART_CACHE", artWas);
 try { Directory.Delete(artRoot, true); } catch { }

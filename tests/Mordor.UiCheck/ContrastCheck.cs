@@ -24,6 +24,14 @@ using Mordor.Modding;
 /// catches the kind without anyone looking. What it cannot see: text on a picture (an image
 /// ground is skipped), text covered by another window, and a colour set after the window is up.
 /// Disabled controls are left out: their grey is meant to read as greyed.
+///
+/// Each window is also put through the layout checks (<see cref="LayoutCheck"/>): a character no
+/// font here can draw, text cut short by its control, a control past its window's edge. With
+/// MORDOR_SNAPSHOT_DIR set, each window is saved as drawn, &lt;Theme&gt;_&lt;name&gt;.png, and checks.json
+/// beside the pictures lists each one's failures for the gallery (<see cref="PictureTools"/>). The
+/// pictures are the same from run to run on one machine: the clock on the Char tab and the Automap's
+/// blinking arrow are held still (<see cref="Steady"/>), and the dungeon is entered on the fixture's
+/// entrance room, which no monster is drawn into (FixtureGame, spawn mask 0).
 /// </summary>
 static class ContrastCheck
 {
@@ -40,6 +48,9 @@ static class ContrastCheck
         {
             for (int i = 0; i < 6; i++) { Dispatcher.UIThread.RunJobs(); AvaloniaHeadlessPlatform.ForceRenderTimerTick(); }
         }
+        _checks.Clear();
+        // the layout checks shown windows made to fail them first: a check that cannot fail proves nothing
+        failed += LayoutCheck.SelfTest(Pump);
         Mdata1.LoadFrom(game); RaceData.LoadFrom(game); GuildData.LoadFrom(game);
         var items = MdrLoader.LoadItems(Path.Combine(game, "MDATA3.MDR"));
 
@@ -79,30 +90,51 @@ static class ContrastCheck
             foreach (string look in new[] { "Light", "Dark" })
             {
                 Theme(look);
+                // the picture's file name, and the window's failures under it in checks.json
+                string Picture(string what) => string.Concat($"{look}-{what}".Select(ch => char.IsLetterOrDigit(ch) ? ch : '_')) + ".png";
+                void Error(string what, string message)
+                {
+                    Console.WriteLine($"  FAIL  {look}: {what}: {message}");
+                    failed++;
+                    Record(Picture(what), "error", message, null);
+                }
                 void Scan(string what, Visual root)
                 {
                     Pump();
+                    // what changes from run to run and is not the window's to show: the clock (Steady)
+                    Steady(root, Pump);
                     var low = LowContrast(root).GroupBy(l => l).Select(g => g.Count() > 1 ? $"{g.Key} x{g.Count()}" : g.Key).ToList();
-                    bool ok = low.Count == 0;
-                    Console.WriteLine($"  {(ok ? "ok  " : "FAIL")}  {look}: {what}" + (ok ? "" : $" - {low.Count} hard to read:"));
+                    var layout = LayoutCheck.Find(root).Distinct().Select(f => (Finding: f, Known: LayoutCheck.KnownFor(what, f))).ToList();
+                    var fresh = layout.Where(l => l.Known == null).ToList();
+                    bool ok = low.Count == 0 && fresh.Count == 0;
+                    var why = new List<string>();
+                    if (low.Count > 0) why.Add($"{low.Count} hard to read");
+                    if (fresh.Count > 0) why.Add($"{fresh.Count} layout finding{(fresh.Count == 1 ? "" : "s")}");
+                    Console.WriteLine($"  {(ok ? "ok  " : "FAIL")}  {look}: {what}" + (ok ? "" : $" - {string.Join(", ", why)}:"));
                     foreach (var l in low.Take(12)) Console.WriteLine("          " + l);
                     if (low.Count > 12) Console.WriteLine($"          ... and {low.Count - 12} more");
+                    foreach (var (f, _) in fresh.Take(12)) Console.WriteLine("          " + f);
+                    if (fresh.Count > 12) Console.WriteLine($"          ... and {fresh.Count - 12} more");
+                    foreach (var (f, k) in layout.Where(l => l.Known != null)) Console.WriteLine($"          known  {f} - {k!.Reason}");
                     if (!ok) failed++;
+                    string picture = Picture(what);
+                    Record(picture, null, null, null);
+                    foreach (var l in low) Record(picture, "contrast", l, null);
+                    foreach (var (f, k) in layout) Record(picture, f.Kind, $"{f.Control}: {f.Numbers}", k?.Reason);
                     // MORDOR_SNAPSHOT_DIR: the window as drawn, a PNG apiece, for a before-and-after
-                    // comparison of a change that should alter nothing (tools/snapshot-diff)
+                    // comparison of a change that should alter nothing (tools/snapshot-diff, Mordor.UiCheck --compare)
                     if (Environment.GetEnvironmentVariable("MORDOR_SNAPSHOT_DIR") is { Length: > 0 } shots
                         && (root as TopLevel ?? TopLevel.GetTopLevel(root)) is { } top)
                     {
-                        string name = string.Concat($"{look}-{what}".Select(ch => char.IsLetterOrDigit(ch) ? ch : '_'));
                         Directory.CreateDirectory(shots);
-                        top.CaptureRenderedFrame()?.Save(Path.Combine(shots, name + ".png"));
+                        top.CaptureRenderedFrame()?.Save(Path.Combine(shots, picture));
                     }
                 }
                 void Window(string what, Func<Window> make)
                 {
                     Window? w = null;
                     try { w = make(); w.Show(); Scan(what, w); }
-                    catch (Exception ex) { Console.WriteLine($"  FAIL  {look}: {what}: could not be opened: {(ex.InnerException ?? ex).GetType().Name}: {(ex.InnerException ?? ex).Message}"); failed++; }
+                    catch (Exception ex) { Error(what, $"could not be opened: {(ex.InnerException ?? ex).GetType().Name}: {(ex.InnerException ?? ex).Message}"); }
                     finally { try { w?.Close(); Pump(); } catch { } }
                 }
 
@@ -134,10 +166,10 @@ static class ContrastCheck
                         menu.Show(); Pump();
                         open(menu);
                         for (int i = 0; i < 3; i++) Pump();
-                        if (box == null) { Console.WriteLine($"  FAIL  {look}: {what} did not open"); failed++; }
+                        if (box == null) Error(what, "did not open");
                         else Scan(what, box);
                     }
-                    catch (Exception ex) { Console.WriteLine($"  FAIL  {look}: {what}: could not be opened: {(ex.InnerException ?? ex).GetType().Name}: {(ex.InnerException ?? ex).Message}"); failed++; }
+                    catch (Exception ex) { Error(what, $"could not be opened: {(ex.InnerException ?? ex).GetType().Name}: {(ex.InnerException ?? ex).Message}"); }
                     finally { sub.Dispose(); try { box?.Close(); menu?.Close(); Pump(); } catch { } }
                 }
                 Popup("the Character List", m => typeof(TitleWindow).GetMethod("OnCharacterList", Any)!.Invoke(m, new object?[] { null, new RoutedEventArgs() }));
@@ -162,12 +194,20 @@ static class ContrastCheck
                             typeof(CityWindow).GetMethod(service, Any)!.Invoke(town, new object?[] { null, new RoutedEventArgs() });
                             Scan($"the town, {service[4..]}", town);
                         }
-                        catch (Exception ex) { Console.WriteLine($"  FAIL  {look}: the town's {service[4..]} could not be opened: {(ex.InnerException ?? ex).Message}"); failed++; }
+                        catch (Exception ex) { Error($"the town, {service[4..]}", $"could not be opened: {(ex.InnerException ?? ex).Message}"); }
                     }
                     typeof(CityWindow).GetMethod("EnterDungeon", Any)!.Invoke(town, new object?[] { null, new RoutedEventArgs() });
                     for (int i = 0; i < 5; i++) Pump();
                     if (typeof(CityWindow).GetField("_below", Any)!.GetValue(town) is DungeonWindow down)
                     {
+                        // the Automap's arrow blinks on a 500 ms timer (timBlinker): held on show, as
+                        // the window checks above hold it, so every picture has it
+                        if (down.Automap is AutomapWindow map)
+                        {
+                            ((DispatcherTimer)typeof(AutomapWindow).GetField("_blinker", Any)!.GetValue(map)!).Interval = TimeSpan.FromDays(1);
+                            typeof(AutomapWindow).GetMethod("ShowCursor", Any)!.Invoke(map, null);
+                            Pump();
+                        }
                         foreach (CharTab t in Enum.GetValues<CharTab>())
                         {
                             Tab(typeof(DungeonWindow), down, t);
@@ -175,9 +215,9 @@ static class ContrastCheck
                         }
                         down.Close(); Pump();
                     }
-                    else { Console.WriteLine($"  FAIL  {look}: the dungeon did not come up"); failed++; }
+                    else Error("the dungeon", "did not come up");
                 }
-                catch (Exception ex) { Console.WriteLine($"  FAIL  {look}: the town could not be driven: {(ex.InnerException ?? ex).GetType().Name}: {(ex.InnerException ?? ex).Message}"); failed++; }
+                catch (Exception ex) { Error("the town", $"could not be driven: {(ex.InnerException ?? ex).GetType().Name}: {(ex.InnerException ?? ex).Message}"); }
                 finally { try { town?.Close(); Pump(); } catch { } }
             }
         }
@@ -195,7 +235,58 @@ static class ContrastCheck
         bool weighed = _selectionsWeighed > 0;
         Console.WriteLine($"  {(weighed ? "ok  " : "FAIL")}  text boxes' selected text weighed: {_selectionsWeighed}");
         if (!weighed) failed++;
+        // checks.json beside the pictures: each picture's failures, for the gallery (Mordor.UiCheck --gallery)
+        if (Environment.GetEnvironmentVariable("MORDOR_SNAPSHOT_DIR") is { Length: > 0 } dir)
+        {
+            Directory.CreateDirectory(dir);
+            File.WriteAllText(Path.Combine(dir, PictureTools.ChecksFile), PictureTools.ChecksJson(_checks));
+        }
         return failed;
+    }
+
+    /// <summary>Each picture taken, in the order taken, with its failures (contrast, layout, an error): checks.json.</summary>
+    static readonly List<(string Picture, List<PictureTools.Failure> Failures)> _checks = new();
+
+    /// <summary>Note a picture (no kind: just that it was taken), or a failure under it; a known one carries its reason.</summary>
+    static void Record(string picture, string? kind, string? message, string? known)
+    {
+        var at = _checks.FindIndex(c => c.Picture == picture);
+        if (at < 0) { _checks.Add((picture, new())); at = _checks.Count - 1; }
+        if (kind != null) _checks[at].Failures.Add(new PictureTools.Failure(kind, message ?? "", known != null, known));
+    }
+
+    /// <summary>
+    /// Holds still what would differ between two runs of the pass and is no part of the window: the
+    /// clock on the character window's Char tab. Its Time and Date are the moment the page was drawn,
+    /// and its Play Time the seconds the pass has run (the town and dungeon tick it); each is set to a
+    /// fixed figure in the game's own format just before the picture, and set again should a redraw
+    /// put the clock back. The game draws them; only the picture's copy is fixed.
+    /// </summary>
+    static void Steady(Visual root, Action pump)
+    {
+        var fixedAt = new DateTime(2000, 1, 1, 12, 0, 0);
+        var want = new Dictionary<string, string>
+        {
+            ["Time:"] = fixedAt.ToString("HH:mm:ss", System.Globalization.CultureInfo.InvariantCulture),
+            ["Date:"] = fixedAt.ToString("d", System.Globalization.CultureInfo.CurrentCulture),
+            ["Play Time:"] = 0f.ToString("###,###.00", System.Globalization.CultureInfo.CurrentCulture) + " Hrs",
+        };
+        // each heading's value: the next text to its right on its row of the page
+        bool Set()
+        {
+            bool changed = false;
+            foreach (var head in root.GetVisualDescendants().OfType<TextBlock>().Where(t => t.Text != null && want.ContainsKey(t.Text)).ToList())
+            {
+                if (head.GetVisualParent() is not Canvas page) continue;
+                double top = Canvas.GetTop(head), left = Canvas.GetLeft(head);
+                var value = page.Children.OfType<TextBlock>()
+                    .Where(t => t != head && Math.Abs(Canvas.GetTop(t) - top) < 1 && Canvas.GetLeft(t) > left)
+                    .OrderBy(t => Canvas.GetLeft(t)).FirstOrDefault();
+                if (value != null && value.Text != want[head.Text!]) { value.Text = want[head.Text!]; changed = true; }
+            }
+            return changed;
+        }
+        for (int i = 0; i < 4 && Set(); i++) pump();
     }
 
     /// <summary>How many text boxes' selections were weighed: none would mean the check saw no text box at all.</summary>

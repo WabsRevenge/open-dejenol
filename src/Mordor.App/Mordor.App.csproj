@@ -1,7 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
@@ -19,6 +19,13 @@
          Mordor.Core and Mordor.Modding, which mods are built against, keep their own. -->
     <Version>0.1.8</Version>
   </PropertyGroup>
+
+  <!-- net10.0 makes NuGet audit transitive packages too: Avalonia 11.2.3's Linux D-Bus library
+       (Tmds.DBus.Protocol 0.20.0, the same one every release so far ships) has this advisory,
+       fixed in 0.21.3; kept as it is until a deliberate Avalonia or D-Bus update -->
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-xrw6-gwf8-vvr9" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia" Version="11.2.3" />
@@ -54,7 +61,7 @@
     <None Include="soundfont\TimGM6mb.sf2;soundfont\GPL-2.0.txt;soundfont\README.txt" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
-  <!-- the mods that come with the port, into bin/<config>/net8.0/mods and a publish's mods (docs/MODDING.md) -->
+  <!-- the mods that come with the port, into bin/<config>/net10.0/mods and a publish's mods (docs/MODDING.md) -->
   <Import Project="..\Mods\ShipMods.targets" />
 
   <!-- No pictures or help of the game's own are built in: they are read out of the player's copy at

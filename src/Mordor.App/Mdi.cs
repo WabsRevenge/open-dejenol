@@ -231,7 +231,7 @@ public sealed class MdiChild : Border
     {
         var b = new Button
         {
-            Content = glyph,
+            Content = Glyphs.Content(glyph),
             Focusable = false,            // the keyboard belongs to the game, never to a title bar
             Width = 20,
             Height = BarHeight - 4,
@@ -340,7 +340,7 @@ public sealed class MdiChild : Border
                     Height = _restore.Height;
                 }
             }
-            _minBtn.Content = value ? "▴" : "_";
+            _minBtn.Content = value ? Glyphs.Content("▴") : "_";
         }
     }
 
@@ -379,13 +379,13 @@ public sealed class MdiChild : Border
             else
             {
                 _maximised = false;
-                if (_minimised) { _maxBtn.Content = "□"; return; }   // an icon stays an icon
+                if (_minimised) { _maxBtn.Content = Glyphs.Content("□"); return; }   // an icon stays an icon
                 Canvas.SetLeft(this, _restore.X);
                 Canvas.SetTop(this, _restore.Y);
                 Width = _restore.Width;
                 Height = _restore.Height;
             }
-            _maxBtn.Content = value ? "❐" : "□";
+            _maxBtn.Content = Glyphs.Content(value ? "❐" : "□");
         }
     }
 

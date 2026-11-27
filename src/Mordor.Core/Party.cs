@@ -754,6 +754,19 @@ public sealed class Party
             try { c.Save(Path.Combine(savesDir, Character.SafeFileName(c.Name) + ".json")); } catch { }
     }
 
+    /// <summary>
+    /// <see cref="SaveAll"/>, saying whether every member was written: false when the folder could
+    /// not be made or any member's save failed (the others are still written, as there). Throws nothing.
+    /// </summary>
+    public bool TrySaveAll(string savesDir)
+    {
+        try { Directory.CreateDirectory(savesDir); } catch { return false; }
+        bool all = true;
+        foreach (var c in Members)
+            try { c.Save(Path.Combine(savesDir, Character.SafeFileName(c.Name) + ".json")); } catch { all = false; }
+        return all;
+    }
+
     // ---- the party file: MDATA12 (gc1C38, MAIN.TXT:590) in the original, party-<leader>.json here ----
     //
     // A record is the leader's name and three more, keyed by the leader (MULTIMOD.BAS:400-433). It

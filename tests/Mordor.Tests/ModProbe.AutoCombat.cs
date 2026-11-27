@@ -46,6 +46,16 @@ public static partial class ModProbe
                 {
                     Calls.Add($"{m.Name} use {item(slot.ItemId)?.Name.Trim()}");
                     if (!UseWorks(m, slot)) { Orders[m] = (OrderKind.None, 0, null); return false; }
+                    // the game's Use runs sub0BDE (MAINMOD2.BAS:6131-6132, DungeonWindow.Sub0BDE): every member
+                    // with no order has a chest count dropped and takes up their Combat Setting (Fight here)
+                    foreach (var x in p.Members)
+                    {
+                        if (Orders.TryGetValue(x, out var xo) && xo.Kind != OrderKind.None) continue;
+                        if (Opening.Remove(x)) Calls.Add($"{x.Name} chest called off");
+                        if (ReferenceEquals(x, m)) continue;
+                        Orders[x] = (OrderKind.Fight, 0, null);
+                        Calls.Add($"{x.Name} Combat Setting");
+                    }
                     Orders[m] = (OrderKind.Spell, 1, slot);
                     return true;
                 },
@@ -242,6 +252,38 @@ public static partial class ModProbe
                 Rules(R(who: "Cas", act: "Cast", what: itemSpell.Name.Trim()));
                 Check("the same spell standing from an item: sent again as a Cast of one's own", Round(), $"Cas cast {itemSpell.Name.Trim()}");
             }
+
+            // a Use runs sub0BDE, which would reach members the rules leave alone: never then
+            string Wand = wand.Name.Trim();
+            object fight2 = new();   // a fight in which Hal's slot was never refused
+            f.Orders.Clear(); f.Aims.Clear();
+            Rules(R(who: "Hal", act: "Use", what: Wand), R(who: "Brak", act: "Defend"));
+            f.Opening.Add(cas);
+            Check("Cas opening a chest with no order: Hal's Use rule passed over (its sub0BDE would call the count off), the count running on",
+                  $"{Round(fight2)} | {f.Opening.Contains(cas)}", "Brak Defend | True");
+            Check("... and the game's command refuses it then too, doing nothing",
+                  $"{f.Make(party, spells, lookup, fight2, groups).UseItem(hal, full)} {f.Take()}| {f.Opening.Contains(cas)}", "False | True");
+            f.Opening.Clear();
+            Check("the count over: the Use goes through, and sub0BDE gives Cas (no order) the Combat Setting, as by hand",
+                  Round(fight2), $"Hal use {Wand} / Cas Combat Setting");
+            f.Orders.Clear();
+            f.ByHand.Add(cas);
+            Check("Cas given an order by hand, and it is None (space): Hal's Use passed over, Cas's None left standing",
+                  $"{Round(fight2)} | {f.Orders.ContainsKey(cas)}", "Brak Defend | False");
+            Check("... and the game's command refuses it too", $"{f.Make(party, spells, lookup, fight2, groups).UseItem(hal, full)} {f.Take()}", "False ");
+            f.Orders[cas] = (OrderKind.Fight, 0, null);
+            Check("Cas's order by hand is Fight (sub0BDE passes over one with an order): the Use goes through, Cas's order kept",
+                  $"{Round(fight2)} | {f.Orders[cas].Kind}", $"Hal use {Wand} | Fight");
+            f.ByHand.Clear();
+            f.Orders.Clear();
+            st.Set("LeaveInCommand", true);
+            party.Select(1);
+            Check("Leave the one in command to me, Cas in command with no order: Hal's Use passed over, Cas's None left standing",
+                  $"{Round(fight2)} | {f.Orders.ContainsKey(cas)}", "Brak Defend | False");
+            f.Orders[hal] = (OrderKind.Spell, 1, full);
+            Check("... but Hal's Use already standing is kept, not swapped for another rule", Round(fight2), "");
+            st.Set("LeaveInCommand", false);
+            party.Select(0);
             hal.RemoveFromPack(low); hal.RemoveFromPack(full);
         }
         else Check("an item holding a combat spell (for the Use rule)", "none in MDATA3", "one");

@@ -22,7 +22,7 @@ The program is self-contained (no .NET to install) and not a single file: the bu
 The packages are made by [Velopack](https://velopack.io): `vpk`, at the version pinned in
 `.config/dotnet-tools.json`, run by `tools/pack-release.sh`. That script is the whole recipe, and
 CI runs it on every push (without uploading anything), so a tree that cannot be packed is caught
-before it is tagged. To see what a release would hold, run it yourself (Windows, .NET 8 SDK):
+before it is tagged. To see what a release would hold, run it yourself (Windows, .NET 10 SDK):
 
     sh tools/pack-release.sh ../release-test
 

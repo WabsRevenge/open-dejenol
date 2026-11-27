@@ -68,10 +68,10 @@ TESTS_PROJ=tests/Mordor.Tests/Mordor.Tests.csproj
 TOOLS_PROJ=tools/Mordor.Tools/Mordor.Tools.csproj
 UI_PROJ=tests/Mordor.UiCheck/Mordor.UiCheck.csproj
 APP_PROJ=src/Mordor.App/Mordor.App.csproj
-TESTS_EXE=./tests/Mordor.Tests/bin/Release/net8.0/Mordor.Tests.exe
-TOOLS_EXE=./tools/Mordor.Tools/bin/Release/net8.0/Mordor.Tools.exe
-UI_EXE=./tests/Mordor.UiCheck/bin/Release/net8.0/Mordor.UiCheck.exe
-APP_OUT=./src/Mordor.App/bin/Release/net8.0
+TESTS_EXE=./tests/Mordor.Tests/bin/Release/net10.0/Mordor.Tests.exe
+TOOLS_EXE=./tools/Mordor.Tools/bin/Release/net10.0/Mordor.Tools.exe
+UI_EXE=./tests/Mordor.UiCheck/bin/Release/net10.0/Mordor.UiCheck.exe
+APP_OUT=./src/Mordor.App/bin/Release/net10.0
 
 echo "building the test suites and the tools"
 # the build's own exit status, not the grep's: a failed build would otherwise leave the last

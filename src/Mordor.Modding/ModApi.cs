@@ -619,7 +619,20 @@ public sealed class CombatRoundContext
     /// hand, sub0BDE then runs (MAINMOD2.BAS:6131-6132): every member with no order drops a chest count
     /// and takes up their Combat Setting.
     /// </summary>
-    public bool UseItem(Character c, InventorySlot slot) => IsOpen && _use(c, slot);
+    /// <remarks>
+    /// That side effect would reach members a mod is not giving orders to, so this refuses (false,
+    /// nothing done, nothing said) while another member with no order is opening a chest
+    /// (<see cref="CombatOrderView.OpeningChest"/>) or was given an order by hand this fight
+    /// (<see cref="ByHand"/>): their count would be called off, or the order the player left them
+    /// replaced. It is a moment, not a verdict on the item: once that member has an order or the
+    /// count has run out, the same Use goes through. The player's own Use is the original's and does
+    /// not ask.
+    /// </remarks>
+    public bool UseItem(Character c, InventorySlot slot) => IsOpen && !UseWouldReachOthers(c) && _use(c, slot);
+
+    /// <summary>Whether sub0BDE, run by a Use for <paramref name="c"/>, would reach another member left alone: one with no order opening a chest, or given an order by hand.</summary>
+    private bool UseWouldReachOthers(Character c) =>
+        Members.Any(x => !ReferenceEquals(x, c) && OrderOf(x) is { Kind: OrderKind.None } o && (o.OpeningChest || ByHand(x)));
     /// <summary>A number key: aim the member at the group in <paramref name="slot"/> (0-3), if anyone stands in it.</summary>
     public bool Aim(Character c, int slot) => IsOpen && _aim(c, slot);
 

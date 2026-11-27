@@ -343,8 +343,39 @@ public static partial class SelfCheckProbe
             Check("MORDOR_SAVES before either", Saves.Resolve(gameA, over, perUser), over);
             Check("and it is made", Directory.Exists(over), true);
             Check("nothing moved out of the legacy folder", File.Exists(Path.Combine(legacyA, "Someone.json")), true);
-            Check("the per-user folder is under %APPDATA%\\OpenDejenol (or the old Mordor Port, until it is renamed)",
-                  Saves.PerUserDir, Path.Combine(UserFolders.In(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)), "saves"));
+            string appData = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            Check("the per-user folder is under %APPDATA%\\OpenDejenol (or the old Mordor Port, until it is renamed; on macOS see below)",
+                  Saves.PerUserDir, Path.Combine(UserFolders.In(UserFolders.RoamingParentFor(OperatingSystem.IsMacOS(), appData, home, Directory.Exists)), "saves"));
+            if (!OperatingSystem.IsMacOS())
+                Check("... which off macOS is ApplicationData's, as it always was", Saves.PerUserDir, Path.Combine(UserFolders.In(appData), "saves"));
+
+            // ---- macOS: ~/Library/Application Support, unless an earlier build's ~/.config/OpenDejenol is there ----
+            {
+                string macHome = Path.Combine(scratch, "machome"), dotConfig = Path.Combine(macHome, ".config");
+                string support = Path.Combine(macHome, "Library", "Application Support");
+                var there = new HashSet<string>(StringComparer.Ordinal);
+                bool Exists(string p) => there.Contains(p);
+                Check("Windows: ApplicationData (%APPDATA%), whatever is there",
+                      UserFolders.RoamingParentFor(false, @"C:\Users\x\AppData\Roaming", @"C:\Users\x", Exists), @"C:\Users\x\AppData\Roaming");
+                Check("Linux: ApplicationData (~/.config), as before", UserFolders.RoamingParentFor(false, dotConfig, macHome, Exists), dotConfig);
+                Check("macOS, a fresh Mac: ~/Library/Application Support, not ~/.config",
+                      UserFolders.RoamingParentFor(true, dotConfig, macHome, Exists), support);
+                Check("... so the saves go to ~/Library/Application Support/OpenDejenol/saves",
+                      Path.Combine(UserFolders.In(UserFolders.RoamingParentFor(true, dotConfig, macHome, Exists)), "saves"),
+                      Path.Combine(support, "OpenDejenol", "saves"));
+                there.Add(Path.Combine(dotConfig, "OpenDejenol"));
+                Check("macOS with an earlier build's ~/.config/OpenDejenol: that one kept, where it is (its settings and saves found, nothing moved)",
+                      Path.Combine(UserFolders.In(UserFolders.RoamingParentFor(true, dotConfig, macHome, Exists)), "saves"),
+                      Path.Combine(dotConfig, "OpenDejenol", "saves"));
+                there.Clear(); there.Add(Path.Combine(dotConfig, "Mordor Port"));
+                Check("... and with the old name there, that one (renamed in place at start, as anywhere)",
+                      UserFolders.RoamingParentFor(true, dotConfig, macHome, Exists), dotConfig);
+                there.Clear(); there.Add(Path.Combine(support, "OpenDejenol"));
+                Check("macOS with the cache's folder already in Application Support: the settings and saves beside it",
+                      UserFolders.RoamingParentFor(true, dotConfig, macHome, Exists), support);
+                Check("macOS with no home folder known: ApplicationData, as before",
+                      UserFolders.RoamingParentFor(true, dotConfig, "", Exists), dotConfig);
+            }
 
             // ---- the per-user folders' old name (UserFolders): renamed, never lost ----
             {

@@ -115,6 +115,9 @@ public partial class DungeonWindow : Window
         UiFonts.Use(GameOptions.Load(gameDir));
         InitializeComponent();
         ThemeSelection.ApplyWindowSurface(this);
+        // the arrow pad: its characters on Windows, drawn as shapes elsewhere (Glyphs)
+        foreach (var b in new[] { TurnLeftBtn, ForwardBtn, TurnRightBtn, TurnAroundBtn })
+            if (b.Content is string arrow) b.Content = Glyphs.Content(arrow);
         CityWindow.FramePartyRows(PartyRowsFrame, PartySwitchBtn);
         // the Light theme's relief (ClassicLook), as game_files/dmainw1.png has it: the view, the
         // position, the monster box and the chest box set in, and the lists set in deeper
@@ -928,11 +931,13 @@ public partial class DungeonWindow : Window
                     // a wall: OUCH.WAV (sub09DE mc0606, MAINMOD2.BAS:3897) and not a word. "You walk
                     // into a wall." was this port's.
                     // In fog the wall you walked into goes on the map (MAINMOD2.BAS:3864-3891);
-                    // the Redraw below is the "DRAW" that follows it. Only a wall bit takes that
-                    // blocked branch (MAINMOD2.BAS:3772, 3863): a step off the edge with no wall bit
-                    // goes through the move branch, is clamped back with OUCH and records nothing
-                    // (MAINMOD2.BAS:3786-3790, 3848-3851)
-                    if (_nav.EdgeAt(_nav.X, _nav.Y, _nav.Facing) == Edge.Wall)
+                    // the Redraw below is the "DRAW" that follows it. fn0B1B's wall bit takes that
+                    // blocked branch (MAINMOD2.BAS:3772, 3863), and fn0B1B answers a step off the
+                    // level with it too (MAZEMOD.BAS:157-165, 181-182): the level's top and right
+                    // edges, which carry no wall bit, are recorded on a fog square as any wall is
+                    // (issue #11). The port had tested the wall bit alone, so a fog square on
+                    // those two edges never had its outer side drawn.
+                    if (_nav.WallAhead(_nav.Facing))
                         MapRecord.OnBumpInFog(_map, _nav.Floor, _nav.X, _nav.Y, _nav.Facing);
                     Audio.Play("OUCH");
                 }
@@ -1803,7 +1808,8 @@ public partial class DungeonWindow : Window
     /// <summary><c>sub0F74</c> on the selected slot.</summary>
     private void EquipSelected()
     {
-        var slot = SelectedPackSlot();
+        // the Hands too: sub0F74 leaves on an empty slot, never on slot 0 (MAINMOD2.BAS:1725)
+        var slot = _ch.SlotToEquip(PackList.SelectedIndex);
         if (slot == null) return;   // nothing selected: the original's routines just leave
         int idx = PackList.SelectedIndex;
         // no identification test: neither sub0F74 (equip) nor sub15CD (use) asks how well you know

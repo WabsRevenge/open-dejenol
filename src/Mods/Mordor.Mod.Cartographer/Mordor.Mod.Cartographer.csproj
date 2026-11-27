@@ -4,7 +4,7 @@
        and mod.json into <program>/mods/Cartographer, where the loader finds it. The game draws its marks on
        the Automap (ModUI.AutomapMarks); Avalonia is for the route settings window alone. -->
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>

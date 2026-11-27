@@ -3,7 +3,8 @@ namespace Mordor.Core;
 /// <summary>
 /// The program's own per-user folders, named for the program, OpenDejenol:
 /// <list type="bullet">
-/// <item><c>%APPDATA%\OpenDejenol</c> (<see cref="Roaming"/>): the launch settings, the per-user
+/// <item><c>%APPDATA%\OpenDejenol</c> (<see cref="Roaming"/>; on macOS <c>~/Library/Application
+///   Support/OpenDejenol</c>, <see cref="RoamingParentFor"/>): the launch settings, the per-user
 ///   saves and, for those saves, the crash log and CHARSTAT.TXT (<see cref="GameFolder"/>,
 ///   <see cref="Saves"/>, <see cref="PortFiles"/>);</item>
 /// <item><c>%LOCALAPPDATA%\OpenDejenol</c> (<see cref="Local"/>): the cache of pictures and help
@@ -30,7 +31,33 @@ public static class UserFolders
     /// <summary><c>%LOCALAPPDATA%\OpenDejenol</c>, or the old <c>%LOCALAPPDATA%\Mordor Port</c> while only that one is there.</summary>
     public static string Local => In(LocalParent);
 
-    private static string RoamingParent => Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+    private static string RoamingParent => RoamingParentFor(OperatingSystem.IsMacOS(),
+        Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+        Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), Directory.Exists);
+
+    /// <summary>
+    /// The folder <see cref="Roaming"/> is made in. On Windows and Linux, ApplicationData as it always
+    /// was: <c>%APPDATA%</c>, <c>~/.config</c>. On macOS .NET gives ApplicationData as <c>~/.config</c>
+    /// too, a Linux habit; a Mac keeps an app's own files in <c>~/Library/Application Support</c>,
+    /// and that is the one used there - unless a Mac that ran an earlier build (the first macOS
+    /// builds) already has <c>~/.config/OpenDejenol</c> (or the old <c>Mordor Port</c>), with its
+    /// launch settings and per-user saves in it: that one goes on being used where it is. Nothing is
+    /// moved, so nothing can be lost on the way or split between two folders, and the chosen game
+    /// folder and the saves are found as before. Only names; makes nothing. The inputs are given so
+    /// the rule can be checked on any system.
+    /// </summary>
+    /// <param name="macOS">Whether this is macOS.</param>
+    /// <param name="applicationData">Environment.SpecialFolder.ApplicationData.</param>
+    /// <param name="home">Environment.SpecialFolder.UserProfile, the home folder.</param>
+    /// <param name="exists">Whether a folder is there (Directory.Exists).</param>
+    public static string RoamingParentFor(bool macOS, string applicationData, string home, Func<string, bool> exists)
+    {
+        if (!macOS || string.IsNullOrEmpty(home)) return applicationData;
+        if (!string.IsNullOrEmpty(applicationData)
+            && (exists(Path.Combine(applicationData, Name)) || exists(Path.Combine(applicationData, OldName))))
+            return applicationData;
+        return Path.Combine(home, "Library", "Application Support");
+    }
 
     private static string LocalParent
     {

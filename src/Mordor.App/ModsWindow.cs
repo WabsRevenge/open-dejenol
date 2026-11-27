@@ -302,7 +302,7 @@ public sealed class ModsWindow : Window
                 }
                 Button Small(string text, string tip, Action act, bool enabled = true)
                 {
-                    var b = new Button { Content = text, Width = 24, MinHeight = 22, Padding = new Thickness(0), FontSize = 10, IsEnabled = enabled,
+                    var b = new Button { Content = Glyphs.Content(text), Width = 24, MinHeight = 22, Padding = new Thickness(0), FontSize = 10, IsEnabled = enabled,
                                          HorizontalContentAlignment = HorizontalAlignment.Center };
                     ToolTip.SetTip(b, tip);
                     b.Click += (_, _) => { act(); dirty = true; Save(); Draw(); };

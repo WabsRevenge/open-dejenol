@@ -255,8 +255,51 @@ public sealed class CloudSaves
             : "";
         int b = await menu.Ask(Title, $"In your last game you asked to restore the world saved on {what}. Restore it now?{changed}{newer}\n\n{BackupNote(sync)}",
                                "Restore", "Cancel the restore");
-        if (b == 0) await DoRestore(menu, sync, pending);
-        else { sync.RequestRestore(null); Say("The restore was cancelled."); }
+        if (b != 0) { sync.RequestRestore(null); Say("The restore was cancelled."); return; }
+        var r = await Task.Run(() => { lock (_gate) return sync.Restore(pending); });
+        if (r.Done) { await Restored(menu, r); return; }
+        await PendingFailed(menu, sync, r);
+    }
+
+    /// <summary>
+    /// A restore asked for in the last game could not be done at this start. Left as it was, the
+    /// request would hold every upload for the whole session (<see cref="CloudSync.AutoUpload"/>) and
+    /// be offered again at the next start, where restoring it would put an older world over the game
+    /// played meanwhile - backed up, but unlooked-for. So the player is told plainly what happens next:
+    /// <list type="bullet">
+    /// <item>one that can never be done (the snapshot gone from iCloud Drive, unreadable, failing its
+    ///   check) is cancelled, and uploads go on as usual - the snapshot, if still there, stays in iCloud;</item>
+    /// <item>one that might be done another time (not downloaded yet, the backup or the writing failed)
+    ///   is the player's to keep waiting or cancel, each told what it means. The box closed with neither
+    ///   pressed keeps it waiting: that changes nothing, and it is asked about again at the next start.</item>
+    /// </list>
+    /// Nothing here touches the saves: cancelling only lets this Mac's saves be uploaded as a new
+    /// snapshot, beside every one already in iCloud.
+    /// </summary>
+    private async Task PendingFailed(MainMenuContext menu, CloudSync sync, SyncResult r)
+    {
+        bool interrupted = (await Task.Run(() => { lock (_gate) return sync.LoadState(); }))?.RestoreInProgress != null;
+        if (!r.CanRetry || interrupted)
+        {
+            await Task.Run(() => { lock (_gate) sync.RequestRestore(null); });
+            string next = interrupted
+                ? "The restore you asked for is cancelled. Nothing is uploaded until the saves are sorted out at the next start."
+                : "The restore you asked for is cancelled, since it cannot be done. This Mac's saves are played and uploaded as usual.";
+            Say(r.Message + " " + next);
+            await menu.Ask(Title, r.Message + "\n\n" + next, "OK");
+            return;
+        }
+        int k = await menu.Ask(Title, r.Message + "\n\nThe restore you asked for can still wait for the next start. If it waits, nothing is uploaded "
+                                    + "from this Mac until then, and restoring it then replaces whatever you play now (this Mac's saves are "
+                                    + "copied to a saves-backup folder first). If you cancel it, this Mac's saves are uploaded as usual and the "
+                                    + "snapshot stays in iCloud, where the iCloud Saves window can ask for it again.",
+                               "Keep it waiting", "Cancel the restore");
+        if (k == 1)
+        {
+            await Task.Run(() => { lock (_gate) sync.RequestRestore(null); });
+            Say("The restore was cancelled; this Mac's saves are uploaded as usual.");
+        }
+        else Say("The restore still waits for the next start; nothing is uploaded until then.");
     }
 
     private async Task OfferInterrupted(MainMenuContext menu, CloudSync sync, string backup)
@@ -282,8 +325,13 @@ public sealed class CloudSaves
     private async Task DoRestore(MainMenuContext menu, CloudSync sync, string fileName)
     {
         var r = await Task.Run(() => { lock (_gate) return sync.Restore(fileName); });
+        if (!r.Done) { Say(r.Message); await menu.Ask(Title, r.Message, "OK"); return; }
+        await Restored(menu, r);
+    }
+
+    private async Task Restored(MainMenuContext menu, SyncResult r)
+    {
         Say(r.Message);
-        if (!r.Done) { await menu.Ask(Title, r.Message, "OK"); return; }
         await menu.Ask(Title, r.Message + "\n\nOpenDejenol will now close so that everything reads the restored world. Start it again to play.", "OK");
         menu.Quit();
     }

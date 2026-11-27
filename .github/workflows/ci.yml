@@ -32,7 +32,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [windows-latest, windows-11-arm, ubuntu-latest, ubuntu-24.04-arm]
+        # all four on the public repository, where the runners are free; the private one keeps its
+        # Windows x64 build alone (its minutes are billed, and ARM and macOS cost more)
+        os: ${{ fromJSON(github.repository == 'uncanardnoir/open-dejenol' && '["windows-latest", "windows-11-arm", "ubuntu-latest", "ubuntu-24.04-arm"]' || '["windows-latest"]') }}
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     steps:
@@ -41,10 +43,10 @@ jobs:
       - uses: actions/setup-dotnet@v6
         id: dotnet
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
-      # the runner has newer SDKs too; build with the .NET 8 one just installed, as the project does
-      - name: Pin the .NET 8 SDK
+      # the runner has other SDKs too; build with the .NET 10 one just installed, as the project does
+      - name: Pin the .NET 10 SDK
         shell: bash
         run: dotnet new globaljson --sdk-version "${{ steps.dotnet.outputs.dotnet-version }}" --force
 
@@ -68,6 +70,8 @@ jobs:
   # signed ad hoc by tools/pack-macos.sh, then thrown away. As on Windows there is no game folder,
   # so the suites skip themselves; they are run locally against one (make check, README "macOS").
   macos:
+    # the public repository only: macOS minutes are billed at ten times the rate on a private one
+    if: github.repository == 'uncanardnoir/open-dejenol'
     runs-on: macos-latest
     timeout-minutes: 30
     steps:
@@ -76,9 +80,9 @@ jobs:
       - uses: actions/setup-dotnet@v6
         id: dotnet
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
-      - name: Pin the .NET 8 SDK
+      - name: Pin the .NET 10 SDK
         run: dotnet new globaljson --sdk-version "${{ steps.dotnet.outputs.dotnet-version }}" --force
 
       - name: Restore

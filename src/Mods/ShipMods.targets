@@ -42,15 +42,15 @@
 
   <!-- each bundled mod's files, with the folder under mods\ they go to. The mods are always built
        for any runtime (a RuntimeIdentifier given to a publish is not passed on to them), so their
-       output is bin\<config>\net8.0 -->
+       output is bin\<config>\net10.0 -->
   <Target Name="BundledModFiles">
     <PropertyGroup>
-      <_QoLOut>$(MSBuildThisFileDirectory)Mordor.Mod.QoL\bin\$(Configuration)\net8.0\</_QoLOut>
-      <_KaizenOut>$(MSBuildThisFileDirectory)Mordor.Mod.Kaizen\bin\$(Configuration)\net8.0\</_KaizenOut>
-      <_DpsOut>$(MSBuildThisFileDirectory)Mordor.Mod.DpsMeter\bin\$(Configuration)\net8.0\</_DpsOut>
-      <_CartoOut>$(MSBuildThisFileDirectory)Mordor.Mod.Cartographer\bin\$(Configuration)\net8.0\</_CartoOut>
-      <_AutoOut>$(MSBuildThisFileDirectory)Mordor.Mod.AutoCombat\bin\$(Configuration)\net8.0\</_AutoOut>
-      <_ICloudOut>$(MSBuildThisFileDirectory)Mordor.Mod.ICloudSaves\bin\$(Configuration)\net8.0\</_ICloudOut>
+      <_QoLOut>$(MSBuildThisFileDirectory)Mordor.Mod.QoL\bin\$(Configuration)\net10.0\</_QoLOut>
+      <_KaizenOut>$(MSBuildThisFileDirectory)Mordor.Mod.Kaizen\bin\$(Configuration)\net10.0\</_KaizenOut>
+      <_DpsOut>$(MSBuildThisFileDirectory)Mordor.Mod.DpsMeter\bin\$(Configuration)\net10.0\</_DpsOut>
+      <_CartoOut>$(MSBuildThisFileDirectory)Mordor.Mod.Cartographer\bin\$(Configuration)\net10.0\</_CartoOut>
+      <_AutoOut>$(MSBuildThisFileDirectory)Mordor.Mod.AutoCombat\bin\$(Configuration)\net10.0\</_AutoOut>
+      <_ICloudOut>$(MSBuildThisFileDirectory)Mordor.Mod.ICloudSaves\bin\$(Configuration)\net10.0\</_ICloudOut>
     </PropertyGroup>
     <ItemGroup>
       <_BundledModFile Include="$(_QoLOut)Mordor.Mod.QoL.dll;$(_QoLOut)mod.json" ModFolder="QoL" />

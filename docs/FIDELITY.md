@@ -2833,6 +2833,16 @@ buffers. That is all gone: the pack is forty fixed slots with the Hands pinned i
 (`Character.Pack`), Drop refuses slot 0 as the original does, and a slot is blanked in place, so
 nothing is repointed.
 
+**The Hands are equipped like a weapon - corrected 2026-11-27 (issue #14).** `sub0F74`'s empty-slot
+test is `If Pack(p).Ref < 1 And p > 0` (MAINMOD2.BAS:1725), so Equip on slot 0 goes on with Items(0):
+wear class 0, one at a time, two hands, two swings at half damage. The equip fills a weapon hand
+(`M5997`, MAINMOD2.BAS:1842-1848), and the swing loop then has something to swing (MONSMOD.BAS:325-338);
+a new character starts with both hands at -1 (CHARCREA.BAS:245-246), so until the Hands are put on it
+is "Using no weapon!" and Defend. The port's Equip had skipped slot 0 and its worn-item sums started at
+slot 1, so a character with no weapon could never fight. `Character.SlotToEquip` lets slot 0 through,
+and `Character.Worn` - every equipped slot, 0 included - feeds the hands in use, the class count, the
+weapon list and the stat and effect sums; selfcheck "the Hands can be equipped and fought with".
+
 ## The morgue has two separate paths
 
 Worth recording because I got this wrong once. MAINMOD2.BAS handles **your own** death - the body
@@ -5631,7 +5641,12 @@ longer plays BYE.WAV.
     the map grown with its window: see [the automap is not scaled](#the-automap-is-not-scaled-re-examined-2026-09-28).
   - Fog on the square you stand on stops its edge writes and both neighbours' (MAZEMOD.BAS:1570, 1646, 1671).
   - West and south boundary walls are drawn beside any square you have stood on (FRMAUTOM.BAS:430-439).
-  - Walking into a wall bit in fog records it (MAINMOD2.BAS:3864-3891).
+  - Walking into a wall bit in fog records it (MAINMOD2.BAS:3864-3891). So does walking into the level's north or
+    east edge, which MDATA11 gives no wall bit: fn0B1B answers a step off the level as a wall without reading a
+    square (MAZEMOD.BAS:157-165, 181-182), so the blocked branch runs and writes the side on your own square. The
+    port had asked the square's wall bit alone, and a fog square on the top or right edge never had its outer side
+    drawn - corrected 2026-11-27 (issue #11, `DungeonNav.WallAhead`). The south and west edges have no square to
+    write on (MAINMOD2.BAS:3880) and are drawn from the square you stood on, as above.
   - The arrow blinks every 500 ms unless "No Automap Cursor Blink" is set, which is read on every tick
     (FRMAUTOM.BAS:321, 608-632).
 - **Creation.** The Guilds Allowed list is drawn in the form's black on silver, where bold, plain and italic are the

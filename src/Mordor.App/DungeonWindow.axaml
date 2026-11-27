@@ -133,11 +133,12 @@
 
                     <!-- picPicture(0) at 45,1890 holds cmdMove(0..3), 300x300 each, captioned in the
                          Symbol font: left at -15, up at 270, right at 555 and down at 1005 - one row,
-                         with a gap before the last (game_files/dmainw1.png) -->
-                    <Button Focusable="False" Content="←" Canvas.Left="2" Canvas.Top="125" Width="20" Height="20" Click="OnTurnLeft"/>
-                    <Button Focusable="False" Content="↑" Canvas.Left="21" Canvas.Top="125" Width="20" Height="20" Click="OnForward"/>
-                    <Button Focusable="False" Content="→" Canvas.Left="40" Canvas.Top="125" Width="20" Height="20" Click="OnTurnRight"/>
-                    <Button Focusable="False" Content="↓" Canvas.Left="70" Canvas.Top="125" Width="20" Height="20" Click="OnTurnAround"/>
+                         with a gap before the last (game_files/dmainw1.png). Away from Windows the
+                         arrows are drawn as shapes in place of the characters (Glyphs) -->
+                    <Button x:Name="TurnLeftBtn" Focusable="False" Content="←" Canvas.Left="2" Canvas.Top="125" Width="20" Height="20" Click="OnTurnLeft"/>
+                    <Button x:Name="ForwardBtn" Focusable="False" Content="↑" Canvas.Left="21" Canvas.Top="125" Width="20" Height="20" Click="OnForward"/>
+                    <Button x:Name="TurnRightBtn" Focusable="False" Content="→" Canvas.Left="40" Canvas.Top="125" Width="20" Height="20" Click="OnTurnRight"/>
+                    <Button x:Name="TurnAroundBtn" Focusable="False" Content="↓" Canvas.Left="70" Canvas.Top="125" Width="20" Height="20" Click="OnTurnAround"/>
 
                     <!--
                         picMonsters: 1665,45 5490x2145. Monsters on this square, whether or not they

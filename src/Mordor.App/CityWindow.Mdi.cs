@@ -869,7 +869,8 @@ public partial class CityWindow
     /// <summary><c>sub0F74</c> on the selected slot.</summary>
     private void EquipSelected()
     {
-        var slot = SelectedPackSlot();
+        // the Hands too: sub0F74 leaves on an empty slot, never on slot 0 (MAINMOD2.BAS:1725)
+        var slot = _ch.SlotToEquip(PackList.SelectedIndex);
         if (slot == null) return;   // sub0F74 leaves on an empty slot without a word
         var it = Lookup(slot.ItemId);
         if (it == null) return;

@@ -171,11 +171,22 @@ public sealed class OrderInfoWindow
     {
         var form = new Canvas { Width = 604, Height = 336 };
         form.Children.Add(VbForm.Label(LimitedVersion.OrderInfo, 11, Palette.Text, bold: true).At(210, 165, 8655, 1590));
-        form.Children.Add(VbForm.Label(LimitedVersion.OrderHow, 11, Palette.Text, bold: true).At(210, 1875, 8655, 2580));
+        var how = VbForm.Label(LimitedVersion.OrderHow, 11, Palette.Text, bold: true).At(210, 1875, 8655, 2580);
+        form.Children.Add(how);
         // cmdCommand(0).Left = (Me.Width / 2) - (cmdCommand(0).Width / 2) (FRMORDER.BAS:33)
         var ok = VbForm.Button("OK").At(9060 / 2 - 1335 / 2, 4605, 1335, 330);
         form.Children.Add(ok);
-        _win = VbForm.Dialog(LimitedVersion.OrderTitle, 604, 336, VbForm.Grey, form);
+        // lblOrderInfo's text wraps to more lines in the port's faces than the form's 2580 twips hold
+        // (the closing "Order the full version..." fell below it): the label is made as tall as its
+        // text, and the OK button and the form move down by what it grew. With text that fits, nothing moves.
+        double designed = how.Height;
+        how.Height = double.NaN;
+        how.Measure(new Size(how.Width, double.PositiveInfinity));
+        double grow = Math.Max(0, Math.Ceiling(how.DesiredSize.Height - designed));
+        how.Height = designed + grow;
+        Canvas.SetTop(ok, Canvas.GetTop(ok) + grow);
+        form.Height += grow;
+        _win = VbForm.Dialog(LimitedVersion.OrderTitle, 604, 336 + grow, VbForm.Grey, form);
         // cmdCommand_Click: Unload Me (FRMORDER.BAS:9-11)
         ok.Click += (_, _) => _win.Close();
         _win.Opened += (_, _) => ok.Focus();

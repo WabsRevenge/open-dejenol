@@ -89,7 +89,9 @@ public static class MapRecord
     /// (m0612 = 0) facing east or west, on your own square or on the one south or west of you
     /// (MAINMOD2.BAS:3865-3891). The square has to be on the map, 1-based X and Y above zero
     /// (MAINMOD2.BAS:3880), so bumping the west or south edge of the level writes nothing - those two edges are
-    /// drawn from the square you stand on instead (FRMAUTOM.BAS:430-439). Out of fog nothing is
+    /// drawn from the square you stand on instead (FRMAUTOM.BAS:430-439). The north and east edges
+    /// are on your own square, and fn0B1B answers a step off the level as a wall
+    /// (<see cref="DungeonNav.WallAhead"/>), so bumping those in fog writes them. Out of fog nothing is
     /// written: stepping onto the square wrote every wall already (MAZEMOD.BAS:1588-1592).
     ///
     /// The original makes no lost test here, unlike the step itself, so neither does this.

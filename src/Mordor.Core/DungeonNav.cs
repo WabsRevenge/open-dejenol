@@ -66,6 +66,20 @@ public sealed class DungeonNav
         }
     }
 
+    /// <summary>
+    /// Whether a step that way meets a wall, as <c>fn0B1B</c>'s wall bit answers fn1521's step
+    /// (MAINMOD2.BAS:3771-3772): the wall on that side, or the edge of the level. A step that would
+    /// leave the grid never reads a square at all - <c>l00D0 = False</c> at Y = Height facing north,
+    /// X = Width facing east, and at row or column 1 facing south or west (MAZEMOD.BAS:157-165) -
+    /// and is answered with the wall bit (181-182). MDATA11 carries no wall bit along the east and
+    /// north edges, so <see cref="EdgeAt"/> says Open there, and that is where the two differ.
+    /// </summary>
+    public bool WallAhead(Facing f)
+    {
+        var (dx, dy) = Delta(f);
+        return !InBounds(X + dx, Y + dy) || EdgeAt(X, Y, f) == Edge.Wall;
+    }
+
     private static Edge Classify(long flags, int wallBit, int doorBit, int secretBit)
     {
         if ((flags & (1L << wallBit)) != 0) return Edge.Wall;

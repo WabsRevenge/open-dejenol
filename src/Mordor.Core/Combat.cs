@@ -436,13 +436,13 @@ public sealed partial class CombatEngine
 
     /// <summary><see cref="EquippedSum"/> for callers outside a fight, such as the Char page.</summary>
     public static int WornSum(Character c, Func<short, Item?> item, Func<Item, int> f) =>
-        c.Inventory.Where(s => s.Equipped)
+        c.Worn
          .Select(s => (slot: s, item: item(s.ItemId)))
          .Where(t => t.item != null)
          .Sum(t => ItemAlignments.AttDefWorth(f(t.item!), ItemAlignments.FitFor(t.slot.Alignment, c.Alignment)));
 
 
-    private Item? WeaponOf(Character c) => c.Inventory.Where(s => s.Equipped).Select(s => _item(s.ItemId))
+    private Item? WeaponOf(Character c) => c.Worn.Select(s => _item(s.ItemId))
         .Where(i => i != null && i.Type <= 7 && i.Att > 0).OrderByDescending(i => i!.Att).FirstOrDefault();
 
     private static int SizeOf(Character c) => (int)RaceData.ByName(c.Race).Size;
@@ -852,7 +852,7 @@ public sealed partial class CombatEngine
     }
 
     /// <summary>Every weapon the character has equipped, standing in for the original's two hands.</summary>
-    private List<Item> WeaponsOf(Character c) => c.Inventory.Where(s => s.Equipped)
+    private List<Item> WeaponsOf(Character c) => c.Worn
         .Select(s => _item(s.ItemId)).Where(i => i != null && i.Type <= 7)   // M5997 holds anything of a weapon type, Att or no Att
         .Select(i => i!).ToList();
 

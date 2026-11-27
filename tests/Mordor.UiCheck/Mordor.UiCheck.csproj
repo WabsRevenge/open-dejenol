@@ -8,10 +8,17 @@
 
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <!-- net10.0 makes NuGet audit transitive packages too: Avalonia 11.2.3's Linux D-Bus library
+       (Tmds.DBus.Protocol 0.20.0, the same one every release so far ships) has this advisory,
+       fixed in 0.21.3; kept as it is until a deliberate Avalonia or D-Bus update -->
+  <ItemGroup>
+    <NuGetAuditSuppress Include="https://github.com/advisories/GHSA-xrw6-gwf8-vvr9" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Avalonia.Headless" Version="11.2.3" />

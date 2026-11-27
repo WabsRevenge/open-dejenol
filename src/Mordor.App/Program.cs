@@ -27,6 +27,13 @@ class Program
         Mordor.Core.SafeFile.Log = CrashLog.Note;
         Mordor.Core.SaveRecovery.Log = CrashLog.Note;
         if (velopack != null) CrashLog.Write("the installer's start-up hooks", velopack);
+        // Since .NET 10 the runtime no longer ends a program gracefully on SIGTERM (a Linux or macOS
+        // logout, a kill): it would stop dead, without ProcessExit. This puts back what .NET 8 did,
+        // an exit through ProcessExit, so what waits there is still done (the DPS Meter's last
+        // tally written, the sound closed). Windows is left exactly as it was.
+        using var sigterm = OperatingSystem.IsWindows() ? null
+            : System.Runtime.InteropServices.PosixSignalRegistration.Create(
+                System.Runtime.InteropServices.PosixSignal.SIGTERM, _ => Environment.Exit(0));
         try { BuildAvaloniaApp().StartWithClassicDesktopLifetime(args); }
         catch (Exception ex) { CrashLog.Write("fatal", ex); throw; }
     }

@@ -384,7 +384,7 @@ public sealed class ModHost
             if (lm.Instance is IModLifecycle life) Guard(lm, "OnDisable", life.OnDisable);
             if (lm.Context.HarmonyUsed && !lm.Faulted)
             {
-                try { lm.Context.Harmony.UnpatchAll(lm.Id); }
+                try { UnpatchOwned(lm.Context.Harmony, lm.Id); }
                 catch (Exception un) { Problem($"mod {lm.Id}: removing its Harmony patches failed: {un.Message}"); }
             }
             lm.Patches.Clear();
@@ -410,6 +410,20 @@ public sealed class ModHost
         if (running == enabledNow) return running ? "Running." : "Off.";
         // a mod that cannot be switched without a restart
         return running ? "Running now; off from the next start." : "Starts the next time Mordor starts.";
+    }
+
+    /// <summary>
+    /// Every Harmony patch <paramref name="id"/> owns, removed by its owner: what
+    /// <c>UnpatchAll(id)</c> means, done another way. Harmony 2.4's UnpatchAll finds each patch's
+    /// method again from its module's id and matches it, and that id is the same for every copy of
+    /// one dll loaded twice (the test mods are all one assembly), so which copy it finds is chance
+    /// and the patch could stay. The owner is a plain string, the same whichever copy.
+    /// </summary>
+    internal static void UnpatchOwned(HarmonyLib.Harmony harmony, string id)
+    {
+        foreach (var method in HarmonyLib.Harmony.GetAllPatchedMethods().ToList())
+            if (HarmonyLib.Harmony.GetPatchInfo(method)?.Owners.Contains(id) == true)
+                harmony.Unpatch(method, HarmonyLib.HarmonyPatchType.All, id);
     }
 
     private void NotePatches(LoadedMod lm)
@@ -444,7 +458,7 @@ public sealed class ModHost
         Problem($"mod {lm.Id}: disabled for this session - it threw in {where}{Environment.NewLine}{ex}");
         if (lm.Context.HarmonyUsed)
         {
-            try { lm.Context.Harmony.UnpatchAll(lm.Id); Problem($"mod {lm.Id}: its Harmony patches were removed"); }
+            try { UnpatchOwned(lm.Context.Harmony, lm.Id); Problem($"mod {lm.Id}: its Harmony patches were removed"); }
             catch (Exception un) { Problem($"mod {lm.Id}: removing its Harmony patches failed: {un.Message}"); }
         }
         try { Changed?.Invoke(); } catch { }
@@ -633,7 +647,11 @@ public sealed class ModHost
                 foreach (var lm in hooked)
                 {
                     if (!lm.Running || pick(lm.Context.Actions) is not { } hook) continue;
-                    var ctx = make();
+                    // the game's context failing to be made is no mod's fault, and must not end the
+                    // program (the main menu awaits this): said in mods.log, and no hook asked - as CombatRound
+                    TContext ctx;
+                    try { ctx = make(); }
+                    catch (Exception ex) { _log($"mods: the context for {where} could not be made - {ex.GetType().Name}: {ex.Message}"); return; }
                     // a throw before the hook's first await and a task that faults later are the same
                     // to the game: the mod is disabled and the next one is asked
                     try { await hook(ctx); }

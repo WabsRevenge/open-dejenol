@@ -253,6 +253,13 @@ In order:
 
 Nothing is ever moved or copied from one to the other.
 
+`%APPDATA%` here and below is .NET's ApplicationData: `~/.config` on Linux. On macOS, where .NET
+gives `~/.config` too, the per-user folder is `~/Library/Application Support/OpenDejenol` instead,
+the Mac's place for an app's own files (`UserFolders.RoamingParentFor`) - unless the Mac ran one of
+the first macOS builds and already has `~/.config/OpenDejenol`: that folder, with its launch
+settings and per-user saves, goes on being used where it is. Nothing is moved, so nothing can be
+lost or split between the two. Checked with given inputs in `selfcheck` (the game files section).
+
 ## Files the port writes (`PortFiles`)
 
 The port never writes into the game folder except CHARSTAT.TXT, as the original does, and only

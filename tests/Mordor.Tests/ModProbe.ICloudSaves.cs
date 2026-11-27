@@ -86,6 +86,7 @@ public static partial class ModProbe
             HookChecks(root, bundled, cloudDocs, cloud);
             _icloudAsm = Assembly.LoadFrom(Path.Combine(bundled, "ICloudSaves", "Mordor.Mod.ICloudSaves.dll"));
             EngineChecks(root, cloud);
+            ChainChecks(root);
             StartChecks(root);
         }
         finally { Environment.SetEnvironmentVariable("MORDOR_ICLOUD", oldEnv); }
@@ -126,9 +127,41 @@ public static partial class ModProbe
         Check("... with the menu (but Exit) shut while it is awaited, and opened again in a finally",
               System.Text.RegularExpressions.Regex.IsMatch(tw, @"Task MenuModsOpened\(\)\s*\{\s*var shut = Form\.Children\.OfType<Button>\(\)\.Where\(b => b != ExitBtn[^;]*;\s*foreach \(var b in shut\) b\.IsEnabled = false;[^}]*try \{ await ModStartup\.MainMenuOpened\(this\); \}\s*finally\s*\{[^}]*foreach \(var b in shut\) b\.IsEnabled = true;"), true);
         string city = PortSource("src/Mordor.App", "CityWindow.axaml.cs").Replace("\r\n", "\n");
-        Check("the city raises Saved after its arrival save, and after its last save as it closes",
-              city.Contains("RefreshSummary(); Save();\n        // and, the arrival saved, that the saves are on disk (docs/MODDING.md, Saved; API version 17)\n        Mordor.Modding.ModHost.Active.SavePointReached(Mordor.Modding.SavePointKind.ArrivedInTown);")
-              && System.Text.RegularExpressions.Regex.IsMatch(city, @"else \{ SaveWindowLayout\(\); Save\(\); \}\s*(//[^\n]*\n\s*)*Mordor\.Modding\.ModHost\.Active\.SavePointReached\(Mordor\.Modding\.SavePointKind\.GameEnded\);"), true);
+        Check("the city raises Saved after its arrival save, and after its last save as it closes - each only when that save worked",
+              System.Text.RegularExpressions.Regex.IsMatch(city, @"RefreshSummary\(\); bool saved = Save\(\);\s*(//[^\n]*\n\s*)*if \(saved\) Mordor\.Modding\.ModHost\.Active\.SavePointReached\(Mordor\.Modding\.SavePointKind\.ArrivedInTown\);")
+              && System.Text.RegularExpressions.Regex.IsMatch(city, @"if \(_below != null\) \{ _below\.Close\(\); saved = Save\(\); \}\s*else \{ SaveWindowLayout\(\); saved = Save\(\); \}\s*(//[^\n]*\n\s*)*if \(saved\) Mordor\.Modding\.ModHost\.Active\.SavePointReached\(Mordor\.Modding\.SavePointKind\.GameEnded\);")
+              && System.Text.RegularExpressions.Regex.IsMatch(city, @"private bool Save\(\)\s*\{\s*try\s*\{\s*return _party\.TrySaveAll\(Saves\.DirFor\(_gameDir\)\);\s*\}\s*catch \{ return false;"), true);
+        {
+            // the city's Save says whether it worked (Party.TrySaveAll): a folder that cannot be made, or one member's file not written
+            var two = new Party(new Character { Name = "Ann", Guilds = { new GuildMembership { Guild = "Nomad", Level = 1 } } },
+                                new Character { Name = "Ben", Guilds = { new GuildMembership { Guild = "Nomad", Level = 1 } } });
+            string good = Path.Combine(dir, "saved-ok"), blocked = Path.Combine(dir, "saved-file"), partly = Path.Combine(dir, "saved-partly");
+            File.WriteAllText(blocked, "a file where the folder would be");
+            Directory.CreateDirectory(Path.Combine(partly, "Ben.json"));   // a folder in the way of Ben's save
+            Check("Party.TrySaveAll: true when all are written; false when the folder cannot be made; false when one member's save fails, the other still written",
+                  $"{two.TrySaveAll(good)} {two.TrySaveAll(blocked)} {two.TrySaveAll(partly)} {File.Exists(Path.Combine(partly, "Ann.json"))}",
+                  "True False False True");
+        }
+        {
+            // the game's context failing to be made (RunActions' make) ends no program: logged, no hook asked, the task done
+            string menuMods = Path.Combine(dir, "menu-mods");
+            MakeTestMod(menuMods, "MenuHook", nameof(MenuHookMod));
+            var mst = new ModSettingsStore(Path.Combine(dir, "menuhook.ini"));
+            mst.SetEnabled("MenuHook", true);
+            var mlog = new List<string>();
+            var mh = Host(mst.Path, mlog, menuMods);
+            int asked = 0;
+            Task? done = null;
+            Exception? thrown = null;
+            try { done = mh.MainMenuOpened(() => throw new InvalidOperationException("no menu")); done.GetAwaiter().GetResult(); }
+            catch (Exception ex) { thrown = ex; }
+            Check("a context that throws as it is made: no throw out of the host, the task done, the hook not asked, the mod not faulted, mods.log told",
+                  $"{thrown?.GetType().Name ?? "none"} {done?.IsCompletedSuccessfully} {asked} {mh.Loaded.Single(l => l.Id == "MenuHook").Faulted} "
+                  + $"{mlog.Any(l => l.Contains("MainMenuOpened could not be made") && l.Contains("no menu"))}",
+                  "none True 0 False True");
+            mh.MainMenuOpened(() => new MainMenuContext(dir, (_, _, _) => { asked++; return Task.FromResult(0); }, () => { })).GetAwaiter().GetResult();
+            Check("... and the next time, made, the hook is asked (nothing left running)", asked, 1);
+        }
 
         // a context is good only while its hook runs
         var probe = new MainMenuContext(dir, (_, _, b) => Task.FromResult(b.Count), () => { });
@@ -551,6 +584,79 @@ public static partial class ModProbe
         else Check("off macOS: stat(2) is not called", (long)IcStatic("ICloudDrive", "StatSize", Path.Combine(a.Saves, "Anna.json"))!, -1L);
     }
 
+    // ---------------------------------------------------------------- several uploads in a row from the other Mac
+
+    /// <summary>
+    /// Two Macs on one iCloud Drive folder of their own. The other Mac uploads at every return to town,
+    /// so by the time this one looks there are often several of its snapshots in a row: the newest's
+    /// parent is the other Mac's previous upload, not this Mac's world. The chain is followed back
+    /// through them; only a chain that does not reach this Mac's world, or cannot be followed, is a conflict.
+    /// </summary>
+    private static void ChainChecks(string root)
+    {
+        Console.WriteLine("iCloud Saves: the other Mac uploaded twice since this one synced - newer, not a conflict:");
+        string home = Path.Combine(root, "chain");
+        string cloud = Path.Combine(home, "cloud");
+        Directory.CreateDirectory(cloud);
+        var t0 = new DateTime(2026, 11, 2, 9, 0, 0, DateTimeKind.Utc);
+        var a = new FakeMac(home, "Mac-A", cloud, t0);
+        var b = new FakeMac(home, "Mac-B", cloud, t0);
+        a.Write("dungeon.json", "{\"rooms\":\"A1\"}");
+        a.Write("Anna.json", "{\"level\":3}");
+        a.Sync.AutoUpload();
+        string a1 = SnapshotsIn(cloud).Single();
+        b.Now = t0.AddMinutes(10);
+        b.Sync.Restore(a1);
+        b.Now = t0.AddHours(1); b.Write("Anna.json", "{\"level\":4}");
+        Check("B back in town: uploaded", (bool)b.Sync.AutoUpload().Done, true);
+        b.Now = t0.AddHours(2); b.Write("Anna.json", "{\"level\":5}");
+        Check("B back in town again: uploaded again", (bool)b.Sync.AutoUpload().Done, true);
+        var bSnaps = SnapshotsIn(cloud).Where(n => n.Contains("_Mac-B")).ToArray();
+        var listed = ((IEnumerable<dynamic>)a.Sync.ListCloud()).ToList();
+        dynamic Entry(string name) => listed.First(x => (string)x.FileName == name);
+        Check("B's newest grew from B's first, not from A's world (the case the newest's parent alone got wrong)",
+              $"{(string?)Entry(bSnaps[1]).ParentWorldHash == (string?)Entry(bSnaps[0]).WorldHash} {(string?)Entry(bSnaps[1]).ParentWorldHash == a.WorldHash()}",
+              "True False");
+        dynamic st = a.Sync.Status();
+        Check("A, unchanged: iCloud's is newer, B's newest offered", $"{st.Kind} {st.Candidate.FileName}", $"CloudNewer {bSnaps[1]}");
+        Check("... and the save point uploads nothing over it", (bool)a.Sync.AutoUpload().Done, false);
+
+        Console.WriteLine("iCloud Saves: the same, with A changed too - a conflict:");
+        a.Now = t0.AddHours(3);
+        a.Write("dungeon.json", "{\"rooms\":\"A2\"}");
+        Check("A changed as well: a conflict", a.Kind(), "Conflict");
+        a.Write("dungeon.json", "{\"rooms\":\"A1\"}");
+        Check("A's change undone: newer again", a.Kind(), "CloudNewer");
+
+        Console.WriteLine("iCloud Saves: a chain that cannot be followed is a conflict, never newer:");
+        string b1 = Path.Combine(cloud, "Snapshots", bSnaps[0]);
+        a.Dataless.Add(bSnaps[0]);
+        Check("B's first not downloaded to A yet (its world unknown): a conflict", a.Kind(), "Conflict");
+        a.Dataless.Clear();
+        byte[] kept = File.ReadAllBytes(b1);
+        File.WriteAllBytes(b1, Encoding.UTF8.GetBytes("not a snapshot"));
+        Check("B's first unreadable: a conflict", a.Kind(), "Conflict");
+        File.WriteAllBytes(b1, kept);
+        Check("B's first whole again: newer", a.Kind(), "CloudNewer");
+        File.Move(b1, b1 + ".aside");
+        Check("B's first gone from iCloud Drive (the chain broken): a conflict", a.Kind(), "Conflict");
+        File.Move(b1 + ".aside", b1);
+
+        Console.WriteLine("iCloud Saves: a real fork, several uploads deep, is a conflict:");
+        // C restores A's first world; A then moves on and uploads; C plays on from the older world and
+        // uploads twice. C's chain leads back to A1, which is not the world A last synced (A3)
+        var c = new FakeMac(home, "Mac-C", cloud, t0.AddHours(4));
+        c.Sync.Restore(a1);
+        a.Sync.Restore(bSnaps[1]);
+        a.Now = t0.AddHours(5); a.Write("dungeon.json", "{\"rooms\":\"A3\"}");
+        Check("A takes B's world, changes it and uploads", (bool)a.Sync.AutoUpload().Done, true);
+        c.Now = t0.AddHours(6); c.Write("Anna.json", "{\"level\":7}"); c.Sync.UploadNow();
+        c.Now = t0.AddHours(7); c.Write("Anna.json", "{\"level\":8}");
+        Check("C uploads twice from A's first world", (bool)c.Sync.AutoUpload().Done, true);
+        st = a.Sync.Status();
+        Check("A, unchanged since its upload: C's newest is a fork - a conflict", $"{st.Kind} {((string)st.Candidate.FileName).Contains("_Mac-C")}", "Conflict True");
+    }
+
     // ---------------------------------------------------------------- the questions at the main menu
 
     private static void StartChecks(string root)
@@ -571,7 +677,7 @@ public static partial class ModProbe
             Activator.CreateInstance(IcType("CloudSaves"), mac.Saves, (Func<(string?, string?)>)(() => where), mac.Name,
                                      (Func<bool>)(() => upload), (Func<bool>)(() => check),
                                      (Action<string>)(l => log.Add(l)), (Action<string, Exception?>)((w, e) => log.Add("ERROR " + w + " " + e)),
-                                     (Func<DateTime>)(() => mac.Now), (Func<string, bool>)(_ => false),
+                                     (Func<DateTime>)(() => mac.Now), (Func<string, bool>)(p => mac.Dataless.Contains(Path.GetFileName(p))),
                                      (Func<string>)(() => told.TryGetValue(mac.Name, out var t) ? t : ""),
                                      (Action<string>)(v => told[mac.Name] = v))!;
         void Start(dynamic saves, FakeMenu menu, string savesDir) => ((Task)saves.MainMenu(menu.Context(savesDir))).GetAwaiter().GetResult();
@@ -628,6 +734,54 @@ public static partial class ModProbe
         Check("the next start offers it (Restore or Cancel the restore), even with the check off; cancelled, it is gone",
               $"{menu.Asked[0].EndsWith("[Restore|Cancel the restore]")} {menu.Asked[0].Contains("have changed since")} {(string?)fresh.Sync.LoadState().PendingRestore ?? "none"} {menu.Quits}",
               "True True none 0");
+
+        // a restore waiting that cannot be done at the start: never left to hold every upload unseen
+        var waits = new FakeMac(root, "Start-F", cloud, t0.AddHours(5));
+        string newestS = SnapshotsIn(cloud).Last(n => n.Contains("_Start-A"));
+        waits.Sync.Restore(newestS);
+        string olderS = SnapshotsIn(cloud).First(n => n.Contains("_Start-A"));
+        dynamic w = Saves(waits, (cloud, null), check: false);
+        w.RestoreAtNextStart(olderS);
+        waits.Now = t0.AddHours(6); waits.Write("Anna.json", "{\"name\":\"Anna\",\"f\":1}");
+        string playedF = waits.Read("Anna.json");
+        int backupsF = waits.Backups().Length;
+        waits.Dataless.Add(olderS);
+        menu = new FakeMenu();
+        menu.Answers.Enqueue(0); menu.Answers.Enqueue(0);
+        Start(w, menu, waits.Saves);
+        Check("a restore waiting, not downloaded at the start: told why, then asked Keep it waiting or Cancel the restore, each said plainly",
+              $"{menu.Asked.Count} {menu.Asked[1].Contains("not downloaded")} {menu.Asked[1].EndsWith("[Keep it waiting|Cancel the restore]")} "
+              + $"{menu.Asked[1].Contains("nothing is uploaded from this Mac until then")} {menu.Asked[1].Contains("uploaded as usual")}",
+              "2 True True True True");
+        Check("... kept waiting: still waiting, the saves untouched, no backup, no quit",
+              $"{(string?)waits.Sync.LoadState().PendingRestore == olderS} {waits.Read("Anna.json") == playedF} {waits.Backups().Length - backupsF} {menu.Quits}", "True True 0 0");
+        menu = new FakeMenu();
+        menu.Answers.Enqueue(0); menu.Answers.Enqueue(-1);
+        Start(w, menu, waits.Saves);
+        Check("... the box closed with neither pressed: kept waiting (it changes nothing)", (string?)waits.Sync.LoadState().PendingRestore == olderS, true);
+        before = SnapshotsIn(cloud).Length;
+        w.SavePoint(SavePointKind.ArrivedInTown);
+        Check("... and while it waits the save point says how to upload again", $"{SnapshotsIn(cloud).Length - before} {((string)w.LastMessage).Contains("Cancel the restore")}", "0 True");
+        menu = new FakeMenu();
+        menu.Answers.Enqueue(0); menu.Answers.Enqueue(1);
+        Start(w, menu, waits.Saves);
+        Check("... cancelled: no longer waiting, the saves untouched", $"{(string?)waits.Sync.LoadState().PendingRestore ?? "none"} {waits.Read("Anna.json") == playedF} {menu.Quits}", "none True 0");
+        w.SavePoint(SavePointKind.ArrivedInTown);
+        Check("... and the next save point uploads this Mac's game, the snapshot asked for still in iCloud",
+              $"{SnapshotsIn(cloud).Length - before} {SnapshotsIn(cloud).Contains(olderS)}", "1 True");
+        waits.Dataless.Clear();
+        w.RestoreAtNextStart("20261101T230000Z_Gone.odsave");
+        waits.Now = t0.AddHours(7); waits.Write("Anna.json", "{\"name\":\"Anna\",\"f\":2}");
+        menu = new FakeMenu();
+        menu.Answers.Enqueue(0);
+        before = SnapshotsIn(cloud).Length;
+        Start(w, menu, waits.Saves);
+        Check("a restore waiting of a snapshot gone from iCloud Drive: cancelled, and told so with an OK",
+              $"{menu.Asked.Count} {menu.Asked[1].Contains("not in iCloud Drive any more")} {menu.Asked[1].Contains("is cancelled")} {menu.Asked[1].EndsWith("[OK]")} "
+              + $"{(string?)waits.Sync.LoadState().PendingRestore ?? "none"} {menu.Quits}",
+              "2 True True True none 0");
+        w.SavePoint(SavePointKind.ArrivedInTown);
+        Check("... and uploads go on as usual", SnapshotsIn(cloud).Length - before, 1);
 
         // no iCloud Drive: said once, nothing written
         var none = new FakeMac(root, "Start-C", cloud, t0);
@@ -728,4 +882,13 @@ public static partial class ModProbe
         Check("... while this Mac's own upload and the one restored are", ((IEnumerable<object>)asker.Sync.LoadState().Seen).Count(n => (string)n == g1 || (string)n == f1), 2);
         Check("nothing logged as an error in all that (every instance's log)", string.Join(" | ", log.Where(l => l.StartsWith("ERROR"))), "");
     }
+}
+
+/// <summary>
+/// A test mod hooking the main menu's moment (API version 17): asked, it asks the menu's box once, which
+/// the probe counts (the mod is loaded from a copy of this assembly, so a static here would be another's).
+/// </summary>
+public sealed class MenuHookMod : IMod
+{
+    public void Load(IModContext ctx) => ctx.Actions.MainMenuOpened = m => m.Ask("MenuHook", "asked", "OK");
 }

@@ -444,6 +444,10 @@ the rules can be stopped mid-fight with one click) and **Leave the one in comman
 character in command is never given an order by the rules). A member the player gives an order by hand - f, d or
 space, a number key, Cast, Use or a spell buffer, with them in command - is left alone until the fight ends
 (`CombatRoundContext.ByHand`, API version 16), so the key pressed plays rather than being replaced at the next tick.
+A Use rule is passed over (the next rule asked) while the Use would reach someone left alone: a Use runs sub0BDE, as
+by hand (MAINMOD2.BAS:6131-6132), which gives every member with no order their Combat Setting and calls off their
+chest count, so not while another member with no order is opening a chest, was given an order by hand, or is the
+one in command left to the player. A Use already standing is kept.
 It gives each member's fight order every round of an engaged fight, through `ModActions.CombatRound` (API version 16), and does
 nothing else: no fight is started by it (it is asked only at the tick of an engaged fight, never while monsters
 only wait, never for the free round a step gives them), nothing is cast or used there and then (an order is what
@@ -567,12 +571,21 @@ has no `mods/ICloudSaves`, and `tools/pack-release.sh` refuses one. Placed by ha
   it was found and lost again); the window says it every time. The window (toolbar button **iCloud Saves**) shows where things
   stand, the last sync (when, uploaded/restored/matched, whose world) and the newest snapshot, with **Upload now**
   and **Restore at next start** - a restore is never done during a game, which holds the world in memory and would
-  write it back, so it is marked and asked about again at the next start. Upload now runs on the window's thread,
+  write it back, so it is marked and asked about again at the next start. While it waits nothing is uploaded. If it
+  cannot be done at that start, it is not left waiting unseen: one that never can be (the snapshot gone, unreadable,
+  failing its check) is cancelled and the player told, and one that might be another time (not downloaded yet, the
+  backup or the writing failed) is put to the player - **Keep it waiting** (still no uploads; restoring it at the
+  next start replaces what is played meanwhile, backed up first) or **Cancel the restore** (uploads as usual; the
+  snapshot stays in iCloud). The box closed with neither pressed keeps it waiting. Upload now runs on the window's thread,
   as the game's saves do, so it never reads a world half-written; it is refused while iCloud simply has a newer world
   and this Mac's has not changed (it would bury it).
 - **Conflicts**: "changed here" is the world's hash differing from the one recorded at the last sync; "changed in
   iCloud" is a snapshot this Mac has not accounted for. Such a snapshot that did not grow from the world this Mac last
-  synced is a fork (another Mac that never saw this one's upload) and counts as a change on both sides. Both at once
+  synced is a fork (another Mac that never saw this one's upload) and counts as a change on both sides. "Grew from"
+  follows the parents back through the snapshots not yet accounted for (another Mac uploads at every return to town,
+  so there are often several of its snapshots in a row, each the parent of the next) until one's parent is this
+  Mac's world; a link that cannot be followed (a parent world no such snapshot holds, one not downloaded or
+  unreadable, no parent recorded) counts as a fork. Both at once
   is a conflict: nothing is chosen for the player,
   the save-point upload holds back, and they are asked - **Use iCloud's** (a restore), **Keep this Mac's** (an upload;
   iCloud's stays there as an earlier version) or **Decide later**. Both copies are always kept. A snapshot not
@@ -600,11 +613,15 @@ temporary folders for two Macs and one iCloud Drive: what is synced, a snapshot'
 a fresh Mac with a backup first and settings.ini untouched, conflict detection and the upload holding back, a
 tampered, a cut-short, a path-climbing and a settings.ini-carrying snapshot refused, the backup holding the replaced
 world, placeholders, dataless and half-written snapshots never restored from, a nulled and a future-dated manifest
-unreadable without breaking the listing and holding the upload back, keeping both, a fork seen as a conflict, Upload
+unreadable without breaking the listing and holding the upload back, keeping both, a fork seen as a conflict, another
+Mac's several uploads in a row followed back to this Mac's world (newer; a conflict with this Mac changed too, or a
+link broken, not downloaded or unreadable, or a fork several uploads deep), Upload
 now refused over a newer world, a restore failing part-way put back (at a write, at the write of a file only the
 snapshot has, and at the removal of one it lacks), rooted names and zip entries the manifest does not list refused, an
 interrupted restore caught at the next start (put back, kept with uploads held until Upload now, or left for the next
-start), a restore leaving a newer snapshot as news, pruning only a Mac's own (a planted copy under its name left alone,
+start), a restore asked for in a game that cannot be done at the start (not downloaded: kept waiting, also with the
+box closed, or cancelled so uploads go on; gone from iCloud Drive: cancelled and told), a restore leaving a newer
+snapshot as news, pruning only a Mac's own (a planted copy under its name left alone,
 an evicted one of its own pruned), the seen list trimmed only of names gone, iCloud Drive missing (told once), the
 stat(2) offsets, and the start-up questions with a stand-in menu.
 
@@ -616,7 +633,7 @@ The loader looks, in this order, in
 
 1. `mods\` beside the game folder - beside `saves\`, where settings.ini lives. For the user's install that is
    `Desktop\mordor\mods\`. Put your own mods here.
-2. `mods\` beside the program (`src\Mordor.App\bin\<config>\net8.0\mods\`), where the build puts the mods that come with
+2. `mods\` beside the program (`src\Mordor.App\bin\<config>\net10.0\mods\`), where the build puts the mods that come with
    the port (`src/Mods/ShipMods.targets`; a publish puts them in its own `mods\`). In an installed copy that is
    `%LOCALAPPDATA%\OpenDejenol.Game\current\mods\`, which each update replaces: put your own mods in the first.
 
@@ -683,7 +700,7 @@ page even while the mod is off.
 
 ### The project
 
-A .NET 8 class library referencing `Mordor.Modding` (the API) and, as needed, `Mordor.Core` (the game's types:
+A .NET 10 class library referencing `Mordor.Modding` (the API) and, as needed, `Mordor.Core` (the game's types:
 `Character`, `Item`, `Party`...). Mark those references `Private="false"`: the game's own copies are used at run time.
 `src/Mods/Mordor.Mod.QoL/Mordor.Mod.QoL.csproj` is a working example.
 
@@ -749,7 +766,9 @@ public sealed class Entry : Mordor.Modding.IMod
   `Saved(SavePoint)` (API version 17): the game's saves are on disk at a save point - `Kind` `ArrivedInTown` (the
   stairs up into town, raised after the town's save of the arrival, so after `ArrivedInTown`, which comes before it)
   or `GameEnded` (Exit to Main Menu or the program closing, raised after the city's last save - and after the
-  dungeon's, when the session ends below). For a mod that copies the saves (the iCloud Saves mod). Observe only, and
+  dungeon's, when the session ends below). Raised only when that save worked (every member written,
+  `Party.TrySaveAll`): a save that failed - the folder not writable, a file in the way - is no save point, and a mod
+  copying the saves would copy what is not there. For a mod that copies the saves (the iCloud Saves mod). Observe only, and
   be quick: on the way out the program closes as soon as the handlers return. With no mod listening nothing more happens.
 - **Decisions** (null = the original's answer): `StoreAllowsRowChangeWhileChoosing` (any mod saying true unlocks it),
   `CityAltP` (first non-null answer wins; return `new CityAltPAnswer(CityAltPAction.PoolAndDeposit, "line")`),
@@ -955,7 +974,11 @@ public sealed class Entry : Mordor.Modding.IMod
   the keys do), `Cast(c, spell)` (the spell made the order as a spell buffer fires it, the chest count called off,
   then mdrcharCheckCast, whose refusal is said in the "you" wording and leaves what it leaves), `UseItem(c, slot)`
   (an item known at All holding a spell made the order, after sub15CD's guards, the check at the item's level and
-  sub0BDE, as by hand; below All refused before it is looked at) and `Aim(c, slot)` (a number key). Each returns whether it went
+  sub0BDE, as by hand; below All refused before it is looked at; and refused, doing nothing, while another member
+  with no order is opening a chest or was given an order by hand this fight - sub0BDE gives every member with no
+  order their Combat Setting and drops their chest count, which would call off the count or replace the order the
+  player left, breaking `ByHand`'s promise; once that member has an order or the count has run out the same Use goes
+  through, and the player's own Use is the original's and does not ask) and `Aim(c, slot)` (a number key). Each returns whether it went
   through; each refuses once the hook has returned, once the fight is over or another begun, and for a member
   not in the party or dead. Nothing is thrown or used there and then: the round plays the orders.
 - **Settings**: `Get/Set(key)` for booleans (default from the declaration), `GetText/SetText` for strings,

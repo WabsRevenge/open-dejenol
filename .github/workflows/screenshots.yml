@@ -12,8 +12,11 @@
 #     learns a spell, buffers it as their Combat Setting and casts it in a second fight. Each step is
 #     checked and pictured (playthrough/). Its outcomes are made certain by the fixture's data, not by
 #     fixing the dice: the game's own rules run as they do for a player.
-# The pictures are the run's artifacts, one set per machine: the same windows, drawn by each system's
-# fonts and text engine. The ARM machines are there for the native ARM64 builds (Windows, Linux, and
+# The readability pass also fails on a character no font on the machine can draw, text clipped by its
+# control, and a control past its window's edge (LayoutCheck), and writes checks.json. Each machine
+# then compares its pictures with its own from the last main run (--compare): the run's summary page
+# says what changed. The pictures are the run's artifacts, one set per machine: the same windows,
+# drawn by each system's fonts and text engine. A last job puts all five on one page (--gallery). The ARM machines are there for the native ARM64 builds (Windows, Linux, and
 # macOS on Apple Silicon, which is the only Mac GitHub offers).
 name: Screenshots
 
@@ -25,6 +28,8 @@ on:
 
 permissions:
   contents: read
+  # to fetch the last main run's pictures, each machine's baseline
+  actions: read
 
 concurrency:
   group: screenshots-${{ github.ref }}
@@ -50,10 +55,10 @@ jobs:
       - uses: actions/setup-dotnet@v6
         id: dotnet
         with:
-          dotnet-version: 8.0.x
+          dotnet-version: 10.0.x
 
-      # the runner has newer SDKs too; build with the .NET 8 one just installed, as the project does
-      - name: Pin the .NET 8 SDK
+      # the runner has other SDKs too; build with the .NET 10 one just installed, as the project does
+      - name: Pin the .NET 10 SDK
         shell: bash
         run: dotnet new globaljson --sdk-version "${{ steps.dotnet.outputs.dotnet-version }}" --force
 
@@ -80,6 +85,31 @@ jobs:
           MORDOR_SNAPSHOT_DIR: ${{ runner.temp }}/screenshots
         run: dotnet run --project tests/Mordor.UiCheck -c Release --no-build -- "$RUNNER_TEMP/fixture" --playthrough
 
+      # The baseline: this machine's pictures from the last finished run on main (this run, on a push
+      # to main, is still going and so is not it). A pull request is compared with main. None found -
+      # the first run, or a machine new to the matrix - is reported as such, not as a failure.
+      - name: Fetch this machine's pictures from the last main run
+        if: ${{ !cancelled() && steps.fixture.outcome == 'success' }}
+        continue-on-error: true
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/baseline"
+          id=$(gh run list -R "$GITHUB_REPOSITORY" --workflow screenshots.yml --branch main --event push --status completed --limit 1 --json databaseId -q ".[0].databaseId")
+          if [ -z "$id" ]; then echo "no finished run on main yet"; exit 0; fi
+          gh run download "$id" -R "$GITHUB_REPOSITORY" -n "screenshots-$RUNNER_OS-$RUNNER_ARCH" -D "$RUNNER_TEMP/baseline" \
+            || echo "run $id has no pictures for this machine"
+
+      # what changed since then: before, after and a difference picture for each, and a line on the
+      # run's summary page; it never fails the job, it only reports
+      - name: Compare with the last main run
+        if: ${{ !cancelled() && steps.fixture.outcome == 'success' }}
+        shell: bash
+        run: |
+          dotnet run --project tests/Mordor.UiCheck -c Release --no-build -- --compare "$RUNNER_TEMP/baseline" "$RUNNER_TEMP/screenshots" "$RUNNER_TEMP/screenshots/compare"
+          { echo "### $RUNNER_OS $RUNNER_ARCH"; cat "$RUNNER_TEMP/screenshots/compare/summary.md"; } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Keep the pictures
         if: always()
         uses: actions/upload-artifact@v7
@@ -87,3 +117,44 @@ jobs:
           name: screenshots-${{ runner.os }}-${{ runner.arch }}
           path: ${{ runner.temp }}/screenshots
           if-no-files-found: warn
+
+  # One page for every machine: a row per screen, a column per machine, changed and failing pictures
+  # marked (Mordor.UiCheck --gallery). Download "gallery" from the run and open index.html.
+  gallery:
+    if: ${{ always() && github.repository == 'uncanardnoir/open-dejenol' }}
+    needs: pictures
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-dotnet@v6
+        id: dotnet
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Pin the .NET 10 SDK
+        shell: bash
+        run: dotnet new globaljson --sdk-version "${{ steps.dotnet.outputs.dotnet-version }}" --force
+
+      - name: Build the window checks
+        shell: bash
+        run: dotnet build tests/Mordor.UiCheck -c Release
+
+      # each machine's artifact into a folder of its own name (screenshots-<os>-<arch>)
+      - uses: actions/download-artifact@v7
+        with:
+          pattern: screenshots-*
+          path: ${{ runner.temp }}/artifacts
+
+      - name: Build the gallery
+        shell: bash
+        run: |
+          dotnet run --project tests/Mordor.UiCheck -c Release --no-build -- --gallery "$RUNNER_TEMP/artifacts" "$RUNNER_TEMP/gallery"
+          echo "Every machine on one page: download **gallery** below and open \`index.html\`." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the gallery
+        uses: actions/upload-artifact@v7
+        with:
+          name: gallery
+          path: ${{ runner.temp }}/gallery

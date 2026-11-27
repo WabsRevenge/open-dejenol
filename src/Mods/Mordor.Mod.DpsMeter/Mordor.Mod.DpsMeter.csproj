@@ -3,7 +3,7 @@
   <!-- The DPS Meter mod (docs/MODDING.md). Built with the game: src/Mods/ShipMods.targets copies its .dll
        and mod.json into <program>/mods/DpsMeter, where the loader finds it. -->
   <PropertyGroup>
-    <TargetFramework>net8.0</TargetFramework>
+    <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>

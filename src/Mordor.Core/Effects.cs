@@ -40,11 +40,12 @@ public static class Effects
 
     /// <summary>
     /// The effect bits the character's gear grants (the original's M5977), from <c>sub120F</c>.
+    /// Slot 0 is walked too: gatherItemEffects runs 0 To mc0190 - 1 (MAINMOD2.BAS:1881).
     /// </summary>
     public static int GearEffects(Character c, Func<short, Item?> item)
     {
         int mask = 0;
-        foreach (var slot in c.Inventory)
+        foreach (var slot in c.Worn)
         {
             if (!Counts(c, slot)) continue;
             var it = item(slot.ItemId);
@@ -63,7 +64,7 @@ public static class Effects
     {
         int value = c.RaceDef?.Resistances is { } baseline && kind < baseline.Length ? baseline[kind] : 0;
 
-        foreach (var slot in c.Inventory)
+        foreach (var slot in c.Worn)
         {
             if (!Counts(c, slot)) continue;
             var it = item(slot.ItemId);

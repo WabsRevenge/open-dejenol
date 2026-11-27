@@ -238,12 +238,22 @@ public static class RuleEngine
     /// per member. A member opening a chest (o: the Option column's "Open") is left to it - any order
     /// would call the count off, as the keys do. <paramref name="skip"/> leaves a member out (the one
     /// in command, when asked).
+    ///
+    /// A Use rule is passed over (the next rule asked) while the Use would reach a member left alone:
+    /// as by hand, a Use runs sub0BDE (MAINMOD2.BAS:6131-6132), which drops the chest count of every
+    /// member with no order and gives them their Combat Setting - so not while another member with no
+    /// order is opening a chest or is one <paramref name="skip"/> leaves out (given an order by hand,
+    /// or the one in command when asked). The game's command refuses it then too
+    /// (<see cref="CombatRoundContext.UseItem"/>), for all but the one in command, which only the mod knows of.
     /// </summary>
     public static List<Decision> Decide(IReadOnlyList<Rule> rules, CombatRoundContext ctx, Func<Character, object, bool> refused,
                                         Func<Character, bool>? skip = null)
     {
         var made = new List<Decision>();
         if (ctx.Groups.Count == 0) return made;
+        bool UseReachesOthers(Character m) =>
+            ctx.Members.Any(x => !ReferenceEquals(x, m) && ctx.OrderOf(x) is { Kind: OrderKind.None } o
+                                 && (o.OpeningChest || ctx.ByHand(x) || (skip?.Invoke(x) ?? false)));
         foreach (var m in ctx.Members.ToList())
         {
             // the dead do nothing, and the held fast do nothing in the round (sub1019, MONSMOD.BAS:291)
@@ -255,7 +265,10 @@ public static class RuleEngine
                 Decision? d = r.Do switch
                 {
                     RuleAction.Cast => SpellFor(r, m, ctx, refused) is Spell s ? new Decision(m, i, r.Do, s, null, AimFor(r, ctx.Groups)) : null,
-                    RuleAction.Use => ItemFor(r, m, ctx, refused) is var (slot, sp) ? new Decision(m, i, r.Do, sp, slot, AimFor(r, ctx.Groups)) : null,
+                    // an item order already standing needs no Use (Apply sends nothing), so it is kept
+                    RuleAction.Use => ItemFor(r, m, ctx, refused) is var (slot, sp)
+                                      && (ReferenceEquals(ctx.OrderOf(m).ItemSlot, slot) || !UseReachesOthers(m))
+                                      ? new Decision(m, i, r.Do, sp, slot, AimFor(r, ctx.Groups)) : null,
                     RuleAction.Fight => new Decision(m, i, r.Do, null, null, AimFor(r, ctx.Groups)),
                     _ => new Decision(m, i, r.Do, null, null, null),
                 };

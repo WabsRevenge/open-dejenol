@@ -18,7 +18,7 @@ public static class PortTree
 
     /// <summary>
     /// The root of the tree this build came from: the nearest folder above the build that holds
-    /// Mordor.sln (the build is tests/Mordor.Tests/bin/&lt;config&gt;/net8.0, or Mordor.Tools' in
+    /// Mordor.sln (the build is tests/Mordor.Tests/bin/&lt;config&gt;/net10.0, or Mordor.Tools' in
     /// tools/, so five folders up; the walk does not depend on the depth).
     /// </summary>
     public static string Root { get; } = FindRoot();
